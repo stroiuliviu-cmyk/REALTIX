@@ -1,122 +1,384 @@
-export default function Realtix() {
-  const stats = [
-    { title: 'Total anunțuri', value: '128' },
-    { title: 'Clienți activi', value: '42' },
-    { title: 'Venit lunar', value: '€3,240' },
-    { title: 'Tranzacții finalizate', value: '19' },
-  ];
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Realtix Responsive</title>
 
-  const menu = ['Prezentare generală', 'Anunțuri', 'Clienți', 'Tranzacții', 'Calendar', 'Instrumente AI', 'Setări'];
-  const filters = ['Oraș', 'Tip', 'Camere', 'Preț', 'Suprafață'];
-  const clients = ['Maria Popa', 'Ion Rusu', 'Victor Sandu'];
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 text-slate-900 font-sans">
-      <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-8 py-4">
-          <div>
-            <div className="text-3xl font-bold tracking-widest">REALTIX</div>
-            <div className="text-xs text-slate-500">Startup mode • SaaS PropTech pregătit de scalare</div>
-          </div>
-
-          <nav className="hidden gap-8 text-sm text-slate-600 md:flex">
-            <a href="#">Panou principal</a>
-            <a href="#">Proprietăți</a>
-            <a href="#">CRM</a>
-            <a href="#">Analize</a>
-            <a href="#">Abonamente</a>
-          </nav>
-
-          <button className="rounded-full bg-gradient-to-r from-slate-900 to-blue-700 px-6 py-2.5 text-white shadow-lg">Adaugă anunț</button>
-        </div>
-      </header>
-
-      <div className="mx-auto grid max-w-7xl grid-cols-12 gap-6 p-8">
-        <aside className="col-span-2 rounded-[2rem] bg-white/90 p-5 shadow-2xl border border-white backdrop-blur-xl">
-          <div className="mb-3 text-xs font-semibold uppercase text-slate-500">Meniu</div>
-          <div className="space-y-2">
-            {menu.map((item, index) => (
-              <div
-                key={item}
-                className={index === 0 ? 'rounded-2xl bg-slate-900 p-3 text-white' : 'rounded-2xl p-3 hover:bg-gradient-to-br from-slate-50 via-white to-blue-50'}
-              >
-                {item}
-              </div>
-            ))}
-          </div>
-        </aside>
-
-        <main className="col-span-10 space-y-6">
-          <section className="rounded-3xl bg-blue-700 p-10 text-white shadow">
-            <div className="grid grid-cols-2 gap-6">
-              <div>
-                <div className="text-sm uppercase opacity-80">SERIES A READY</div>
-                <h1 className="mt-2 text-4xl font-bold">Construiește agenția imobiliară a viitorului</h1>
-                <p className="mt-3 text-blue-100">Lead-uri, proprietăți, automatizare și AI într-o platformă SaaS vândabilă regional.</p>
-                <div className="mt-5 flex gap-3">
-                  <button className="rounded-full bg-white px-6 py-3 font-semibold text-slate-900">Începe acum</button>
-                  <button className="rounded-full border border-white px-6 py-3">Vezi demo</button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                {stats.map((stat) => (
-                  <div key={stat.title} className="rounded-3xl bg-white/10 p-5 border border-white/10 backdrop-blur">
-                    <div className="text-sm text-blue-100">{stat.title}</div>
-                    <div className="mt-2 text-3xl font-bold">{stat.value}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          <section className="rounded-[2rem] bg-white p-6 shadow-2xl border border-slate-100">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-xl font-bold">Căutare inteligentă</h2>
-              <button className="rounded-2xl bg-slate-900 px-5 py-2 text-white">Caută</button>
-            </div>
-            <div className="grid grid-cols-5 gap-3">
-              {filters.map((item) => (
-                <input key={item} placeholder={item} className="rounded-2xl border border-slate-200 px-4 py-3" />
-              ))}
-            </div>
-          </section>
-
-          <section className="grid grid-cols-3 gap-5">
-            {[1, 2, 3].map((item) => (
-              <div key={item} className="overflow-hidden rounded-3xl bg-white shadow">
-                <div className="h-44 bg-slate-200" />
-                <div className="p-5">
-                  <div className="text-lg font-bold">Startup Residence #{item}</div>
-                  <div className="mt-1 text-sm text-slate-500">Chișinău • 72 m² • 2 camere</div>
-                  <div className="mt-4 text-3xl font-bold text-emerald-600">€89,000</div>
-                  <button className="mt-4 w-full rounded-2xl bg-slate-900 py-3 text-white">Vezi detalii</button>
-                </div>
-              </div>
-            ))}
-          </section>
-
-          <section className="grid grid-cols-2 gap-5">
-            <div className="rounded-[2rem] bg-white p-6 shadow-2xl border border-slate-100">
-              <h3 className="mb-4 font-bold">Flux clienți</h3>
-              <div className="space-y-3">
-                {clients.map((client) => (
-                  <div key={client} className="flex items-center justify-between rounded-2xl border border-slate-200 p-4">
-                    <span>{client}</span>
-                    <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700">Online</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-[2rem] bg-white p-6 shadow-2xl border border-slate-100">
-              <h3 className="mb-4 font-bold">Asistent AI</h3>
-              <textarea className="h-32 w-full rounded-2xl border border-slate-200 p-4" placeholder="Generează descriere anunț sau estimează valoarea proprietății..." />
-              <button className="mt-4 rounded-2xl bg-gradient-to-r from-slate-900 to-blue-700 px-5 py-3 text-white shadow-lg">Rulează AI</button>
-            </div>
-          </section>
-        </main>
-      </div>
-    </div>
-  );
+<style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
 }
+
+body{
+    font-family:Arial, Helvetica, sans-serif;
+    background:#0f172a;
+    color:white;
+    overflow-x:hidden;
+}
+
+img{
+    max-width:100%;
+}
+
+/* HEADER */
+header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:20px 60px;
+    background:#111827;
+    border-bottom:1px solid rgba(255,255,255,0.08);
+    flex-wrap:wrap;
+    gap:20px;
+}
+
+.logo{
+    font-size:28px;
+    font-weight:bold;
+    color:#3b82f6;
+}
+
+nav{
+    display:flex;
+    flex-wrap:wrap;
+    gap:15px;
+}
+
+nav a{
+    color:white;
+    text-decoration:none;
+    transition:0.3s;
+    font-size:15px;
+}
+
+nav a:hover{
+    color:#3b82f6;
+}
+
+.btn{
+    padding:12px 22px;
+    border:none;
+    border-radius:10px;
+    cursor:pointer;
+    font-weight:bold;
+    transition:0.3s;
+}
+
+.primary{
+    background:#3b82f6;
+    color:white;
+}
+
+.secondary{
+    background:white;
+    color:#111827;
+}
+
+/* HERO */
+.hero{
+    padding:70px 60px;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:50px;
+    align-items:start;
+}
+
+.hero h1{
+    font-size:58px;
+    line-height:1.1;
+    margin-bottom:25px;
+}
+
+.hero p{
+    font-size:22px;
+    color:#cbd5e1;
+    margin-bottom:35px;
+    line-height:1.5;
+}
+
+.buttons{
+    display:flex;
+    flex-wrap:wrap;
+    gap:15px;
+    margin-bottom:40px;
+}
+
+/* STATS */
+.stats{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:18px;
+}
+
+.stat{
+    background:#1e293b;
+    padding:25px;
+    border-radius:18px;
+}
+
+.stat h3{
+    font-size:15px;
+    color:#94a3b8;
+    margin-bottom:10px;
+}
+
+.stat span{
+    font-size:32px;
+    font-weight:bold;
+}
+
+/* PANEL */
+.panel{
+    background:#111827;
+    padding:30px;
+    border-radius:24px;
+    border:1px solid rgba(255,255,255,0.07);
+}
+
+.search{
+    display:flex;
+    gap:10px;
+    margin-bottom:20px;
+}
+
+.search input{
+    flex:1;
+    padding:14px;
+    border:none;
+    outline:none;
+    border-radius:12px;
+}
+
+.filters{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    margin-bottom:25px;
+}
+
+.tag{
+    padding:10px 14px;
+    background:#1e293b;
+    border-radius:30px;
+    font-size:14px;
+}
+
+.card{
+    background:#1e293b;
+    padding:20px;
+    border-radius:18px;
+    margin-bottom:15px;
+}
+
+.card h4{
+    margin-bottom:10px;
+    font-size:18px;
+}
+
+.card p{
+    color:#cbd5e1;
+}
+
+.price{
+    color:#3b82f6;
+    font-size:24px;
+    font-weight:bold;
+    margin-top:10px;
+}
+
+/* TABLET */
+@media(max-width:1100px){
+
+header{
+    padding:20px 30px;
+}
+
+.hero{
+    grid-template-columns:1fr;
+    padding:50px 30px;
+}
+
+.hero h1{
+    font-size:46px;
+}
+
+.hero p{
+    font-size:20px;
+}
+}
+
+/* MOBILE */
+@media(max-width:700px){
+
+header{
+    flex-direction:column;
+    align-items:flex-start;
+    padding:18px 18px;
+}
+
+nav{
+    width:100%;
+    flex-direction:column;
+}
+
+.hero{
+    padding:35px 18px;
+    gap:30px;
+}
+
+.hero h1{
+    font-size:34px;
+}
+
+.hero p{
+    font-size:17px;
+}
+
+.buttons{
+    flex-direction:column;
+}
+
+.buttons .btn{
+    width:100%;
+}
+
+.stats{
+    grid-template-columns:1fr;
+}
+
+.search{
+    flex-direction:column;
+}
+
+.search .btn{
+    width:100%;
+}
+
+.panel{
+    padding:20px;
+}
+
+.logo{
+    font-size:24px;
+}
+
+.price{
+    font-size:22px;
+}
+}
+
+/* SMALL MOBILE */
+@media(max-width:420px){
+
+.hero h1{
+    font-size:28px;
+}
+
+.hero p{
+    font-size:16px;
+}
+
+.stat span{
+    font-size:26px;
+}
+}
+</style>
+</head>
+
+<body>
+
+<header>
+<div class="logo">REALTIX</div>
+
+<nav>
+<a href="#">Panou principal</a>
+<a href="#">Proprietăți</a>
+<a href="#">CRM</a>
+<a href="#">Analize</a>
+<a href="#">Abonamente</a>
+</nav>
+
+<button class="btn primary">Adaugă anunț</button>
+</header>
+
+<section class="hero">
+
+<div>
+<h1>Construiește agenția imobiliară a viitorului</h1>
+
+<p>
+Lead-uri, proprietăți, automatizare și AI într-o platformă SaaS vândabilă regional.
+</p>
+
+<div class="buttons">
+<button class="btn primary">Începe acum</button>
+<button class="btn secondary">Vezi demo</button>
+</div>
+
+<div class="stats">
+
+<div class="stat">
+<h3>Total anunțuri</h3>
+<span>128</span>
+</div>
+
+<div class="stat">
+<h3>Clienți activi</h3>
+<span>42</span>
+</div>
+
+<div class="stat">
+<h3>Venit lunar</h3>
+<span>€3,240</span>
+</div>
+
+<div class="stat">
+<h3>Tranzacții finalizate</h3>
+<span>19</span>
+</div>
+
+</div>
+</div>
+
+<div class="panel">
+
+<div class="search">
+<input type="text" placeholder="Caută proprietăți...">
+<button class="btn primary">Caută</button>
+</div>
+
+<div class="filters">
+<div class="tag">Oraș</div>
+<div class="tag">Tip</div>
+<div class="tag">Camere</div>
+<div class="tag">Preț</div>
+<div class="tag">Suprafață</div>
+</div>
+
+<div class="card">
+<h4>Startup Residence #1</h4>
+<p>Chișinău • 72 m² • 2 camere</p>
+<div class="price">€89,000</div>
+</div>
+
+<div class="card">
+<h4>Business Tower #2</h4>
+<p>Chișinău • 105 m² • 3 camere</p>
+<div class="price">€145,000</div>
+</div>
+
+<div class="card">
+<h4>Lake View #3</h4>
+<p>Chișinău • 61 m² • 2 camere</p>
+<div class="price">€78,500</div>
+</div>
+
+</div>
+
+</section>
+
+</body>
+</html>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Realtix Responsive</title>
+<title>Realtix</title>
 
 <style>
 *{
@@ -16,11 +16,6 @@ body{
     font-family:Arial, Helvetica, sans-serif;
     background:#0f172a;
     color:white;
-    overflow-x:hidden;
-}
-
-img{
-    max-width:100%;
 }
 
 /* HEADER */
@@ -31,8 +26,6 @@ header{
     padding:20px 60px;
     background:#111827;
     border-bottom:1px solid rgba(255,255,255,0.08);
-    flex-wrap:wrap;
-    gap:20px;
 }
 
 .logo{
@@ -41,17 +34,11 @@ header{
     color:#3b82f6;
 }
 
-nav{
-    display:flex;
-    flex-wrap:wrap;
-    gap:15px;
-}
-
 nav a{
     color:white;
     text-decoration:none;
+    margin:0 15px;
     transition:0.3s;
-    font-size:15px;
 }
 
 nav a:hover{
@@ -64,7 +51,6 @@ nav a:hover{
     border-radius:10px;
     cursor:pointer;
     font-weight:bold;
-    transition:0.3s;
 }
 
 .primary{
@@ -79,11 +65,11 @@ nav a:hover{
 
 /* HERO */
 .hero{
-    padding:70px 60px;
+    padding:80px 60px;
     display:grid;
     grid-template-columns:1fr 1fr;
     gap:50px;
-    align-items:start;
+    align-items:center;
 }
 
 .hero h1{
@@ -96,12 +82,10 @@ nav a:hover{
     font-size:22px;
     color:#cbd5e1;
     margin-bottom:35px;
-    line-height:1.5;
 }
 
 .buttons{
     display:flex;
-    flex-wrap:wrap;
     gap:15px;
     margin-bottom:40px;
 }
@@ -110,7 +94,7 @@ nav a:hover{
 .stats{
     display:grid;
     grid-template-columns:repeat(2,1fr);
-    gap:18px;
+    gap:20px;
 }
 
 .stat{
@@ -120,17 +104,17 @@ nav a:hover{
 }
 
 .stat h3{
-    font-size:15px;
+    font-size:16px;
     color:#94a3b8;
     margin-bottom:10px;
 }
 
 .stat span{
-    font-size:32px;
+    font-size:34px;
     font-weight:bold;
 }
 
-/* PANEL */
+/* RIGHT BOX */
 .panel{
     background:#111827;
     padding:30px;
@@ -147,9 +131,9 @@ nav a:hover{
 .search input{
     flex:1;
     padding:14px;
+    border-radius:12px;
     border:none;
     outline:none;
-    border-radius:12px;
 }
 
 .filters{
@@ -175,11 +159,6 @@ nav a:hover{
 
 .card h4{
     margin-bottom:10px;
-    font-size:18px;
-}
-
-.card p{
-    color:#cbd5e1;
 }
 
 .price{
@@ -189,100 +168,14 @@ nav a:hover{
     margin-top:10px;
 }
 
-/* TABLET */
-@media(max-width:1100px){
+@media(max-width:1000px){
+.hero{
+grid-template-columns:1fr;
+}
 
 header{
-    padding:20px 30px;
-}
-
-.hero{
-    grid-template-columns:1fr;
-    padding:50px 30px;
-}
-
-.hero h1{
-    font-size:46px;
-}
-
-.hero p{
-    font-size:20px;
-}
-}
-
-/* MOBILE */
-@media(max-width:700px){
-
-header{
-    flex-direction:column;
-    align-items:flex-start;
-    padding:18px 18px;
-}
-
-nav{
-    width:100%;
-    flex-direction:column;
-}
-
-.hero{
-    padding:35px 18px;
-    gap:30px;
-}
-
-.hero h1{
-    font-size:34px;
-}
-
-.hero p{
-    font-size:17px;
-}
-
-.buttons{
-    flex-direction:column;
-}
-
-.buttons .btn{
-    width:100%;
-}
-
-.stats{
-    grid-template-columns:1fr;
-}
-
-.search{
-    flex-direction:column;
-}
-
-.search .btn{
-    width:100%;
-}
-
-.panel{
-    padding:20px;
-}
-
-.logo{
-    font-size:24px;
-}
-
-.price{
-    font-size:22px;
-}
-}
-
-/* SMALL MOBILE */
-@media(max-width:420px){
-
-.hero h1{
-    font-size:28px;
-}
-
-.hero p{
-    font-size:16px;
-}
-
-.stat span{
-    font-size:26px;
+flex-direction:column;
+gap:20px;
 }
 }
 </style>

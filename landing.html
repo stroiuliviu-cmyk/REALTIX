@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="ro">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>REALTIX — Panou Principal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+      body { padding: 0; margin: 0; font-family: 'Inter', sans-serif; }
+      ::-webkit-scrollbar { width: 6px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+      ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+      @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <script type="text/babel">
+      const { useState } = React;
+
+      function Realtix() {
+        // --- STATE PENTRU NAVIGARE ---
+        const [activeMenu, setActiveMenu] = useState('Prezentare generală');
+
+        // --- MOCK DATA ---
+        const stats = [
+          { title: 'Total anunțuri', value: '128' },
+          { title: 'Clienți activi', value: '42' },
+          { title: 'Venit lunar', value: '€3,240' },
+          { title: 'Tranzacții finalizate', value: '19' },
+        ];
+
+        const menu = ['Prezentare generală', 'Anunțuri', 'Clienți', 'Tranzacții', 'Calendar', 'Instrumente AI', 'Setări'];
+        const filters = ['Oraș', 'Tip', 'Camere', 'Preț', 'Suprafață'];
+        const clients = ['Maria Popa', 'Ion Rusu', 'Victor Sandu'];
+
+        const mockTransactions = [
+          { id: 'TRX-001', client: 'Ion Rusu', property: 'Apartament 2 camere, Buiucani', value: '€65,000', comm: '€1,950', status: 'Avans încasat', date: '22 Apr 2026' },
+          { id: 'TRX-002', client: 'Maria Popa', property: 'Casă Stăuceni', value: '€145,000', comm: '€4,350', status: 'La notar', date: '25 Apr 2026' },
+          { id: 'TRX-003', client: 'Victor Sandu', property: 'Spațiu comercial, Centru', value: '€320,000', comm: '€9,600', status: 'Finalizat', date: '10 Apr 2026' }
+        ];
+
+        const mockEvents = [
+          { id: 1, title: 'Vizionare Ap. Buiucani', time: '14:00', client: 'Ion Rusu', type: 'Vizionare', color: 'bg-blue-100 text-blue-700' },
+          { id: 2, title: 'Semnare precontract', time: '10:30', client: 'Victor Sandu', type: 'Contract', color: 'bg-green-100 text-green-700' }
+        ];
+
+        // --- COMPONENTE PENTRU FIECARE PAGINĂ ---
+
+        // 1. PREZENTARE GENERALĂ (Păstrează exact codul și designul tău)
+        const DashboardView = () => (
+          <div className="space-y-6 animate-[fadeIn_0.3s_ease-out]">
+            <section className="rounded-3xl bg-blue-700 p-10 text-white shadow">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <div className="text-sm uppercase opacity-80">SERIES A READY</div>
+                  <h1 className="mt-2 text-4xl font-bold">Construiește agenția imobiliară a viitorului</h1>
+                  <p className="mt-3 text-blue-100">Lead-uri, proprietăți, automatizare și AI într-o platformă SaaS vândabilă regional.</p>
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    <button className="rounded-full bg-white px-6 py-3 font-semibold text-slate-900 hover:bg-slate-100 transition-colors">Începe acum</button>
+                    <button className="rounded-full border border-white px-6 py-3 hover:bg-white/10 transition-colors">Vezi demo</button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {stats.map((stat) => (
+                    <div key={stat.title} className="rounded-3xl bg-white/10 p-5 border border-white/10 backdrop-blur">
+                      <div className="text-sm text-blue-100">{stat.title}</div>
+                      <div className="mt-2 text-3xl font-bold">{stat.value}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+
+            <section className="rounded-[2rem] bg-white p-6 shadow-2xl border border-slate-100">
+              <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <h2 className="text-xl font-bold">Căutare inteligentă</h2>
+                <button className="rounded-2xl bg-slate-900 px-5 py-2 text-white hover:bg-slate-800 transition-colors">Caută</button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+                {filters.map((item) => (
+                  <input key={item} placeholder={item} className="rounded-2xl border border-slate-200 px-4 py-3 focus:outline-none focus:border-blue-700 focus:ring-1 focus:ring-blue-700" />
+                ))}
+              </div>
+            </section>
+
+            <section className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+              {[1, 2, 3].map((item) => (
+                <div key={item} className="overflow-hidden rounded-3xl bg-white shadow hover:shadow-xl transition-shadow border border-slate-100">
+                  <div className="h-44 bg-slate-200 flex items-center justify-center text-slate-400">
+                    🖼️ Imagine Proprietate
+                  </div>
+                  <div className="p-5">
+                    <div className="text-lg font-bold">Startup Residence #{item}</div>
+                    <div className="mt-1 text-sm text-slate-500">Chișinău • 72 m² • 2 camere</div>
+                    <div className="mt-4 text-3xl font-bold text-emerald-600">€89,000</div>
+                    <button className="mt-4 w-full rounded-2xl bg-slate-900 py-3 text-white hover:bg-slate-800 transition-colors">Vezi detalii</button>
+                  </div>
+                </div>
+              ))}
+            </section>
+
+            <section className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="rounded-[2rem] bg-white p-6 shadow-2xl border border-slate-100">
+                <h3 className="mb-4 font-bold">Flux clienți</h3>
+                <div className="space-y-3">
+                  {clients.map((client) => (
+                    <div key={client} className="flex items-center justify-between rounded-2xl border border-slate-200 p-4 hover:shadow-md transition-shadow">
+                      <span className="font-semibold text-slate-700">{client}</span>
+                      <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700">Online</span>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={() => setActiveMenu('Clienți')} className="mt-4 text-sm font-semibold text-blue-700 hover:underline">Vezi tot CRM-ul &rarr;</button>
+              </div>
+
+              <div className="rounded-[2rem] bg-white p-6 shadow-2xl border border-slate-100 flex flex-col justify-between">
+                <div>
+                  <h3 className="mb-4 font-bold">Asistent AI</h3>
+                  <textarea className="h-32 w-full rounded-2xl border border-slate-200 p-4 focus:outline-none focus:border-blue-700 focus:ring-1 focus:ring-blue-700 resize-none" placeholder="Generează descriere anunț sau estimează valoarea proprietății..." />
+                </div>
+                <button onClick={() => setActiveMenu('Instrumente AI')} className="mt-4 rounded-2xl bg-gradient-to-r from-slate-900 to-blue-700 px-5 py-3 text-white shadow-lg hover:shadow-xl transition-shadow">
+                  Rulează AI
+                </button>
+              </div>
+            </section>
+          </div>
+        );
+
+        // 2. ANUNȚURI (Adaptat la designul tău cu shadow-2xl)
+        const ListingsView = () => (
+          <div className="space-y-6 animate-[fadeIn_0.3s_ease-out]">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-white p-6 rounded-[2rem] shadow-2xl border border-slate-100">
+              <h2 className="text-xl font-bold text-slate-900">Bază de date Anunțuri</h2>
+              <button className="rounded-full bg-gradient-to-r from-slate-900 to-blue-700 px-6 py-2.5 text-white shadow-lg">+ Adaugă Proprietate</button>
+            </div>
+            <div className="bg-white p-6 rounded-[2rem] shadow-2xl border border-slate-100">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left text-slate-600">
+                  <thead className="text-xs text-slate-500 uppercase bg-slate-50">
+                    <tr><th className="px-4 py-3">Proprietate</th><th className="px-4 py-3">Locație</th><th className="px-4 py-3">Preț</th><th className="px-4 py-3">Status</th></tr>
+                  </thead>
+                  <tbody>
+                    {[1, 2, 3].map((i) => (
+                      <tr key={i} className="border-b border-slate-100 hover:bg-slate-50">
+                        <td className="px-4 py-4 font-bold text-slate-900">Apartament {i} camere</td>
+                        <td className="px-4 py-4">Chișinău, Buiucani</td>
+                        <td className="px-4 py-4 font-bold text-blue-700">€{65000 + (i*10000)}</td>
+                        <td className="px-4 py-4"><span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-medium">Activ</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        );
+
+        // 3. CRM / CLIENȚI
+        const CRMView = () => (
+          <div className="space-y-6 animate-[fadeIn_0.3s_ease-out]">
+            <div className="bg-white p-6 rounded-[2rem] shadow-2xl border border-slate-100">
+              <h2 className="text-xl font-bold text-slate-900 mb-6">CRM: Kanban Clienți</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200">
+                  <h4 className="font-bold text-slate-700 mb-4 flex justify-between">Lead-uri Noi <span className="bg-white text-slate-600 px-2 rounded-full text-xs shadow-sm border border-slate-100">1</span></h4>
+                  <div className="bg-white p-4 rounded-xl shadow border border-slate-100">
+                    <div className="font-bold text-slate-900">Maria Popa</div>
+                    <div className="text-xs text-slate-500 mt-1">Cumpărător • 069 123 456</div>
+                  </div>
+                </div>
+                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200">
+                  <h4 className="font-bold text-slate-700 mb-4 flex justify-between">Vizionări <span className="bg-white text-slate-600 px-2 rounded-full text-xs shadow-sm border border-slate-100">1</span></h4>
+                  <div className="bg-white p-4 rounded-xl shadow border border-slate-100">
+                    <div className="font-bold text-slate-900">Ion Rusu</div>
+                    <div className="text-xs text-slate-500 mt-1">Chiriaș • Vizionare 15:00</div>
+                  </div>
+                </div>
+                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200">
+                  <h4 className="font-bold text-slate-700 mb-4 flex justify-between">Oferte <span className="bg-white text-slate-600 px-2 rounded-full text-xs shadow-sm border border-slate-100">1</span></h4>
+                  <div className="bg-white p-4 rounded-xl shadow border border-slate-100 border-l-4 border-l-emerald-500">
+                    <div className="font-bold text-slate-900">Victor Sandu</div>
+                    <div className="text-xs text-slate-500 mt-1">Vânzător • Așteaptă semnătura</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+        // 4. TRANZACȚII
+        const TransactionsView = () => (
+          <div className="space-y-6 animate-[fadeIn_0.3s_ease-out]">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              <div className="bg-white p-6 rounded-[2rem] shadow-2xl border border-slate-100">
+                <div className="text-slate-500 text-sm font-medium mb-1">Volum Total Vânzări</div>
+                <div className="text-3xl font-bold text-slate-900">€530,000</div>
+              </div>
+              <div className="bg-gradient-to-r from-slate-900 to-blue-700 p-6 rounded-[2rem] shadow-2xl text-white">
+                <div className="text-blue-200 text-sm font-medium mb-1">Comision Estimat</div>
+                <div className="text-3xl font-bold">€15,900</div>
+              </div>
+              <div className="bg-white p-6 rounded-[2rem] shadow-2xl border border-slate-100">
+                <div className="text-slate-500 text-sm font-medium mb-1">Tranzacții Active</div>
+                <div className="text-3xl font-bold text-slate-900">8</div>
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-[2rem] shadow-2xl border border-slate-100">
+              <h2 className="text-xl font-bold text-slate-900 mb-6">Istoric Tranzacții</h2>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left text-slate-600">
+                  <thead className="text-xs text-slate-500 uppercase bg-slate-50">
+                    <tr><th className="px-4 py-3">Client</th><th className="px-4 py-3">Valoare</th><th className="px-4 py-3">Comision</th><th className="px-4 py-3">Status</th></tr>
+                  </thead>
+                  <tbody>
+                    {mockTransactions.map((trx) => (
+                      <tr key={trx.id} className="border-b border-slate-100 hover:bg-slate-50">
+                        <td className="px-4 py-4 font-bold text-blue-700">{trx.client}</td>
+                        <td className="px-4 py-4 font-bold text-slate-900">{trx.value}</td>
+                        <td className="px-4 py-4 font-bold text-emerald-600">{trx.comm}</td>
+                        <td className="px-4 py-4">
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${trx.status === 'Finalizat' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{trx.status}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        );
+
+        // 5. CALENDAR
+        const CalendarView = () => {
+          const days = Array.from({ length: 30 }, (_, i) => i + 1);
+          return (
+            <div className="space-y-6 animate-[fadeIn_0.3s_ease-out]">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 bg-white p-6 rounded-[2rem] shadow-2xl border border-slate-100">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="font-bold text-xl text-slate-900">Aprilie 2026</h3>
+                    <button className="rounded-xl bg-slate-900 px-4 py-2 text-white text-sm hover:bg-slate-800">+ Eveniment</button>
+                  </div>
+                  <div className="grid grid-cols-7 gap-2">
+                    {days.map(day => (
+                      <div key={day} className={`aspect-square p-2 flex flex-col justify-between rounded-xl border ${day === 20 ? 'bg-blue-700 text-white border-blue-700 shadow-md' : 'bg-slate-50 border-slate-100 text-slate-700'}`}>
+                        <span className="font-bold text-sm">{day}</span>
+                        {(day === 15 || day === 22 || day === 25) && <div className="w-2 h-2 rounded-full bg-emerald-500"></div>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="bg-white p-6 rounded-[2rem] shadow-2xl border border-slate-100">
+                  <h3 className="font-bold text-xl text-slate-900 mb-6">Programul de Azi</h3>
+                  <div className="space-y-4">
+                    {mockEvents.map(ev => (
+                      <div key={ev.id} className="p-4 rounded-2xl border border-slate-100 bg-slate-50">
+                        <div className="text-sm font-bold text-slate-700 mb-1">{ev.time}</div>
+                        <h4 className="font-bold text-slate-900">{ev.title}</h4>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        };
+
+        // 6. INSTRUMENTE AI
+        const AIView = () => (
+          <div className="space-y-6 animate-[fadeIn_0.3s_ease-out]">
+            <div className="bg-gradient-to-r from-slate-900 to-blue-700 p-8 rounded-[2rem] shadow-2xl text-white">
+              <h2 className="text-3xl font-bold mb-2">✨ REALTIX AI</h2>
+              <p className="text-blue-200">Generează descrieri de top și creează contracte PDF instantaneu.</p>
+            </div>
+            <div className="bg-white p-6 rounded-[2rem] shadow-2xl border border-slate-100">
+              <label className="block text-sm font-bold text-slate-700 mb-2">Datele proprietății</label>
+              <textarea className="w-full h-40 rounded-2xl border border-slate-200 bg-slate-50 p-4 focus:outline-none focus:border-blue-700 focus:ring-1 focus:ring-blue-700 resize-none" placeholder="Introdu detaliile brute (ex: ap 2 cam, 55m, reparatie cosmetica, mobilat)..." />
+              <button className="mt-4 rounded-2xl bg-slate-900 px-6 py-3 text-white font-bold hover:bg-slate-800 transition-colors">
+                Generează Descriere ✨
+              </button>
+            </div>
+          </div>
+        );
+
+        // FUNCȚIA DE RENDER PRINCIPALĂ PENTRU CONȚINUT
+        const renderContent = () => {
+          switch(activeMenu) {
+            case 'Prezentare generală': return <DashboardView />;
+            case 'Anunțuri': return <ListingsView />;
+            case 'Clienți': return <CRMView />;
+            case 'Tranzacții': return <TransactionsView />;
+            case 'Calendar': return <CalendarView />;
+            case 'Instrumente AI': return <AIView />;
+            default: return <div className="p-10 text-center font-bold text-slate-500">Secțiune în dezvoltare.</div>;
+          }
+        };
+
+        return (
+          <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 text-slate-900 font-sans">
+            
+            {/* Header (Top Nav) - Rămâne exact la fel */}
+            <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
+              <div className="mx-auto flex max-w-7xl items-center justify-between px-8 py-4">
+                <div>
+                  <div className="text-3xl font-bold tracking-widest text-blue-900">REALTIX</div>
+                  <div className="text-xs text-slate-500">Startup mode • SaaS PropTech pregătit de scalare</div>
+                </div>
+
+                <nav className="hidden gap-8 text-sm font-medium text-slate-600 md:flex">
+                  <button onClick={() => setActiveMenu('Prezentare generală')} className="hover:text-blue-700 transition-colors">Panou principal</button>
+                  <button onClick={() => setActiveMenu('Anunțuri')} className="hover:text-blue-700 transition-colors">Proprietăți</button>
+                  <button onClick={() => setActiveMenu('Clienți')} className="hover:text-blue-700 transition-colors">CRM</button>
+                  <button onClick={() => setActiveMenu('Tranzacții')} className="hover:text-blue-700 transition-colors">Analize</button>
+                </nav>
+
+                <div className="flex items-center gap-4">
+                  <a href="index.html" className="text-sm font-semibold text-red-500 hover:underline">Ieșire</a>
+                  <button className="rounded-full bg-gradient-to-r from-slate-900 to-blue-700 px-6 py-2.5 text-white shadow-lg hover:shadow-xl transition-shadow font-semibold">
+                    Adaugă anunț
+                  </button>
+                </div>
+              </div>
+            </header>
+
+            {/* Layout Principal Grid */}
+            <div className="mx-auto grid max-w-7xl grid-cols-1 md:grid-cols-12 gap-6 p-4 sm:p-8 items-start">
+              
+              {/* Sidebar (Meniu Stânga) */}
+              <aside className="col-span-2 rounded-[2rem] bg-white/90 p-5 shadow-2xl border border-white backdrop-blur-xl sticky top-28">
+                <div className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400 pl-2">Meniu</div>
+                <div className="space-y-2 flex flex-col">
+                  {menu.map((item) => (
+                    <button
+                      key={item}
+                      onClick={() => setActiveMenu(item)}
+                      className={`text-left text-sm font-semibold transition-all duration-200 ${
+                        activeMenu === item 
+                          ? 'rounded-2xl bg-slate-900 p-3 text-white shadow-md' 
+                          : 'rounded-2xl p-3 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                      }`}
+                    >
+                      {item}
+                    </button>
+                  ))}
+                </div>
+              </aside>
+
+              {/* Zona de Conținut Principal */}
+              <main className="col-span-12 md:col-span-10 min-h-[600px]">
+                {renderContent()}
+              </main>
+
+            </div>
+          </div>
+        );
+      }
+
+      const root = ReactDOM.createRoot(document.getElementById('root'));
+      root.render(<Realtix />);
+    </script>
+  </body>
+</html>

@@ -6,7 +6,7 @@
     <title>REALTIX — Platformă All-in-One</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Montserrat:wght@700&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@700&display=swap');
       body { padding: 0; margin: 0; font-family: 'Inter', sans-serif; background-color: #f8fafc; }
       .font-montserrat { font-family: 'Montserrat', sans-serif; }
       ::-webkit-scrollbar { width: 6px; }
@@ -15,6 +15,7 @@
       ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
       @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
       .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
+      .progress-bar { transition: width 0.3s ease; }
     </style>
   </head>
   <body>
@@ -25,19 +26,12 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <script type="text/babel">
-      const { useState } = React;
+      const { useState, useEffect } = React;
 
       // ==========================================
-      // COMPONENTA 1: LANDING PAGE (Prezentare)
+      // COMPONENTA 1: LANDING PAGE
       // ==========================================
       function LandingPage({ onLogin }) {
-        const features = [
-          { title: 'Sistem CRM', desc: 'Gestionează clienții și tranzacțiile într-un singur loc.', icon: '👥' },
-          { title: 'Agregator Anunțuri', desc: 'Colectare automată de pe 999.md, imobiliare.md și altele.', icon: '📊' },
-          { title: 'Asistent AI', desc: 'Generare automată de descrieri și evaluare inteligentă a proprietăților.', icon: '🤖' },
-          { title: 'Contracte PDF', desc: 'Generare automată a contractelor și documentelor necesare.', icon: '📄' },
-        ];
-
         return (
           <div className="min-h-screen bg-slate-50 text-slate-900 animate-fade-in relative">
             <header className="fixed top-0 w-full z-50 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl transition-all">
@@ -49,7 +43,6 @@
                 </div>
               </div>
             </header>
-
             <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden text-center px-6">
               <h1 className="mx-auto max-w-4xl text-5xl font-montserrat font-bold tracking-tight text-slate-900 sm:text-7xl">
                 Găsește, evaluează, vinde — <span className="text-blue-600">ușor.</span>
@@ -57,7 +50,7 @@
               <p className="mx-auto mt-6 max-w-2xl text-lg text-slate-600">
                 REALTIX combină funcțiile unui sistem CRM, agregator de căutare și asistent AI pentru a face lucrul cu imobiliarele simplu, inteligent și transparent.
               </p>
-              <div className="mt-10 flex flex-col sm:flex-row justify-center gap-4">
+              <div className="mt-10 flex justify-center gap-4">
                 <button onClick={onLogin} className="rounded-xl bg-slate-900 px-8 py-4 text-base font-semibold text-white shadow-xl hover:bg-slate-800 transition-all">
                   Conectează-te la Platformă
                 </button>
@@ -68,25 +61,22 @@
       }
 
       // ==========================================
-      // COMPONENTA 2: DASHBOARD (Platforma - Designul tău original)
+      // COMPONENTE SECȚIUNI (PENTRU MENIU)
       // ==========================================
-      function DashboardPage({ onLogout }) {
-        const [activeMenu, setActiveMenu] = useState('Prezentare generală');
 
+      // --- 1. Prezentare generală ---
+      const DashboardView = () => {
         const stats = [
           { title: 'Total anunțuri', value: '128' },
           { title: 'Clienți activi', value: '42' },
           { title: 'Venit lunar', value: '€3,240' },
           { title: 'Tranzacții finalizate', value: '19' }
         ];
-
-        const menu = ['Prezentare generală', 'Anunțuri', 'Clienți', 'Tranzacții', 'Calendar', 'Instrumente AI', 'Setări'];
         const filters = ['Oraș', 'Tip', 'Camere', 'Preț', 'Suprafață'];
         const clients = ['Maria Popa', 'Ion Rusu', 'Victor Sandu'];
 
-        const DashboardView = () => (
+        return (
           <div className="space-y-6 animate-fade-in">
-            {/* Statistici */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {stats.map((stat, idx) => (
                 <div key={idx} className="rounded-2xl bg-white p-5 border border-slate-100 shadow-sm flex flex-col">
@@ -95,29 +85,18 @@
                 </div>
               ))}
             </div>
-
-            {/* Căutare Inteligentă */}
             <section className="rounded-[2rem] bg-white p-6 shadow-sm border border-slate-100">
               <h3 className="mb-4 text-lg font-bold text-slate-900">Căutare inteligentă</h3>
               <div className="flex flex-col lg:flex-row gap-3">
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-3 flex-1">
                   {filters.map((item, idx) => (
-                    <input 
-                      key={idx} 
-                      placeholder={item} 
-                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-900/20 focus:border-slate-900 transition-all" 
-                    />
+                    <input key={idx} placeholder={item} className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-900/20 focus:border-slate-900 transition-all" />
                   ))}
                 </div>
-                <button className="rounded-xl bg-slate-900 px-8 py-2.5 text-white font-semibold shadow hover:bg-slate-800 transition-colors whitespace-nowrap">
-                  Caută
-                </button>
+                <button className="rounded-xl bg-slate-900 px-8 py-2.5 text-white font-semibold shadow hover:bg-slate-800 transition-colors">Caută</button>
               </div>
             </section>
-
-            {/* Grid Jos: Flux clienți & Asistent AI */}
             <section className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {/* Flux clienți */}
               <div className="rounded-[2rem] bg-white p-6 shadow-sm border border-slate-100">
                 <h3 className="mb-4 text-lg font-bold text-slate-900">Flux clienți</h3>
                 <div className="space-y-3">
@@ -129,41 +108,310 @@
                   ))}
                 </div>
               </div>
-
-              {/* Asistent AI */}
               <div className="rounded-[2rem] bg-white p-6 shadow-sm border border-slate-100 flex flex-col">
                 <h3 className="mb-4 text-lg font-bold text-slate-900">Asistent AI</h3>
-                <textarea 
-                  className="flex-1 min-h-[120px] w-full rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20 focus:border-slate-900 transition-all resize-none" 
-                  placeholder="Generează descriere anunț sau estimează valoarea proprietății..." 
-                ></textarea>
-                <button className="mt-4 rounded-xl bg-slate-900 px-5 py-3 text-white font-semibold shadow hover:bg-slate-800 transition-colors">
-                  Rulează AI
-                </button>
+                <textarea className="flex-1 min-h-[120px] w-full rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20 focus:border-slate-900 transition-all resize-none" placeholder="Generează descriere anunț sau estimează valoarea proprietății..."></textarea>
+                <button className="mt-4 rounded-xl bg-slate-900 px-5 py-3 text-white font-semibold shadow hover:bg-slate-800 transition-colors">Rulează AI</button>
               </div>
             </section>
           </div>
         );
+      };
 
-        const renderContent = () => {
-          if (activeMenu === 'Prezentare generală') return <DashboardView />;
+      // --- 2. Anunțuri (Baza de date goală / Pline) ---
+      const AnunturiView = () => {
+        // status poate fi: 'empty', 'scanning', 'data'
+        const [status, setStatus] = useState('empty');
+        const [progress, setProgress] = useState(0);
+
+        useEffect(() => {
+          if (status === 'scanning') {
+            const interval = setInterval(() => {
+              setProgress(old => {
+                if (old >= 100) {
+                  clearInterval(interval);
+                  setStatus('data');
+                  return 100;
+                }
+                return old + 20;
+              });
+            }, 500);
+            return () => clearInterval(interval);
+          }
+        }, [status]);
+
+        if (status === 'empty') {
           return (
-            <div className="flex flex-col items-center justify-center h-64 bg-white rounded-[2rem] shadow-sm border border-slate-100 animate-fade-in">
-              <span className="text-4xl mb-4">🚧</span>
-              <h2 className="text-xl font-bold text-slate-800">Secțiunea {activeMenu}</h2>
-              <p className="text-slate-500 mt-2">Acest modul este în dezvoltare.</p>
+            <div className="flex flex-col items-center justify-center py-24 px-4 text-center animate-fade-in bg-white rounded-[2rem] border border-slate-100 shadow-sm min-h-[60vh]">
+              <div className="text-6xl mb-6">🏘️</div>
+              <h2 className="text-2xl font-bold text-slate-900 mb-3">Baza de date e goală</h2>
+              <p className="text-slate-500 max-w-md mx-auto mb-8 leading-relaxed">
+                Pornește scanarea automată — AI-ul va extrage datele noi. Ai control total asupra a ceea ce salvezi în CRM.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <button onClick={() => setStatus('scanning')} className="rounded-xl bg-slate-900 px-6 py-3 text-white font-semibold shadow hover:bg-slate-800 transition-all">
+                  Pornește scanarea automată
+                </button>
+                <button onClick={() => setStatus('data')} className="rounded-xl bg-white border border-slate-200 px-6 py-3 text-slate-700 font-semibold shadow-sm hover:bg-slate-50 transition-all">
+                  Vreau să adaug manual
+                </button>
+              </div>
             </div>
           );
+        }
+
+        if (status === 'scanning') {
+          return (
+            <div className="flex flex-col items-center justify-center py-24 px-4 text-center animate-fade-in bg-white rounded-[2rem] border border-slate-100 shadow-sm min-h-[60vh]">
+              <div className="text-6xl mb-6 animate-pulse">🤖</div>
+              <h2 className="text-2xl font-bold text-slate-900 mb-3">Extragem datele noi...</h2>
+              <p className="text-slate-500 mb-8">Te rugăm să aștepți, analizăm platformele imobiliare.</p>
+              <div className="w-full max-w-md bg-slate-100 rounded-full h-3 mb-2 overflow-hidden">
+                <div className="bg-blue-600 h-3 rounded-full progress-bar" style={{ width: `${progress}%` }}></div>
+              </div>
+              <span className="text-sm font-semibold text-slate-600">{progress}% Complet</span>
+            </div>
+          );
+        }
+
+        // status === 'data'
+        const mockListings = [
+          { id: 1, title: 'Apartament 2 camere, Botanica', price: '€65,000', size: '55 m²', src: '999.md' },
+          { id: 2, title: 'Casă cu grădină, Durlești', price: '€140,000', size: '120 m²', src: 'Manual' },
+          { id: 3, title: 'Spațiu comercial Centru', price: '€2,500/lună', size: '80 m²', src: 'Imobiliare.md' },
+          { id: 4, title: 'Apartament 3 camere, Râșcani', price: '€89,000', size: '72 m²', src: '999.md' },
+        ];
+
+        return (
+          <div className="animate-fade-in space-y-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-slate-900">Baza ta de anunțuri</h2>
+              <button className="rounded-xl bg-slate-900 px-5 py-2.5 text-white text-sm font-semibold shadow hover:bg-slate-800 transition-colors">+ Adaugă manual</button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {mockListings.map(item => (
+                <div key={item.id} className="rounded-[1.5rem] bg-white border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow flex flex-col">
+                  <div className="h-40 bg-slate-200 flex items-center justify-center text-slate-400 text-sm">Fără imagine</div>
+                  <div className="p-5 flex-1 flex flex-col">
+                    <span className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">Sursă: {item.src}</span>
+                    <h3 className="text-base font-bold text-slate-900 mb-1 leading-tight">{item.title}</h3>
+                    <p className="text-sm text-slate-500 mb-4">{item.size}</p>
+                    <div className="mt-auto flex justify-between items-center">
+                      <span className="text-lg font-bold text-green-600">{item.price}</span>
+                      <button className="text-slate-400 hover:text-slate-900 transition-colors">⚙️</button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      };
+
+      // --- 3. Clienți (Kanban Board) ---
+      const ClientiView = () => (
+        <div className="animate-fade-in h-full flex flex-col">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-bold text-slate-900">Pipeline Clienți</h2>
+            <button className="rounded-xl bg-slate-900 px-5 py-2 text-white text-sm font-semibold shadow">+ Adaugă Client</button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-slate-100/50 rounded-3xl p-5 border border-slate-200/60">
+              <h3 className="font-bold text-slate-700 mb-4 flex justify-between items-center">Lead Nou <span className="bg-slate-200 text-xs px-2 py-1 rounded-full">2</span></h3>
+              <div className="space-y-3">
+                <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 cursor-pointer hover:border-slate-300">
+                  <div className="font-bold text-slate-900">Andrei Munteanu</div>
+                  <div className="text-xs text-slate-500 mt-1">Caută chirie Centru • Buget: €500</div>
+                </div>
+                <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 cursor-pointer hover:border-slate-300">
+                  <div className="font-bold text-slate-900">Elena Ceban</div>
+                  <div className="text-xs text-slate-500 mt-1">Vânzare ap. 2 cam, Buiucani</div>
+                </div>
+              </div>
+            </div>
+            <div className="bg-blue-50/50 rounded-3xl p-5 border border-blue-100">
+              <h3 className="font-bold text-blue-800 mb-4 flex justify-between items-center">Vizionări <span className="bg-blue-200 text-xs px-2 py-1 rounded-full text-blue-800">1</span></h3>
+              <div className="space-y-3">
+                <div className="bg-white p-4 rounded-2xl shadow-sm border border-blue-200 cursor-pointer hover:border-blue-300">
+                  <div className="font-bold text-slate-900">Ion Rusu</div>
+                  <div className="text-xs text-slate-500 mt-1">Azi, 14:30 • Str. Alba Iulia 102</div>
+                </div>
+              </div>
+            </div>
+            <div className="bg-green-50/50 rounded-3xl p-5 border border-green-100">
+              <h3 className="font-bold text-green-800 mb-4 flex justify-between items-center">Negociere / Ofertă <span className="bg-green-200 text-xs px-2 py-1 rounded-full text-green-800">1</span></h3>
+              <div className="space-y-3">
+                <div className="bg-white p-4 rounded-2xl shadow-sm border border-green-200 cursor-pointer hover:border-green-300 border-l-4 border-l-green-500">
+                  <div className="font-bold text-slate-900">Maria Popa</div>
+                  <div className="text-xs text-slate-500 mt-1">Semnare precontract mâine la notar</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+
+      // --- 4. Tranzacții ---
+      const TranzactiiView = () => (
+        <div className="animate-fade-in bg-white rounded-[2rem] border border-slate-100 shadow-sm p-6 overflow-hidden">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-bold text-slate-900">Istoric Tranzacții</h2>
+            <button className="rounded-xl border border-slate-200 px-4 py-2 text-slate-600 text-sm font-semibold hover:bg-slate-50">Descarcă Raport (PDF)</button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-slate-100 text-sm text-slate-500">
+                  <th className="py-4 font-semibold">Dată</th>
+                  <th className="py-4 font-semibold">Client</th>
+                  <th className="py-4 font-semibold">Proprietate</th>
+                  <th className="py-4 font-semibold">Tip</th>
+                  <th className="py-4 font-semibold text-right">Comision</th>
+                  <th className="py-4 font-semibold text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody className="text-sm">
+                <tr className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                  <td className="py-4 text-slate-600">12 Apr 2026</td>
+                  <td className="py-4 font-bold text-slate-900">Victor Sandu</td>
+                  <td className="py-4 text-slate-600">Ap. 3 camere, Râșcani</td>
+                  <td className="py-4"><span className="bg-slate-100 px-2 py-1 rounded-md text-xs font-medium">Vânzare</span></td>
+                  <td className="py-4 font-bold text-green-600 text-right">€2,400</td>
+                  <td className="py-4 text-center"><span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold">Încasat</span></td>
+                </tr>
+                <tr className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                  <td className="py-4 text-slate-600">08 Apr 2026</td>
+                  <td className="py-4 font-bold text-slate-900">Ana Vicol</td>
+                  <td className="py-4 text-slate-600">Spațiu birou, Centru</td>
+                  <td className="py-4"><span className="bg-blue-50 px-2 py-1 rounded-md text-xs font-medium text-blue-700">Chirie</span></td>
+                  <td className="py-4 font-bold text-green-600 text-right">€450</td>
+                  <td className="py-4 text-center"><span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold">Încasat</span></td>
+                </tr>
+                <tr className="hover:bg-slate-50 transition-colors">
+                  <td className="py-4 text-slate-600">02 Apr 2026</td>
+                  <td className="py-4 font-bold text-slate-900">Sergiu B.</td>
+                  <td className="py-4 text-slate-600">Casă, Tohatin</td>
+                  <td className="py-4"><span className="bg-slate-100 px-2 py-1 rounded-md text-xs font-medium">Vânzare</span></td>
+                  <td className="py-4 font-bold text-slate-400 text-right">€3,100</td>
+                  <td className="py-4 text-center"><span className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-bold">În Așteptare</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+
+      // --- 5. Calendar ---
+      const CalendarView = () => (
+        <div className="animate-fade-in bg-white rounded-[2rem] border border-slate-100 shadow-sm p-6 max-w-3xl">
+          <h2 className="text-xl font-bold text-slate-900 mb-6">Agenda de azi, Joi 16 Aprilie</h2>
+          <div className="space-y-4 border-l-2 border-slate-100 pl-4 ml-2">
+            <div className="relative">
+              <div className="absolute w-3 h-3 bg-blue-500 rounded-full -left-[23px] top-1.5 border-4 border-white"></div>
+              <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4">
+                <span className="text-xs font-bold text-slate-500 mb-1 block">10:00 - 10:45</span>
+                <h4 className="font-bold text-slate-900">Întâlnire cu echipa (Online)</h4>
+                <p className="text-sm text-slate-600 mt-1">Discutare strategii de marketing Q2.</p>
+              </div>
+            </div>
+            <div className="relative">
+              <div className="absolute w-3 h-3 bg-green-500 rounded-full -left-[23px] top-1.5 border-4 border-white"></div>
+              <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 border-l-4 border-l-green-400">
+                <span className="text-xs font-bold text-slate-500 mb-1 block">14:30 - 15:30</span>
+                <h4 className="font-bold text-slate-900">Vizionare proprietate Ion Rusu</h4>
+                <p className="text-sm text-slate-600 mt-1">Str. Alba Iulia 102. Nu uitați contractul de vizionare.</p>
+              </div>
+            </div>
+            <div className="relative">
+              <div className="absolute w-3 h-3 bg-slate-300 rounded-full -left-[23px] top-1.5 border-4 border-white"></div>
+              <div className="p-4 opacity-60">
+                <span className="text-xs font-bold text-slate-400 mb-1 block">18:00</span>
+                <h4 className="font-bold text-slate-500">Sfârșitul programului</h4>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+
+      // --- 6. Instrumente AI ---
+      const InstrumenteAIView = () => (
+        <div className="animate-fade-in grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-6">
+            <h2 className="text-xl font-bold text-slate-900 mb-2">Generare Descriere</h2>
+            <p className="text-sm text-slate-500 mb-6">Introdu detalii brute, iar AI-ul va scrie un text persuasiv.</p>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">Informații proprietate</label>
+            <textarea className="w-full h-40 rounded-xl border border-slate-200 bg-slate-50 p-4 focus:outline-none focus:ring-2 focus:ring-slate-900/20 focus:border-slate-900 transition-all resize-none mb-4" placeholder="Ex: apartament 2 camere botanica, 55mp, etaj 3 din 9, proaspat renovat, mobilat, langa parc..."></textarea>
+            <button className="w-full rounded-xl bg-slate-900 px-6 py-3 text-white font-semibold shadow hover:bg-slate-800 transition-all flex justify-center items-center gap-2">
+              <span>✨</span> Generează Text
+            </button>
+          </div>
+          <div className="bg-slate-50 rounded-[2rem] border border-slate-200 p-6 flex flex-col items-center justify-center text-center text-slate-400 border-dashed">
+            <span className="text-4xl mb-4">📝</span>
+            <p className="font-medium">Rezultatul va apărea aici.</p>
+          </div>
+        </div>
+      );
+
+      // --- 7. Setări ---
+      const SetariView = () => (
+        <div className="animate-fade-in bg-white rounded-[2rem] border border-slate-100 shadow-sm p-6 max-w-2xl">
+          <h2 className="text-xl font-bold text-slate-900 mb-6">Profil & Setări</h2>
+          <div className="space-y-5">
+            <div className="flex items-center gap-4 mb-8">
+              <div className="h-16 w-16 rounded-full bg-slate-900 text-white flex items-center justify-center text-xl font-bold">A</div>
+              <div>
+                <button className="text-sm font-semibold text-blue-600 hover:underline">Schimbă poza</button>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Nume complet</label>
+                <input type="text" defaultValue="Alexandru" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm focus:outline-none focus:border-slate-900" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Telefon</label>
+                <input type="text" defaultValue="+373 69 000 000" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm focus:outline-none focus:border-slate-900" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1">Email (Cont principal)</label>
+              <input type="email" defaultValue="alex@realtix.md" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm focus:outline-none focus:border-slate-900" disabled />
+            </div>
+            <hr className="border-slate-100 my-6" />
+            <div className="flex justify-end">
+              <button className="rounded-xl bg-slate-900 px-6 py-2.5 text-white text-sm font-semibold shadow hover:bg-slate-800 transition-colors">Salvează modificările</button>
+            </div>
+          </div>
+        </div>
+      );
+
+      // ==========================================
+      // COMPONENTA 2: DASHBOARD (Wrapper Meniu)
+      // ==========================================
+      function DashboardPage({ onLogout }) {
+        const [activeMenu, setActiveMenu] = useState('Prezentare generală');
+        const menu = ['Prezentare generală', 'Anunțuri', 'Clienți', 'Tranzacții', 'Calendar', 'Instrumente AI', 'Setări'];
+
+        const renderContent = () => {
+          switch(activeMenu) {
+            case 'Prezentare generală': return <DashboardView />;
+            case 'Anunțuri': return <AnunturiView />;
+            case 'Clienți': return <ClientiView />;
+            case 'Tranzacții': return <TranzactiiView />;
+            case 'Calendar': return <CalendarView />;
+            case 'Instrumente AI': return <InstrumenteAIView />;
+            case 'Setări': return <SetariView />;
+            default: return <DashboardView />;
+          }
         };
 
         return (
           <div className="flex h-screen w-full bg-[#F8FAFC] overflow-hidden text-slate-900 font-sans animate-fade-in">
-            {/* SIDEBAR LUMINOS */}
-            <aside className="w-64 bg-white border-r border-slate-200 flex flex-col z-20 shadow-sm">
+            {/* SIDEBAR */}
+            <aside className="w-64 bg-white border-r border-slate-200 flex flex-col z-20 shadow-sm hidden md:flex">
               <div className="p-6">
                 <div className="text-2xl font-montserrat font-bold tracking-widest text-slate-900">REALTIX</div>
               </div>
-              
               <nav className="flex-1 px-4 space-y-1.5 mt-2 overflow-y-auto">
                 {menu.map((item, idx) => (
                   <button
@@ -179,7 +427,6 @@
                   </button>
                 ))}
               </nav>
-
               <div className="p-6 border-t border-slate-100">
                 <button onClick={onLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors">
                   <span className="text-lg">🚪</span> Ieșire cont
@@ -189,23 +436,21 @@
 
             {/* ZONA DE CONȚINUT */}
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-              <header className="px-8 py-6 flex items-center justify-between z-10">
+              <header className="px-6 md:px-8 py-6 flex items-center justify-between z-10 border-b border-slate-100 md:border-none bg-white md:bg-transparent">
                 <div>
-                  <h1 className="text-2xl font-bold text-slate-900">Salutare, Alex 👋</h1>
-                  <p className="text-sm text-slate-500 mt-1">Iată rezumatul activității tale de azi.</p>
+                  <h1 className="text-2xl font-bold text-slate-900">{activeMenu === 'Prezentare generală' ? 'Salutare, Alex 👋' : activeMenu}</h1>
+                  {activeMenu === 'Prezentare generală' && <p className="text-sm text-slate-500 mt-1">Iată rezumatul activității tale de azi.</p>}
                 </div>
                 <div className="flex items-center gap-4">
-                  <button className="h-10 w-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 transition-colors shadow-sm">
-                    🔔
-                  </button>
-                  <div className="h-10 w-10 rounded-full bg-slate-900 flex items-center justify-center text-white font-bold shadow-sm cursor-pointer">
-                    A
-                  </div>
+                  <button className="h-10 w-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 transition-colors shadow-sm">🔔</button>
+                  <div className="h-10 w-10 rounded-full bg-slate-900 flex items-center justify-center text-white font-bold shadow-sm cursor-pointer">A</div>
+                  {/* Buton meniu mobil (doar vizual, funcționalitatea necesită state separat pt sidebar mobil) */}
+                  <button className="md:hidden h-10 w-10 flex items-center justify-center text-slate-500">☰</button>
                 </div>
               </header>
 
-              <main className="flex-1 overflow-y-auto px-8 pb-8">
-                <div className="max-w-7xl mx-auto">
+              <main className="flex-1 overflow-y-auto px-6 md:px-8 pb-8">
+                <div className="max-w-7xl mx-auto h-full">
                   {renderContent()}
                 </div>
               </main>

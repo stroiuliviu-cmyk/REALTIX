@@ -9,7 +9,6 @@
       @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Montserrat:wght@700&display=swap');
       body { padding: 0; margin: 0; font-family: 'Inter', sans-serif; }
       .font-montserrat { font-family: 'Montserrat', sans-serif; }
-      @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
     </style>
   </head>
   <body>
@@ -21,15 +20,8 @@
 
     <script type="text/babel">
       function LandingPage() {
-        // Starea pentru afișarea modalului de logare
-        const [showLogin, setShowLogin] = React.useState(false);
-
-        // Funcția de logare (redirecționează către platformă)
-        const handleLogin = (e) => {
-          e.preventDefault(); 
-          // Redirecționare către fișierul platformei:
-          window.location.href = 'dashboard.html';
-        };
+        // Link-ul către dashboard-ul tău găzduit
+        const dashboardUrl = "https://stroiuliviu-cmyk.github.io/REALTIX/dashboard.html";
 
         const features = [
           { title: 'Sistem CRM', desc: 'Gestionează clienții și tranzacțiile într-un singur loc.', icon: '👥' },
@@ -54,63 +46,6 @@
         return (
           <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 text-slate-900 relative">
             
-            {/* MODAL DE AUTENTIFICARE */}
-            {showLogin && (
-              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm px-4">
-                <div className="w-full max-w-md rounded-[2rem] bg-white p-8 shadow-2xl relative animate-[fadeIn_0.2s_ease-out]">
-                  <button 
-                    onClick={() => setShowLogin(false)}
-                    className="absolute top-5 right-6 text-slate-400 hover:text-slate-900 text-3xl font-light"
-                  >
-                    ×
-                  </button>
-                  
-                  <div className="text-2xl font-montserrat font-bold text-[#1E3A8A] tracking-widest text-center mb-1">
-                    REALTIX
-                  </div>
-                  <h3 className="text-xl font-bold text-center text-slate-900 mb-8">Acces platformă</h3>
-                  
-                  <form onSubmit={handleLogin} className="space-y-5">
-                    <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-1.5">Email</label>
-                      <input 
-                        type="email" 
-                        required
-                        defaultValue="agent@realtix.md"
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 focus:border-[#1E3A8A] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#1E3A8A] transition-colors" 
-                        placeholder="nume@agentie.md" 
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-1.5">Parolă</label>
-                      <input 
-                        type="password" 
-                        required
-                        defaultValue="123456"
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 focus:border-[#1E3A8A] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#1E3A8A] transition-colors" 
-                        placeholder="••••••••" 
-                      />
-                    </div>
-                    
-                    <div className="flex items-center justify-between pt-2">
-                      <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
-                        <input type="checkbox" className="rounded border-slate-300 text-[#1E3A8A]" defaultChecked />
-                        Ține-mă minte
-                      </label>
-                      <a href="#" className="text-sm font-semibold text-[#1E3A8A] hover:underline">Ai uitat parola?</a>
-                    </div>
-
-                    <button 
-                      type="submit" 
-                      className="mt-6 w-full rounded-xl bg-[#1E3A8A] px-4 py-3.5 font-bold text-white shadow-lg hover:bg-blue-900 hover:shadow-xl transition-all"
-                    >
-                      Intră în cont
-                    </button>
-                  </form>
-                </div>
-              </div>
-            )}
-
             {/* Header / Navigare */}
             <header className="fixed top-0 w-full z-50 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl transition-all">
               <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
@@ -125,18 +60,20 @@
                 </nav>
 
                 <div className="flex gap-4 items-center">
-                  <button 
-                    onClick={() => setShowLogin(true)}
+                  {/* Buton Autentificare ca link direct */}
+                  <a 
+                    href={dashboardUrl}
                     className="hidden sm:block text-sm font-semibold text-[#1E3A8A] hover:text-blue-900 transition-colors"
                   >
                     Autentificare
-                  </button>
-                  <button 
-                    onClick={() => setShowLogin(true)}
-                    className="rounded-full bg-[#1E3A8A] hover:bg-blue-900 transition-colors px-6 py-2.5 text-white text-sm font-semibold shadow-lg"
+                  </a>
+                  {/* Buton Încearcă Gratuit ca link direct */}
+                  <a 
+                    href={dashboardUrl}
+                    className="rounded-full bg-[#1E3A8A] hover:bg-blue-900 transition-colors px-6 py-2.5 text-white text-sm font-semibold shadow-lg inline-block"
                   >
                     Încearcă Gratuit
-                  </button>
+                  </a>
                 </div>
               </div>
             </header>
@@ -155,14 +92,15 @@
                   REALTIX combină funcțiile unui sistem CRM, agregator de căutare și asistent AI pentru a face lucrul cu imobiliarele simplu, inteligent și transparent.
                 </p>
                 <div className="mt-10 flex flex-col sm:flex-row justify-center gap-4">
-                  <button 
-                    onClick={() => setShowLogin(true)}
-                    className="rounded-full bg-[#1E3A8A] px-8 py-4 text-base font-semibold text-white shadow-xl hover:bg-blue-900 transition-all"
+                  {/* Buton Creează cont ca link direct */}
+                  <a 
+                    href={dashboardUrl}
+                    className="rounded-full bg-[#1E3A8A] px-8 py-4 text-base font-semibold text-white shadow-xl hover:bg-blue-900 transition-all inline-block"
                   >
                     Creează cont de agent
-                  </button>
+                  </a>
                   <a href="#functionalitati" className="rounded-full bg-white border border-slate-200 px-8 py-4 text-base font-semibold text-slate-900 shadow-sm hover:bg-slate-50 transition-all inline-flex items-center justify-center">
-                    Vezi Demo Platformă
+                    Vezi Funcționalități
                   </a>
                 </div>
               </div>
@@ -250,12 +188,13 @@
                           </li>
                         ))}
                       </ul>
-                      <button 
-                        onClick={() => setShowLogin(true)}
-                        className={`w-full py-3 rounded-2xl font-semibold transition-colors ${plan.popular ? 'bg-[#22C55E] text-white hover:bg-green-600' : 'bg-slate-100 text-slate-900 hover:bg-slate-200'}`}
+                      {/* Buton Alege plan ca link direct */}
+                      <a 
+                        href={dashboardUrl}
+                        className={`block text-center w-full py-3 rounded-2xl font-semibold transition-colors ${plan.popular ? 'bg-[#22C55E] text-white hover:bg-green-600' : 'bg-slate-100 text-slate-900 hover:bg-slate-200'}`}
                       >
                         Alege {plan.name}
-                      </button>
+                      </a>
                     </div>
                   ))}
                 </div>

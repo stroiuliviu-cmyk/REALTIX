@@ -38,131 +38,37 @@
           { title: 'Contracte PDF', desc: 'Generare automată a contractelor și documentelor necesare.', icon: '📄' },
         ];
 
-        const targetAudience = [
-          { role: 'Agenții Imobiliare', desc: 'Automatizarea proceselor și managementul echipei.' },
-          { role: 'Agenți Independenți', desc: 'Gestionarea eficientă a portofoliului de clienți.' },
-          { role: 'Investitori', desc: 'Analiza pieței și a activelor în timp real.' },
-          { role: 'Cumpărători / Chiriași', desc: 'Acces la anunțuri verificate direct de la proprietari.' },
-        ];
-
-        const pricing = [
-          { name: 'Starter', price: '12€', users: '1 agent', features: ['CRM de bază', 'Asistent AI limitat', 'Suport email'] },
-          { name: 'Medium', price: '49€', users: '2–5 agenți', features: ['CRM avansat', 'Agregator anunțuri', 'Generare PDF', 'Suport prioritar'], popular: true },
-          { name: 'Pro', price: '89€', users: 'Nelimitat agenți', features: ['Toate funcțiile Medium', 'White-label / branding', 'API & Integrări personalizate', 'Manager dedicat'] },
-        ];
-
         return (
-          <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 text-slate-900 animate-fade-in relative">
+          <div className="min-h-screen bg-slate-50 text-slate-900 animate-fade-in relative">
             <header className="fixed top-0 w-full z-50 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl transition-all">
               <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-                <div className="text-3xl font-montserrat font-bold text-[#1E3A8A] tracking-widest">REALTIX</div>
-                <nav className="hidden md:flex gap-8 text-sm font-medium text-slate-600">
-                  <a href="#functionalitati" className="hover:text-[#1E3A8A] transition-colors">Funcționalități</a>
-                  <a href="#audienta" className="hover:text-[#1E3A8A] transition-colors">Pentru Cine</a>
-                  <a href="#preturi" className="hover:text-[#1E3A8A] transition-colors">Prețuri</a>
-                </nav>
+                <div className="text-2xl font-montserrat font-bold text-slate-900 tracking-widest">REALTIX</div>
                 <div className="flex gap-4 items-center">
-                  <button onClick={onLogin} className="hidden sm:block text-sm font-semibold text-[#1E3A8A] hover:text-blue-900 transition-colors">Autentificare</button>
-                  <button onClick={onLogin} className="rounded-full bg-[#1E3A8A] hover:bg-blue-900 transition-colors px-6 py-2.5 text-white text-sm font-semibold shadow-lg">Încearcă Gratuit</button>
+                  <button onClick={onLogin} className="hidden sm:block text-sm font-semibold text-slate-600 hover:text-slate-900">Autentificare</button>
+                  <button onClick={onLogin} className="rounded-full bg-slate-900 hover:bg-slate-800 transition-colors px-6 py-2.5 text-white text-sm font-semibold shadow-lg">Încearcă Gratuit</button>
                 </div>
               </div>
             </header>
 
-            <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
-              <div className="mx-auto max-w-7xl px-6 text-center">
-                <div className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-[#1E3A8A] mb-8">
-                  <span className="flex h-2 w-2 rounded-full bg-[#22C55E]"></span>
-                  SaaS PropTech pregătit de scalare în Moldova
-                </div>
-                <h1 className="mx-auto max-w-4xl text-5xl font-montserrat font-bold tracking-tight text-slate-900 sm:text-7xl">
-                  Găsește, evaluează, vinde — <span className="text-[#1E3A8A]">ușor.</span>
-                </h1>
-                <p className="mx-auto mt-6 max-w-2xl text-lg text-slate-600 leading-relaxed">
-                  REALTIX combină funcțiile unui sistem CRM, agregator de căutare și asistent AI pentru a face lucrul cu imobiliarele simplu, inteligent și transparent.
-                </p>
-                <div className="mt-10 flex flex-col sm:flex-row justify-center gap-4">
-                  <button onClick={onLogin} className="rounded-full bg-[#1E3A8A] px-8 py-4 text-base font-semibold text-white shadow-xl hover:bg-blue-900 transition-all">Creează cont de agent</button>
-                  <a href="#functionalitati" className="rounded-full bg-white border border-slate-200 px-8 py-4 text-base font-semibold text-slate-900 shadow-sm hover:bg-slate-50 transition-all inline-flex items-center justify-center">Vezi Funcționalități</a>
-                </div>
+            <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden text-center px-6">
+              <h1 className="mx-auto max-w-4xl text-5xl font-montserrat font-bold tracking-tight text-slate-900 sm:text-7xl">
+                Găsește, evaluează, vinde — <span className="text-blue-600">ușor.</span>
+              </h1>
+              <p className="mx-auto mt-6 max-w-2xl text-lg text-slate-600">
+                REALTIX combină funcțiile unui sistem CRM, agregator de căutare și asistent AI pentru a face lucrul cu imobiliarele simplu, inteligent și transparent.
+              </p>
+              <div className="mt-10 flex flex-col sm:flex-row justify-center gap-4">
+                <button onClick={onLogin} className="rounded-xl bg-slate-900 px-8 py-4 text-base font-semibold text-white shadow-xl hover:bg-slate-800 transition-all">
+                  Conectează-te la Platformă
+                </button>
               </div>
             </section>
-
-            <section id="functionalitati" className="py-20 bg-white">
-              <div className="mx-auto max-w-7xl px-6">
-                <div className="text-center mb-16">
-                  <h2 className="text-3xl font-montserrat font-bold text-slate-900">Instrumentele viitorului imobiliar</h2>
-                  <p className="mt-4 text-slate-600">Automatizează tranzacțiile și folosește inteligența artificială.</p>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                  {features.map((feat, idx) => (
-                    <div key={idx} className="rounded-[2rem] bg-slate-50 p-8 border border-slate-100 hover:shadow-xl transition-shadow">
-                      <div className="text-4xl mb-4">{feat.icon}</div>
-                      <h3 className="text-xl font-bold text-slate-900 mb-2">{feat.title}</h3>
-                      <p className="text-slate-600 text-sm leading-relaxed">{feat.desc}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </section>
-
-            <section id="audienta" className="py-20 bg-gradient-to-br from-[#1E3A8A] to-blue-900 text-white">
-              <div className="mx-auto max-w-7xl px-6">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-                  <div>
-                    <h2 className="text-3xl md:text-4xl font-montserrat font-bold mb-6">Un ecosistem complet pentru toți actorii pieței</h2>
-                    <p className="text-blue-200 text-lg mb-8 leading-relaxed">Fie că ești o agenție mare cu zeci de angajați sau un cumpărător în căutarea locuinței perfecte, REALTIX filtrează, organizează și automatizează informația pentru tine.</p>
-                    <ul className="space-y-4">
-                      <li className="flex items-center gap-3"><span className="text-[#22C55E]">✔</span> Filtru „doar de la proprietari”</li>
-                      <li className="flex items-center gap-3"><span className="text-[#22C55E]">✔</span> Multilingv (RO / RU / EN)</li>
-                      <li className="flex items-center gap-3"><span className="text-[#22C55E]">✔</span> Aplicație mobilă integrată</li>
-                    </ul>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {targetAudience.map((item, idx) => (
-                      <div key={idx} className="bg-white/10 backdrop-blur-md border border-white/20 p-6 rounded-3xl">
-                        <h4 className="font-bold text-lg mb-2">{item.role}</h4>
-                        <p className="text-sm text-blue-100">{item.desc}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <section id="preturi" className="py-24 bg-slate-50">
-              <div className="mx-auto max-w-7xl px-6">
-                <div className="text-center mb-16">
-                  <h2 className="text-3xl font-montserrat font-bold text-slate-900">Abonamente transparente</h2>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-                  {pricing.map((plan, idx) => (
-                    <div key={idx} className={`relative rounded-[2rem] p-8 border ${plan.popular ? 'bg-[#1E3A8A] text-white border-[#1E3A8A] shadow-2xl scale-105' : 'bg-white text-slate-900 border-slate-200 shadow-lg'}`}>
-                      {plan.popular && <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#22C55E] text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wide">Cel mai ales</div>}
-                      <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
-                      <div className="mb-6"><span className="text-4xl font-montserrat font-bold">{plan.price}</span><span className={`text-sm ${plan.popular ? 'text-blue-200' : 'text-slate-500'}`}> / lună</span></div>
-                      <div className={`inline-block px-3 py-1 rounded-full text-xs font-semibold mb-8 ${plan.popular ? 'bg-white/20' : 'bg-slate-100'}`}>{plan.users}</div>
-                      <ul className="space-y-4 mb-8">
-                        {plan.features.map((f, i) => <li key={i} className="flex items-center gap-3 text-sm"><span className={plan.popular ? 'text-[#22C55E]' : 'text-[#1E3A8A]'}>✔</span> {f}</li>)}
-                      </ul>
-                      <button onClick={onLogin} className={`block text-center w-full py-3 rounded-2xl font-semibold transition-colors ${plan.popular ? 'bg-[#22C55E] text-white hover:bg-green-600' : 'bg-slate-100 text-slate-900 hover:bg-slate-200'}`}>Alege {plan.name}</button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </section>
-
-            <footer className="bg-slate-900 text-slate-400 py-12 text-center text-sm">
-              <div className="mx-auto max-w-7xl px-6 flex flex-col md:flex-row justify-between items-center gap-4">
-                <div className="text-2xl font-montserrat font-bold text-white tracking-widest">REALTIX</div>
-                <p>© 2026 REALTIX. Toate drepturile rezervate.</p>
-              </div>
-            </footer>
           </div>
         );
       }
 
       // ==========================================
-      // COMPONENTA 2: DASHBOARD (Platforma)
+      // COMPONENTA 2: DASHBOARD (Platforma - Designul tău original)
       // ==========================================
       function DashboardPage({ onLogout }) {
         const [activeMenu, setActiveMenu] = useState('Prezentare generală');
@@ -174,169 +80,134 @@
           { title: 'Tranzacții finalizate', value: '19' }
         ];
 
-        const menu = [
-          { name: 'Prezentare generală', icon: '📊' },
-          { name: 'Anunțuri', icon: '🏢' },
-          { name: 'Clienți', icon: '👥' },
-          { name: 'Tranzacții', icon: '💳' },
-          { name: 'Calendar', icon: '📅' },
-          { name: 'Instrumente AI', icon: '🤖' }
-        ];
-
+        const menu = ['Prezentare generală', 'Anunțuri', 'Clienți', 'Tranzacții', 'Calendar', 'Instrumente AI', 'Setări'];
         const filters = ['Oraș', 'Tip', 'Camere', 'Preț', 'Suprafață'];
+        const clients = ['Maria Popa', 'Ion Rusu', 'Victor Sandu'];
 
         const DashboardView = () => (
           <div className="space-y-6 animate-fade-in">
-            <section className="rounded-3xl bg-[#1E3A8A] p-8 text-white shadow-lg">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div>
-                  <div className="text-sm uppercase opacity-80 mb-2">SERIES A READY</div>
-                  <h2 className="text-3xl md:text-4xl font-bold leading-tight">Construiește agenția imobiliară a viitorului</h2>
-                  <p className="mt-3 text-blue-100">Lead-uri, proprietăți, automatizare și AI într-o platformă unică.</p>
-                  <div className="mt-6 flex gap-3">
-                    <button className="rounded-full bg-white px-6 py-2.5 font-bold text-[#1E3A8A] shadow hover:bg-slate-100 transition-colors">Începe acum</button>
-                  </div>
+            {/* Statistici */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {stats.map((stat, idx) => (
+                <div key={idx} className="rounded-2xl bg-white p-5 border border-slate-100 shadow-sm flex flex-col">
+                  <span className="text-sm text-slate-500 font-medium mb-1">{stat.title}</span>
+                  <span className="text-2xl font-bold text-slate-900">{stat.value}</span>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  {stats.map((stat, idx) => (
-                    <div key={idx} className="rounded-2xl bg-white/10 p-5 border border-white/20 backdrop-blur-sm">
-                      <div className="text-sm text-blue-100">{stat.title}</div>
-                      <div className="mt-1 text-2xl md:text-3xl font-bold">{stat.value}</div>
+              ))}
+            </div>
+
+            {/* Căutare Inteligentă */}
+            <section className="rounded-[2rem] bg-white p-6 shadow-sm border border-slate-100">
+              <h3 className="mb-4 text-lg font-bold text-slate-900">Căutare inteligentă</h3>
+              <div className="flex flex-col lg:flex-row gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3 flex-1">
+                  {filters.map((item, idx) => (
+                    <input 
+                      key={idx} 
+                      placeholder={item} 
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-900/20 focus:border-slate-900 transition-all" 
+                    />
+                  ))}
+                </div>
+                <button className="rounded-xl bg-slate-900 px-8 py-2.5 text-white font-semibold shadow hover:bg-slate-800 transition-colors whitespace-nowrap">
+                  Caută
+                </button>
+              </div>
+            </section>
+
+            {/* Grid Jos: Flux clienți & Asistent AI */}
+            <section className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {/* Flux clienți */}
+              <div className="rounded-[2rem] bg-white p-6 shadow-sm border border-slate-100">
+                <h3 className="mb-4 text-lg font-bold text-slate-900">Flux clienți</h3>
+                <div className="space-y-3">
+                  {clients.map((client) => (
+                    <div key={client} className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                      <span className="font-semibold text-slate-800">{client}</span>
+                      <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">Online</span>
                     </div>
                   ))}
                 </div>
               </div>
-            </section>
 
-            <section className="rounded-[2rem] bg-white p-6 shadow-md border border-slate-200">
-              <div className="mb-4 flex flex-col sm:flex-row justify-between items-center gap-4">
-                <h3 className="text-lg font-bold text-slate-800">Căutare inteligentă</h3>
-                <button className="rounded-xl bg-[#1E3A8A] px-6 py-2 text-white font-semibold hover:bg-blue-900 transition-colors">Caută</button>
+              {/* Asistent AI */}
+              <div className="rounded-[2rem] bg-white p-6 shadow-sm border border-slate-100 flex flex-col">
+                <h3 className="mb-4 text-lg font-bold text-slate-900">Asistent AI</h3>
+                <textarea 
+                  className="flex-1 min-h-[120px] w-full rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20 focus:border-slate-900 transition-all resize-none" 
+                  placeholder="Generează descriere anunț sau estimează valoarea proprietății..." 
+                ></textarea>
+                <button className="mt-4 rounded-xl bg-slate-900 px-5 py-3 text-white font-semibold shadow hover:bg-slate-800 transition-colors">
+                  Rulează AI
+                </button>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                {filters.map((item, idx) => (
-                  <input key={idx} placeholder={item} className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] bg-slate-50" />
-                ))}
-              </div>
             </section>
-
-            <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {[1, 2, 3].map((item, idx) => (
-                <div key={idx} className="overflow-hidden rounded-3xl bg-white shadow-md hover:shadow-lg transition-shadow border border-slate-200">
-                  <div className="h-40 bg-slate-200 flex items-center justify-center text-slate-400 text-sm">Imagine Proprietate</div>
-                  <div className="p-5">
-                    <div className="text-lg font-bold text-slate-800">Startup Residence #{item}</div>
-                    <div className="mt-1 text-sm text-slate-500">Chișinău • 72 m² • 2 camere</div>
-                    <div className="mt-3 text-2xl font-bold text-[#22C55E]">€89,000</div>
-                    <button className="mt-4 w-full rounded-xl bg-slate-100 py-2.5 font-semibold text-slate-800 hover:bg-slate-200 transition-colors">Vezi detalii</button>
-                  </div>
-                </div>
-              ))}
-            </section>
-          </div>
-        );
-
-        const CRMView = () => (
-          <div className="animate-fade-in">
-            <div className="bg-white p-6 rounded-[2rem] shadow-md border border-slate-200">
-              <h2 className="text-xl font-bold text-slate-900 mb-6">CRM: Clienți și Lead-uri</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200">
-                  <h4 className="font-bold text-slate-700 mb-4">Lead-uri Noi</h4>
-                  <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
-                    <div className="font-bold text-slate-900">Maria Popa</div>
-                    <div className="text-xs text-slate-500 mt-1">Cumpărător • 069 123 456</div>
-                  </div>
-                </div>
-                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200">
-                  <h4 className="font-bold text-slate-700 mb-4">Vizionări</h4>
-                  <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
-                    <div className="font-bold text-slate-900">Ion Rusu</div>
-                    <div className="text-xs text-slate-500 mt-1">Chiriaș • Vizionare 15:00</div>
-                  </div>
-                </div>
-                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200">
-                  <h4 className="font-bold text-slate-700 mb-4">Oferte / Notar</h4>
-                  <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 border-l-4 border-l-[#22C55E]">
-                    <div className="font-bold text-slate-900">Victor Sandu</div>
-                    <div className="text-xs text-slate-500 mt-1">Vânzător • Semnare azi</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-
-        const AIView = () => (
-          <div className="animate-fade-in space-y-6">
-            <div className="bg-gradient-to-r from-[#1E3A8A] to-blue-800 p-8 rounded-[2rem] shadow-md text-white">
-              <h2 className="text-3xl font-bold mb-2">REALTIX AI</h2>
-              <p className="text-blue-200">Generează descrieri profesionale pentru anunțuri instantaneu.</p>
-            </div>
-            <div className="bg-white p-6 rounded-[2rem] shadow-md border border-slate-200">
-              <label className="block text-sm font-bold text-slate-700 mb-2">Detalii brute ale proprietății</label>
-              <textarea className="w-full h-32 rounded-xl border border-slate-200 bg-slate-50 p-4 focus:outline-none focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] resize-none" placeholder="Ex: ap 2 cam, 55m..."></textarea>
-              <button className="mt-4 rounded-xl bg-[#1E3A8A] px-6 py-3 text-white font-bold hover:bg-blue-900 transition-colors shadow-lg">Generează Descriere</button>
-            </div>
           </div>
         );
 
         const renderContent = () => {
-          switch(activeMenu) {
-            case 'Prezentare generală': return <DashboardView />;
-            case 'Clienți': return <CRMView />;
-            case 'Instrumente AI': return <AIView />;
-            case 'Anunțuri': return <div className="p-6 bg-white rounded-[2rem] shadow-md border border-slate-200 animate-fade-in"><h2 className="text-xl font-bold">Anunțuri</h2><p className="mt-2 text-slate-600">Aici va fi lista de anunțuri.</p></div>;
-            case 'Tranzacții': return <div className="p-6 bg-white rounded-[2rem] shadow-md border border-slate-200 animate-fade-in"><h2 className="text-xl font-bold">Tranzacții</h2><p className="mt-2 text-slate-600">Aici vor fi tranzacțiile.</p></div>;
-            case 'Calendar': return <div className="p-6 bg-white rounded-[2rem] shadow-md border border-slate-200 animate-fade-in"><h2 className="text-xl font-bold">Calendar</h2><p className="mt-2 text-slate-600">Aici va fi calendarul.</p></div>;
-            default: return (
-              <div className="flex flex-col items-center justify-center h-64 bg-white rounded-[2rem] shadow-md border border-slate-200 animate-fade-in">
-                <span className="text-4xl mb-4">🚧</span>
-                <h2 className="text-xl font-bold text-slate-800">Secțiune în dezvoltare</h2>
-              </div>
-            );
-          }
+          if (activeMenu === 'Prezentare generală') return <DashboardView />;
+          return (
+            <div className="flex flex-col items-center justify-center h-64 bg-white rounded-[2rem] shadow-sm border border-slate-100 animate-fade-in">
+              <span className="text-4xl mb-4">🚧</span>
+              <h2 className="text-xl font-bold text-slate-800">Secțiunea {activeMenu}</h2>
+              <p className="text-slate-500 mt-2">Acest modul este în dezvoltare.</p>
+            </div>
+          );
         };
 
         return (
-          <div className="flex h-screen w-full bg-slate-50 overflow-hidden text-slate-900 font-sans animate-fade-in">
-            <aside className="w-64 bg-[#1E3A8A] flex flex-col shadow-2xl z-20">
+          <div className="flex h-screen w-full bg-[#F8FAFC] overflow-hidden text-slate-900 font-sans animate-fade-in">
+            {/* SIDEBAR LUMINOS */}
+            <aside className="w-64 bg-white border-r border-slate-200 flex flex-col z-20 shadow-sm">
               <div className="p-6">
-                <div className="text-2xl font-montserrat font-bold tracking-widest text-white">REALTIX</div>
-                <div className="text-xs text-blue-300 mt-1 uppercase font-semibold">Workspace Agenție</div>
+                <div className="text-2xl font-montserrat font-bold tracking-widest text-slate-900">REALTIX</div>
               </div>
-              <nav className="flex-1 px-4 space-y-1.5 mt-4 overflow-y-auto">
-                <div className="text-xs font-bold text-blue-300/60 uppercase tracking-wider mb-3 px-2">Meniu Principal</div>
+              
+              <nav className="flex-1 px-4 space-y-1.5 mt-2 overflow-y-auto">
                 {menu.map((item, idx) => (
                   <button
                     key={idx}
-                    onClick={() => setActiveMenu(item.name)}
+                    onClick={() => setActiveMenu(item)}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 text-left text-sm font-semibold ${
-                      activeMenu === item.name ? 'bg-blue-600/40 text-white shadow-inner border border-blue-500/30' : 'text-blue-200 hover:bg-blue-800 hover:text-white'
+                      activeMenu === item 
+                        ? 'bg-slate-900 text-white shadow-md' 
+                        : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
                     }`}
                   >
-                    <span className="text-lg opacity-80">{item.icon}</span> {item.name}
+                    {item}
                   </button>
                 ))}
               </nav>
-              <div className="p-6 pb-8 border-t border-blue-800/50">
-                {/* AICI ESTE BUTONUL DE LOGOUT. SCHIMBĂ STAREA, NU URL-UL */}
-                <button onClick={onLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-blue-200 hover:bg-red-500/10 hover:text-red-400 transition-colors">
+
+              <div className="p-6 border-t border-slate-100">
+                <button onClick={onLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors">
                   <span className="text-lg">🚪</span> Ieșire cont
                 </button>
               </div>
             </aside>
+
+            {/* ZONA DE CONȚINUT */}
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-              <header className="bg-white border-b border-slate-200 px-8 py-5 flex items-center justify-between z-10 shadow-sm">
-                <h1 className="text-xl font-bold text-slate-800">{activeMenu}</h1>
-                <div className="flex items-center gap-5">
-                  <button className="text-slate-400 hover:text-slate-600 transition-colors text-xl">🔔</button>
-                  <button className="rounded-full bg-[#1E3A8A] px-5 py-2 text-sm font-semibold text-white shadow hover:bg-blue-900 transition-colors">+ Adaugă Anunț</button>
-                  <div className="h-10 w-10 rounded-full bg-blue-100 border-2 border-blue-200 flex items-center justify-center text-[#1E3A8A] font-bold shadow-sm cursor-pointer">AG</div>
+              <header className="px-8 py-6 flex items-center justify-between z-10">
+                <div>
+                  <h1 className="text-2xl font-bold text-slate-900">Salutare, Alex 👋</h1>
+                  <p className="text-sm text-slate-500 mt-1">Iată rezumatul activității tale de azi.</p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <button className="h-10 w-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 transition-colors shadow-sm">
+                    🔔
+                  </button>
+                  <div className="h-10 w-10 rounded-full bg-slate-900 flex items-center justify-center text-white font-bold shadow-sm cursor-pointer">
+                    A
+                  </div>
                 </div>
               </header>
-              <main className="flex-1 overflow-y-auto p-6 md:p-8">
-                <div className="max-w-7xl mx-auto">{renderContent()}</div>
+
+              <main className="flex-1 overflow-y-auto px-8 pb-8">
+                <div className="max-w-7xl mx-auto">
+                  {renderContent()}
+                </div>
               </main>
             </div>
           </div>
@@ -344,10 +215,9 @@
       }
 
       // ==========================================
-      // APLICAȚIA PRINCIPALĂ (Gestionează starea)
+      // APLICAȚIA PRINCIPALĂ
       // ==========================================
       function App() {
-        // Starea care decide ce pagină se afișează
         const [isLoggedIn, setIsLoggedIn] = useState(false);
 
         if (isLoggedIn) {

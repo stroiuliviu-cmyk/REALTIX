@@ -24,7 +24,11 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/dashboard)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/up)",
-      "Read(//c/c/Users/Hacker/Desktop/REALTIX/REALTIX/**)"
+      "Read(//c/c/Users/Hacker/Desktop/REALTIX/REALTIX/**)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://127.0.0.1:8000)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://127.0.0.1:8000/dashboard)",
+      "Bash(start \"\" \"http://127.0.0.1:8000\")",
+      "Bash(composer show *)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Hacker\\.claude\\projects\\c--Users-Hacker-Desktop-REALTIX\\memory"

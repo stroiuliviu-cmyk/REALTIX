@@ -13,15 +13,27 @@ class PropertyController extends Controller
     public function index(Request $request): Response
     {
         $query = Property::with('coverMedia')
-            ->when($request->search, fn ($q, $s) => $q->where('title', 'ilike', "%{$s}%"))
+            ->when($request->search, fn ($q, $s) => $q->where(function ($q) use ($s) {
+                $q->where('title', 'like', "%{$s}%")
+                  ->orWhere('address', 'like', "%{$s}%")
+                  ->orWhere('district', 'like', "%{$s}%");
+            }))
             ->when($request->type, fn ($q, $t) => $q->where('type', $t))
             ->when($request->transaction_type, fn ($q, $t) => $q->where('transaction_type', $t))
             ->when($request->status, fn ($q, $s) => $q->where('status', $s))
+            ->when($request->city, fn ($q, $c) => $q->where('city', $c))
+            ->when($request->rooms, fn ($q, $r) => $q->where('rooms', (int) $r))
+            ->when($request->price_min, fn ($q, $v) => $q->where('price', '>=', (float) $v))
+            ->when($request->price_max, fn ($q, $v) => $q->where('price', '<=', (float) $v))
+            ->when($request->ai_valuation, fn ($q, $v) => $q->where('ai_valuation', $v))
             ->latest();
 
         return Inertia::render('Properties/Index', [
             'properties' => $query->paginate(12)->withQueryString(),
-            'filters' => $request->only(['search', 'type', 'transaction_type', 'status']),
+            'filters' => $request->only([
+                'search', 'type', 'transaction_type', 'status',
+                'city', 'rooms', 'price_min', 'price_max', 'ai_valuation',
+            ]),
         ]);
     }
 

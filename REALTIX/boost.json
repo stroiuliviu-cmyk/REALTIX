@@ -1,0 +1,16 @@
+{
+    "agents": [
+        "cursor"
+    ],
+    "guidelines": true,
+    "mcp": true,
+    "nightwatch_mcp": false,
+    "sail": false,
+    "skills": [
+        "cashier-stripe-development",
+        "laravel-best-practices",
+        "pest-testing",
+        "inertia-react-development",
+        "tailwindcss-development"
+    ]
+}

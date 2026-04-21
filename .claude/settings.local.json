@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(composer require *)",
+      "Bash(php artisan *)",
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(php -m)",
+      "Bash(php --ini)",
+      "Read(//c/xampp/php/**)",
+      "Bash(sed -i 's/;extension=pdo_pgsql/extension=pdo_pgsql/' \"C:/xampp/php/php.ini\")",
+      "Bash(sed -i 's/;extension=pgsql/extension=pgsql/' \"C:/xampp/php/php.ini\")",
+      "Bash(psql -U postgres -c \"SELECT version\\(\\);\")",
+      "Read(//c/Program Files/**)",
+      "Read(//c/xampp/**)",
+      "Read(//c/Users/Hacker/**)",
+      "Bash(cmd /c \"where psql 2>nul\")",
+      "Bash(cmd /c \"sc query postgresql*\")",
+      "Bash(cmd /c \"C:/xampp/mysql/bin/mysql.exe -u root -e \\\\\"SHOW DATABASES;\\\\\" 2>&1\")",
+      "Bash(cmd /c \"net start mysql 2>&1\")",
+      "Bash(cmd /c \"C:/xampp/mysql/bin/mysqladmin.exe -u root status 2>&1\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/login)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/register)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/dashboard)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/up)",
+      "Read(//c/c/Users/Hacker/Desktop/REALTIX/REALTIX/**)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\Hacker\\.claude\\projects\\c--Users-Hacker-Desktop-REALTIX\\memory"
+    ]
+  }
+}

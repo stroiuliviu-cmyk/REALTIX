@@ -44,6 +44,7 @@ class SubscriptionController extends Controller
             ] : null,
             'invoices'           => array_slice($invoices, 0, 20),
             'stripe_key'         => config('cashier.key'),
+            'isAdmin'            => $request->user()->isAdmin(),
         ]);
     }
 

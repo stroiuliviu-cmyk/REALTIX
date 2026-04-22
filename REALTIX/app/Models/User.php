@@ -5,6 +5,7 @@ namespace App\Models;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -70,6 +71,27 @@ class User extends Authenticatable
     public function contacts(): HasMany
     {
         return $this->hasMany(Contact::class);
+    }
+
+    public function favoriteScrapedListings(): BelongsToMany
+    {
+        return $this->belongsToMany(ScrapedListing::class, 'scraped_listing_favorites')->withTimestamps();
+    }
+
+    public function importedScrapedListings(): BelongsToMany
+    {
+        return $this->belongsToMany(ScrapedListing::class, 'scraped_listing_imports')
+            ->withPivot('property_id')->withTimestamps();
+    }
+
+    public function favoriteProperties(): BelongsToMany
+    {
+        return $this->belongsToMany(Property::class, 'property_favorites')->withTimestamps();
+    }
+
+    public function favoritePropertyIds(): array
+    {
+        return $this->favoriteProperties()->pluck('property_id')->all();
     }
 
     public function isAdmin(): bool

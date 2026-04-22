@@ -11,6 +11,7 @@ use App\Http\Controllers\GoogleCalendarController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\StatisticsController;
 use App\Http\Controllers\SubscriptionController;
+use App\Http\Controllers\WebOffersController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -35,7 +36,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
     // Properties
+    Route::post('/properties/bulk-action', [PropertyController::class, 'bulkAction'])->name('properties.bulk');
     Route::resource('properties', PropertyController::class);
+    Route::post('/properties/{property}/favorite', [PropertyController::class, 'toggleFavorite'])->name('properties.favorite');
+    Route::patch('/properties/{property}/status',  [PropertyController::class, 'updateStatus'])->name('properties.status');
 
     // Contacts + interactions
     Route::resource('contacts', ContactController::class)->except(['create', 'edit']);
@@ -82,10 +86,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/cancel', [SubscriptionController::class, 'cancel'])->name('cancel');
     });
 
-    // Web Offers (scraped listings placeholder)
-    Route::get('/web-offers', function () {
-        return Inertia::render('WebOffers/Index', ['listings' => [], 'filters' => []]);
-    })->name('web-offers.index');
+    // Web Offers
+    Route::get('/web-offers', [WebOffersController::class, 'index'])->name('web-offers.index');
+    Route::post('/web-offers/{scrapedListing}/favorite', [WebOffersController::class, 'toggleFavorite'])->name('web-offers.favorite');
+    Route::post('/web-offers/{scrapedListing}/import',   [WebOffersController::class, 'import'])->name('web-offers.import');
 
     // Auto Post
     Route::get('/autopost', function () {

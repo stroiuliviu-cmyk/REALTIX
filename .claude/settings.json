@@ -5,7 +5,12 @@
       "Bash(git commit -m ' *)",
       "Bash(git push *)",
       "Bash(ssh -T git@github.com)",
-      "Bash(gh auth *)"
+      "Bash(gh auth *)",
+      "Bash(mv 2026_04_21_114944_create_customer_columns.php 2026_04_21_120013_create_customer_columns.php)",
+      "Bash(mv 2026_04_21_114945_create_subscriptions_table.php 2026_04_21_120014_create_subscriptions_table.php)",
+      "Bash(mv 2026_04_21_114946_create_subscription_items_table.php 2026_04_21_120015_create_subscription_items_table.php)",
+      "Bash(mv 2026_04_21_114947_add_meter_id_to_subscription_items_table.php 2026_04_21_120016_add_meter_id_to_subscription_items_table.php)",
+      "Bash(mv 2026_04_21_114948_add_meter_event_name_to_subscription_items_table.php 2026_04_21_120017_add_meter_event_name_to_subscription_items_table.php)"
     ]
   }
 }

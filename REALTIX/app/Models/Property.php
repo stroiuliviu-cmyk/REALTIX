@@ -6,6 +6,7 @@ use App\Traits\BelongsToAgency;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Property extends Model
@@ -64,6 +65,11 @@ class Property extends Model
     public function deals(): HasMany
     {
         return $this->hasMany(Deal::class);
+    }
+
+    public function favoritedByUsers(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'property_favorites')->withTimestamps();
     }
 
     public function getDescriptionAttribute(): ?string

@@ -21,9 +21,18 @@ class User extends Authenticatable
         'password',
         'agency_id',
         'phone',
+        'whatsapp',
+        'viber',
+        'telegram',
         'avatar_path',
         'position',
         'locale',
+        'timezone',
+        'notification_prefs',
+        'google_access_token',
+        'google_refresh_token',
+        'google_token_expires_at',
+        'google_calendar_id',
         'is_active',
     ];
 
@@ -35,9 +44,11 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-            'is_active' => 'boolean',
+            'email_verified_at'  => 'datetime',
+            'password'           => 'hashed',
+            'is_active'          => 'boolean',
+            'notification_prefs'       => 'array',
+            'google_token_expires_at'  => 'datetime',
         ];
     }
 

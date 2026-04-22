@@ -1,5 +1,6 @@
 import AppLayout from '@/Layouts/AppLayout';
 import { Head, useForm, router } from '@inertiajs/react';
+import { useEffect, useRef, useState } from 'react';
 
 const typeLabels = {
     buyer: 'Cumpărător', seller: 'Vânzător', landlord: 'Proprietar', tenant: 'Chiriaș',
@@ -25,6 +26,71 @@ function InteractionItem({ interaction }) {
                     </p>
                 )}
                 <p className="mt-1 text-xs text-slate-400">{interaction.user?.name}</p>
+            </div>
+        </div>
+    );
+}
+
+function DateTimeField({ value, onChange }) {
+    const [dateVal, setDateVal] = useState(() => value ? value.split('T')[0] : '');
+    const [timeVal, setTimeVal] = useState(() => value ? (value.split('T')[1] ?? '') : '');
+    const [dateFocused, setDateFocused] = useState(false);
+    const [timeFocused, setTimeFocused] = useState(false);
+    const dateRef = useRef(null);
+    const timeRef = useRef(null);
+
+    useEffect(() => {
+        if (!value) { setDateVal(''); setTimeVal(''); }
+    }, [value]);
+
+    const handleDate = (d) => {
+        setDateVal(d);
+        if (d && timeVal) onChange(`${d}T${timeVal}`);
+        else if (!d) onChange('');
+    };
+
+    const handleTime = (t) => {
+        setTimeVal(t);
+        if (dateVal && t) onChange(`${dateVal}T${t}`);
+    };
+
+    return (
+        <div className="flex gap-2 flex-1">
+            {/* Data */}
+            <div className="relative flex-1">
+                <input
+                    ref={dateRef}
+                    type="date"
+                    value={dateVal}
+                    onChange={e => handleDate(e.target.value)}
+                    onFocus={() => setDateFocused(true)}
+                    onBlur={() => setDateFocused(false)}
+                    className={`w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:border-blue-700 ${(dateFocused || dateVal) ? '' : 'sr-only'}`}
+                />
+                {!dateFocused && !dateVal && (
+                    <button type="button" onClick={() => dateRef.current?.focus()}
+                        className="w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-sm text-left text-slate-400 hover:border-slate-300 transition-colors">
+                        📅 Data
+                    </button>
+                )}
+            </div>
+            {/* Ora */}
+            <div className="relative w-32">
+                <input
+                    ref={timeRef}
+                    type="time"
+                    value={timeVal}
+                    onChange={e => handleTime(e.target.value)}
+                    onFocus={() => setTimeFocused(true)}
+                    onBlur={() => setTimeFocused(false)}
+                    className={`w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:border-blue-700 ${(timeFocused || timeVal) ? '' : 'sr-only'}`}
+                />
+                {!timeFocused && !timeVal && (
+                    <button type="button" onClick={() => timeRef.current?.focus()}
+                        className="w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-sm text-left text-slate-400 hover:border-slate-300 transition-colors">
+                        🕐 Ora
+                    </button>
+                )}
             </div>
         </div>
     );
@@ -136,11 +202,9 @@ export default function Show({ contact }) {
                                     <option value="viewing">Vizionare</option>
                                     <option value="contract">Contract</option>
                                 </select>
-                                <input
-                                    type="datetime-local"
+                                <DateTimeField
                                     value={data.scheduled_at}
-                                    onChange={e => setData('scheduled_at', e.target.value)}
-                                    className="rounded-2xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:border-blue-700"
+                                    onChange={v => setData('scheduled_at', v)}
                                 />
                             </div>
                             <textarea

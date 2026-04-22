@@ -2,6 +2,23 @@ import AppLayout from '@/Layouts/AppLayout';
 import { Head, router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
 
+function GoogleSyncBanner({ connected, syncing, onSync }) {
+    if (!connected) return null;
+    return (
+        <div className="flex items-center gap-3 rounded-2xl bg-blue-50 border border-blue-100 px-4 py-2.5 text-sm">
+            <span className="text-base">📅</span>
+            <span className="text-blue-700 font-semibold flex-1">Google Calendar conectat</span>
+            <button
+                onClick={onSync}
+                disabled={syncing}
+                className="rounded-xl bg-blue-700 text-white px-4 py-1.5 text-xs font-bold hover:bg-blue-800 disabled:opacity-50 transition-colors"
+            >
+                {syncing ? '⏳ Sincronizez...' : '🔄 Sincronizează'}
+            </button>
+        </div>
+    );
+}
+
 const typeColors = {
     viewing: 'bg-blue-100 text-blue-700',
     meeting: 'bg-purple-100 text-purple-700',
@@ -13,8 +30,14 @@ const typeColors = {
 const monthNames = ['Ianuarie', 'Februarie', 'Martie', 'Aprilie', 'Mai', 'Iunie',
     'Iulie', 'August', 'Septembrie', 'Octombrie', 'Noiembrie', 'Decembrie'];
 
-export default function Index({ events, month, year }) {
+export default function Index({ events, month, year, googleConnected = false }) {
     const [showModal, setShowModal] = useState(false);
+    const [syncing, setSyncing] = useState(false);
+
+    const handleSync = () => {
+        setSyncing(true);
+        router.post(route('google.calendar.sync'), {}, { onFinish: () => setSyncing(false) });
+    };
     const daysInMonth = new Date(year, month, 0).getDate();
     const firstDay = new Date(year, month - 1, 1).getDay();
     const today = new Date();
@@ -67,9 +90,13 @@ export default function Index({ events, month, year }) {
         <AppLayout title="Calendar">
             <Head title="Calendar" />
 
+            <div className="mb-4">
+                <GoogleSyncBanner connected={googleConnected} syncing={syncing} onSync={handleSync} />
+            </div>
+
             {showModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-                    <div className="w-full max-w-md rounded-[2rem] bg-white p-8 shadow-2xl">
+                    <div className="w-full max-w-md rounded-4xl bg-white p-8 shadow-2xl">
                         <h2 className="text-xl font-bold mb-6">Eveniment nou</h2>
                         <form onSubmit={submitEvent} className="space-y-4">
                             <input
@@ -126,7 +153,7 @@ export default function Index({ events, month, year }) {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Calendar grid */}
-                <div className="lg:col-span-2 bg-white p-6 rounded-[2rem] shadow-2xl border border-slate-100">
+                <div className="lg:col-span-2 bg-white p-6 rounded-4xl shadow-2xl border border-slate-100">
                     <div className="flex justify-between items-center mb-6">
                         <div className="flex items-center gap-3">
                             <button onClick={prevMonth} className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-sm">‹</button>
@@ -170,7 +197,7 @@ export default function Index({ events, month, year }) {
                 </div>
 
                 {/* Today's events */}
-                <div className="bg-white p-6 rounded-[2rem] shadow-2xl border border-slate-100">
+                <div className="bg-white p-6 rounded-4xl shadow-2xl border border-slate-100">
                     <h3 className="font-bold text-xl text-slate-900 mb-6">Evenimentele tale</h3>
                     {events.length === 0 ? (
                         <p className="text-slate-400 text-sm text-center py-8">Niciun eveniment în această lună.</p>
@@ -182,9 +209,14 @@ export default function Index({ events, month, year }) {
                                         <span className="text-xs font-bold text-slate-500">
                                             {new Date(ev.starts_at).toLocaleDateString('ro')} • {new Date(ev.starts_at).toLocaleTimeString('ro', { hour: '2-digit', minute: '2-digit' })}
                                         </span>
-                                        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${typeColors[ev.type] ?? 'bg-slate-100'}`}>
-                                            {ev.type}
-                                        </span>
+                                        <div className="flex items-center gap-1.5">
+                                            {ev.google_event_id && (
+                                                <span className="text-xs">📅</span>
+                                            )}
+                                            <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${typeColors[ev.type] ?? 'bg-slate-100'}`}>
+                                                {ev.type}
+                                            </span>
+                                        </div>
                                     </div>
                                     <h4 className="font-bold text-slate-900 text-sm">{ev.title}</h4>
                                     {ev.contact && (

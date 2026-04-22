@@ -7,12 +7,17 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DealController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PropertyController;
+use App\Http\Controllers\GoogleCalendarController;
+use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\StatisticsController;
 use App\Http\Controllers\SubscriptionController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::get('/', function () {
+    if (auth()->check()) {
+        return redirect()->route('dashboard');
+    }
     return Inertia::render('Welcome');
 })->name('home');
 
@@ -94,13 +99,23 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/contracts/{contractTemplate}', [ContractTemplateController::class, 'destroy'])->name('contracts.destroy');
     Route::post('/contracts/{contractTemplate}/generate', [ContractTemplateController::class, 'generate'])->name('contracts.generate');
 
-    // Settings (full settings page)
-    Route::get('/settings', function () {
-        return Inertia::render('Settings/Index', [
-            'user'   => auth()->user()->load('agency'),
-            'agency' => auth()->user()->agency,
-        ]);
-    })->name('settings.index');
+    // Google Calendar OAuth
+    Route::get('/google/calendar/connect',    [GoogleCalendarController::class, 'redirect'])->name('google.calendar.connect');
+    Route::get('/google/calendar/callback',   [GoogleCalendarController::class, 'callback'])->name('google.calendar.callback');
+    Route::post('/google/calendar/disconnect',[GoogleCalendarController::class, 'disconnect'])->name('google.calendar.disconnect');
+    Route::post('/google/calendar/sync',      [GoogleCalendarController::class, 'sync'])->name('google.calendar.sync');
+
+    // Settings
+    Route::get('/settings', [SettingsController::class, 'show'])->name('settings.index');
+    Route::patch('/settings/profile', [SettingsController::class, 'updateProfile'])->name('settings.profile');
+    Route::patch('/settings/agency', [SettingsController::class, 'updateAgency'])->name('settings.agency');
+    Route::patch('/settings/notifications', [SettingsController::class, 'updateNotifications'])->name('settings.notifications');
+    Route::patch('/settings/password', [SettingsController::class, 'updatePassword'])->name('settings.password');
+    Route::patch('/settings/integrations', [SettingsController::class, 'updateIntegrations'])->name('settings.integrations');
+    Route::post('/settings/users/invite', [SettingsController::class, 'inviteAgent'])->name('settings.users.invite');
+    Route::patch('/settings/users/{user}', [SettingsController::class, 'updateAgent'])->name('settings.users.update');
+    Route::delete('/settings/users/{user}', [SettingsController::class, 'removeAgent'])->name('settings.users.remove');
+    Route::post('/settings/security/logout-others', [SettingsController::class, 'logoutOtherDevices'])->name('settings.logout.others');
 });
 
 require __DIR__.'/auth.php';

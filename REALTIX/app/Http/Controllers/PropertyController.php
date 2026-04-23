@@ -64,36 +64,103 @@ class PropertyController extends Controller
 
     public function create(): Response
     {
-        return Inertia::render('Properties/Create');
+        $user = request()->user();
+        return Inertia::render('Properties/Create', [
+            'authUser' => [
+                'phone' => $user->phone,
+                'email' => $user->email,
+            ],
+        ]);
     }
 
     public function store(Request $request)
     {
-        $data = $request->validate([
+        $validated = $request->validate([
             'title'            => 'required|string|max:255',
             'type'             => 'required|in:apartment,house,commercial,land',
-            'transaction_type' => 'required|in:sale,rent',
+            'transaction_type' => 'required|in:sale,rent,rent_short,new_build',
             'price'            => 'nullable|numeric|min:0',
             'currency'         => 'required|in:EUR,USD,MDL',
             'area_total'       => 'nullable|numeric|min:0',
+            'area_living'      => 'nullable|numeric|min:0',
             'rooms'            => 'nullable|integer|min:0',
             'floor'            => 'nullable|integer',
             'floors_total'     => 'nullable|integer|min:1',
             'address'          => 'nullable|string|max:255',
             'city'             => 'required|string|max:100',
             'district'         => 'nullable|string|max:100',
+            'latitude'         => 'nullable|numeric',
+            'longitude'        => 'nullable|numeric',
             'description_ro'   => 'nullable|string',
             'description_ru'   => 'nullable|string',
             'description_en'   => 'nullable|string',
-            'status'           => 'required|in:active,inactive,sold,rented',
+            'status'           => 'required|in:active,draft,inactive,sold,rented',
+            'meta'             => 'nullable|array',
+            'photos'           => 'nullable|array|max:15',
+            'photos.*'         => 'file|image|max:5120',
+            'cover_index'      => 'nullable|integer|min:0',
+            'generate_ai'      => 'nullable|string|in:description,price',
         ]);
 
-        $property = Property::create(array_merge($data, [
-            'user_id' => $request->user()->id,
-        ]));
+        $property = Property::create([
+            'user_id'          => $request->user()->id,
+            'title'            => $validated['title'],
+            'type'             => $validated['type'],
+            'transaction_type' => $validated['transaction_type'],
+            'price'            => $validated['price'] ?? null,
+            'currency'         => $validated['currency'],
+            'area_total'       => $validated['area_total'] ?? null,
+            'area_living'      => $validated['area_living'] ?? null,
+            'rooms'            => $validated['rooms'] ?? null,
+            'floor'            => $validated['floor'] ?? null,
+            'floors_total'     => $validated['floors_total'] ?? null,
+            'address'          => $validated['address'] ?? null,
+            'city'             => $validated['city'],
+            'district'         => $validated['district'] ?? null,
+            'latitude'         => $validated['latitude'] ?? null,
+            'longitude'        => $validated['longitude'] ?? null,
+            'description_ro'   => $validated['description_ro'] ?? null,
+            'status'           => $validated['status'],
+            'meta'             => $validated['meta'] ?? [],
+        ]);
+
+        if ($request->hasFile('photos')) {
+            $coverIdx = (int) ($validated['cover_index'] ?? 0);
+            foreach ($request->file('photos') as $idx => $photo) {
+                $path = $photo->store("properties/{$property->id}", 'public');
+                $property->media()->create([
+                    'path'       => $path,
+                    'is_cover'   => $idx === $coverIdx,
+                    'sort_order' => $idx,
+                ]);
+            }
+        }
+
+        $generateAi = $validated['generate_ai'] ?? null;
+
+        if ($generateAi === 'description') {
+            \App\Jobs\GeneratePropertyDescriptionJob::dispatch(
+                $property->id,
+                $request->user()->locale ?? 'ro',
+                $request->user()->id
+            );
+            return redirect()->route('properties.edit', $property)
+                ->with('ai_queued', 'Descrierea AI este în curs de generare. Reîncarcă pagina în câteva secunde.');
+        }
+
+        if ($generateAi === 'price') {
+            \App\Jobs\EstimatePropertyPriceJob::dispatch($property->id);
+            return redirect()->route('properties.edit', $property)
+                ->with('ai_queued', 'Estimarea prețului AI este în curs. Reîncarcă pagina în câteva secunde.');
+        }
+
+        if ($validated['status'] === 'draft') {
+            return redirect()->route('properties.index')
+                ->with('success', 'Schița a fost salvată.');
+        }
 
         return redirect()->route('properties.show', $property)
-            ->with('success', 'Proprietatea a fost adăugată cu succes.');
+            ->with('success', 'Proprietatea a fost adăugată cu succes în secțiunea „Anunțurile mele".');
     }
 
     public function show(Property $property): Response
@@ -101,8 +168,22 @@ class PropertyController extends Controller
         Gate::authorize('view', $property);
         $property->increment('views_count');
 
+        $contracts = \App\Models\GeneratedContract::with(['template', 'contact'])
+            ->where('property_id', $property->id)
+            ->latest()
+            ->get();
+
+        $viewings = \App\Models\CalendarEvent::with(['user', 'contact'])
+            ->where('property_id', $property->id)
+            ->where('type', 'viewing')
+            ->orderBy('starts_at', 'desc')
+            ->limit(15)
+            ->get();
+
         return Inertia::render('Properties/Show', [
-            'property' => $property->load('media', 'user'),
+            'property'  => $property->load('media', 'user'),
+            'contracts' => $contracts,
+            'viewings'  => $viewings,
         ]);
     }
 
@@ -122,10 +203,11 @@ class PropertyController extends Controller
         $data = $request->validate([
             'title'            => 'required|string|max:255',
             'type'             => 'required|in:apartment,house,commercial,land',
-            'transaction_type' => 'required|in:sale,rent',
+            'transaction_type' => 'required|in:sale,rent,rent_short,new_build',
             'price'            => 'nullable|numeric|min:0',
             'currency'         => 'required|in:EUR,USD,MDL',
             'area_total'       => 'nullable|numeric|min:0',
+            'area_living'      => 'nullable|numeric|min:0',
             'rooms'            => 'nullable|integer|min:0',
             'floor'            => 'nullable|integer',
             'floors_total'     => 'nullable|integer|min:1',
@@ -135,7 +217,8 @@ class PropertyController extends Controller
             'description_ro'   => 'nullable|string',
             'description_ru'   => 'nullable|string',
             'description_en'   => 'nullable|string',
-            'status'           => 'required|in:active,inactive,sold,rented',
+            'status'           => 'required|in:active,draft,inactive,sold,rented',
+            'meta'             => 'nullable|array',
         ]);
 
         $property->update($data);

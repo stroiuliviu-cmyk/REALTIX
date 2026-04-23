@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Agency;
 use App\Models\ContractTemplate;
 use App\Models\GeneratedContract;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -10,17 +11,21 @@ use Illuminate\Support\Str;
 
 class PdfContractService
 {
-    public function generate(ContractTemplate $template, array $data, int $userId): GeneratedContract
+    public function generate(ContractTemplate $template, array $data, int $userId, ?Agency $agency = null): GeneratedContract
     {
         $rendered = $this->renderContent($template->content, $data);
+        $uuid     = (string) Str::uuid();
+        $path     = 'contracts/' . $uuid . '.pdf';
 
         $html = view('contracts.pdf_wrapper', [
-            'content' => $rendered,
-            'title'   => $template->name,
+            'content'    => $rendered,
+            'title'      => $template->name,
+            'agency'     => $agency,
+            'verifyCode' => strtoupper(substr(str_replace('-', '', $uuid), 0, 8)),
+            'isPreview'  => false,
         ])->render();
 
-        $pdf  = Pdf::loadHTML($html)->setPaper('a4', 'portrait');
-        $path = 'contracts/' . Str::uuid() . '.pdf';
+        $pdf = Pdf::loadHTML($html)->setPaper('a4', 'portrait');
         Storage::put('public/' . $path, $pdf->output());
 
         return GeneratedContract::create([

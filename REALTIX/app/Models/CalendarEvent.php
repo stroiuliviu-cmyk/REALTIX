@@ -21,11 +21,14 @@ class CalendarEvent extends Model
         'starts_at',
         'ends_at',
         'google_event_id',
+        'status',
+        'all_day',
     ];
 
     protected $casts = [
         'starts_at' => 'datetime',
-        'ends_at' => 'datetime',
+        'ends_at'   => 'datetime',
+        'all_day'   => 'boolean',
     ];
 
     public function user(): BelongsTo { return $this->belongsTo(User::class); }

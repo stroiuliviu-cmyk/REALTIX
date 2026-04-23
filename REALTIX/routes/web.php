@@ -11,6 +11,7 @@ use App\Http\Controllers\GoogleCalendarController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\StatisticsController;
 use App\Http\Controllers\SubscriptionController;
+use App\Http\Controllers\AutoPostController;
 use App\Http\Controllers\WebOffersController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -52,6 +53,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Calendar
     Route::get('/calendar', [CalendarController::class, 'index'])->name('calendar.index');
     Route::post('/calendar', [CalendarController::class, 'store'])->name('calendar.store');
+    Route::patch('/calendar/{calendarEvent}', [CalendarController::class, 'update'])->name('calendar.update');
+    Route::patch('/calendar/{calendarEvent}/status', [CalendarController::class, 'updateStatus'])->name('calendar.status');
     Route::delete('/calendar/{calendarEvent}', [CalendarController::class, 'destroy'])->name('calendar.destroy');
 
     // Settings / Profile
@@ -59,7 +62,66 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    // AI web actions (dispatch queue jobs, Inertia-friendly)
+    // AI Tools page
+    Route::get('/ai', fn () => Inertia::render('AiTools/Index'))->name('ai.index');
+
+    // AI web actions — synchronous JSON endpoints (called via fetch from React)
+    Route::post('/ai/generate', function (\Illuminate\Http\Request $request) {
+        $request->validate([
+            'locale'      => 'nullable|in:ro,ru,en',
+            'style'       => 'nullable|in:short,detailed,formal,emotional',
+            'data'        => 'required|array',
+            'property_id' => 'nullable|integer',
+        ]);
+
+        // If property_id provided, verify ownership
+        if ($request->filled('property_id')) {
+            $prop = \App\Models\Property::findOrFail($request->property_id);
+            \Illuminate\Support\Facades\Gate::authorize('update', $prop);
+        }
+
+        try {
+            $result = app(\App\Services\AiService::class)->generateDescriptionFull(
+                $request->data,
+                $request->locale ?? 'ro',
+                $request->style  ?? 'detailed'
+            );
+            return response()->json($result);
+        } catch (\RuntimeException $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+    })->name('ai.generate');
+
+    Route::post('/ai/estimate', function (\Illuminate\Http\Request $request) {
+        $request->validate([
+            'data'        => 'required|array',
+            'property_id' => 'nullable|integer',
+        ]);
+
+        if ($request->filled('property_id')) {
+            $prop = \App\Models\Property::findOrFail($request->property_id);
+            \Illuminate\Support\Facades\Gate::authorize('view', $prop);
+        }
+
+        try {
+            $result = app(\App\Services\AiService::class)->estimatePriceFull($request->data);
+            return response()->json($result);
+        } catch (\RuntimeException $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+    })->name('ai.estimate');
+
+    Route::post('/properties/{property}/ai/save-description', function (
+        \App\Models\Property $property,
+        \Illuminate\Http\Request $request
+    ) {
+        \Illuminate\Support\Facades\Gate::authorize('update', $property);
+        $request->validate(['locale' => 'required|in:ro,ru,en', 'text' => 'required|string']);
+        $property->update(["description_{$request->locale}" => $request->text]);
+        return response()->json(['ok' => true]);
+    })->name('properties.ai.save-description');
+
+    // Legacy queue-based AI actions (kept for backward compat)
     Route::post('/properties/{property}/ai/description', function (\App\Models\Property $property, \Illuminate\Http\Request $request) {
         \App\Jobs\GeneratePropertyDescriptionJob::dispatch(
             $property->id,
@@ -69,8 +131,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return back()->with('ai_queued', 'Descrierea AI este în curs de generare. Reîncarcă pagina în câteva secunde.');
     })->name('properties.ai.description');
 
-    Route::post('/properties/{property}/ai/price', function (\App\Models\Property $property) {
-        \App\Jobs\EstimatePropertyPriceJob::dispatch($property->id);
+    Route::post('/properties/{property}/ai/price', function (\App\Models\Property $property, \Illuminate\Http\Request $request) {
+        \App\Jobs\EstimatePropertyPriceJob::dispatch($property->id, $request->user()->id);
         return back()->with('ai_queued', 'Estimarea prețului AI este în curs. Reîncarcă pagina în câteva secunde.');
     })->name('properties.ai.price');
 
@@ -92,15 +154,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/web-offers/{scrapedListing}/import',   [WebOffersController::class, 'import'])->name('web-offers.import');
 
     // Auto Post
-    Route::get('/autopost', function () {
-        return Inertia::render('AutoPost/Index', ['requests' => []]);
-    })->name('autopost.index');
+    Route::get('/autopost', [AutoPostController::class, 'index'])->name('autopost.index');
+    Route::post('/autopost', [AutoPostController::class, 'store'])->name('autopost.store');
+    Route::post('/autopost/{autoPost}/approve', [AutoPostController::class, 'approve'])->name('autopost.approve');
+    Route::post('/autopost/{autoPost}/reject', [AutoPostController::class, 'reject'])->name('autopost.reject');
+    Route::delete('/autopost/{autoPost}', [AutoPostController::class, 'cancel'])->name('autopost.cancel');
+    Route::post('/autopost/{autoPost}/remove', [AutoPostController::class, 'removeEverywhere'])->name('autopost.remove');
 
     // Contracts
     Route::get('/contracts', [ContractTemplateController::class, 'index'])->name('contracts.index');
     Route::post('/contracts', [ContractTemplateController::class, 'store'])->name('contracts.store');
     Route::patch('/contracts/{contractTemplate}', [ContractTemplateController::class, 'update'])->name('contracts.update');
     Route::delete('/contracts/{contractTemplate}', [ContractTemplateController::class, 'destroy'])->name('contracts.destroy');
+    Route::get('/contracts/{contractTemplate}/preview', [ContractTemplateController::class, 'preview'])->name('contracts.preview');
     Route::post('/contracts/{contractTemplate}/generate', [ContractTemplateController::class, 'generate'])->name('contracts.generate');
 
     // Google Calendar OAuth

@@ -10,7 +10,8 @@
       "Bash(mv 2026_04_21_114945_create_subscriptions_table.php 2026_04_21_120014_create_subscriptions_table.php)",
       "Bash(mv 2026_04_21_114946_create_subscription_items_table.php 2026_04_21_120015_create_subscription_items_table.php)",
       "Bash(mv 2026_04_21_114947_add_meter_id_to_subscription_items_table.php 2026_04_21_120016_add_meter_id_to_subscription_items_table.php)",
-      "Bash(mv 2026_04_21_114948_add_meter_event_name_to_subscription_items_table.php 2026_04_21_120017_add_meter_event_name_to_subscription_items_table.php)"
+      "Bash(mv 2026_04_21_114948_add_meter_event_name_to_subscription_items_table.php 2026_04_21_120017_add_meter_event_name_to_subscription_items_table.php)",
+      "Bash(php -r \"require 'vendor/autoload.php'; echo class_exists\\('App\\\\Services\\\\AiService'\\) ? 'AiService OK' : 'MISSING';\")"
     ]
   }
 }

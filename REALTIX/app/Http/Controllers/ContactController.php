@@ -56,8 +56,21 @@ class ContactController extends Controller
     {
         Gate::authorize('view', $contact);
 
+        $contracts = \App\Models\GeneratedContract::with(['template', 'property'])
+            ->where('contact_id', $contact->id)
+            ->latest()
+            ->get();
+
+        $meetings = \App\Models\CalendarEvent::with(['property', 'user'])
+            ->where('contact_id', $contact->id)
+            ->orderBy('starts_at', 'desc')
+            ->limit(15)
+            ->get();
+
         return Inertia::render('Contacts/Show', [
-            'contact' => $contact->load('interactions.user', 'deals.property'),
+            'contact'   => $contact->load('interactions.user', 'deals.property'),
+            'contracts' => $contracts,
+            'meetings'  => $meetings,
         ]);
     }
 

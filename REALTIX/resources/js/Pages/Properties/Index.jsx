@@ -428,7 +428,7 @@ export default function Index({ properties, filters = {}, isAdmin, authUserId, f
 
                         <CheckGroup
                             label="Status"
-                            options={[['active','Activ'],['inactive','Inactiv / Arhivat'],['sold','Vândut'],['rented','Închiriat']]}
+                            options={[['active','Activ'],['inactive','Inactiv']]}
                             values={f.statuses}
                             onChange={v => set('statuses', v)}
                         />

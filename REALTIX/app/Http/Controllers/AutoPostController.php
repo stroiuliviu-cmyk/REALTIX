@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\PublishTo999Job;
 use App\Models\AutoPostRequest;
 use App\Models\Property;
 use Illuminate\Http\Request;
@@ -112,24 +113,31 @@ class AutoPostController extends Controller
             return back()->with('success', 'Publicarea a fost programată.');
         }
 
-        // Simulate immediate posting to all platforms
-        $results = [];
-        foreach ($platforms as $platform) {
-            $results[$platform] = [
-                'status' => 'posted',
-                'url'    => $this->simulatePlatformUrl($platform, $autoPost->property),
-                'error'  => null,
-            ];
-        }
-
         $autoPost->update([
-            'status'           => AutoPostRequest::STATUS_POSTED,
-            'platforms'        => $platforms,
-            'platform_results' => $results,
-            'posted_at'        => now(),
+            'status'    => AutoPostRequest::STATUS_APPROVED,
+            'platforms' => $platforms,
         ]);
 
-        return back()->with('success', 'Anunțul a fost publicat pe ' . count($platforms) . ' platforme.');
+        // Dispatch real publishing jobs per platform
+        if (in_array('999md', $platforms)) {
+            PublishTo999Job::dispatch($autoPost);
+        }
+
+        // Other platforms still use simulation (to be implemented)
+        $otherPlatforms = array_diff($platforms, ['999md']);
+        if (! empty($otherPlatforms)) {
+            $results = $autoPost->platform_results ?? [];
+            foreach ($otherPlatforms as $platform) {
+                $results[$platform] = [
+                    'status' => 'posted',
+                    'url'    => $this->simulatePlatformUrl($platform, $autoPost->property),
+                    'error'  => null,
+                ];
+            }
+            $autoPost->update(['platform_results' => $results]);
+        }
+
+        return back()->with('success', 'Publicarea a fost inițiată pe ' . count($platforms) . ' platforme.');
     }
 
     // ── Reject: admin rejects with mandatory note ───────────────────────────

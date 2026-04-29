@@ -16,7 +16,10 @@
         "laravel/cashier": "^16.5",
         "laravel/framework": "^12.0",
         "laravel/sanctum": "^4.0",
+        "laravel/socialite": "^5.26",
         "laravel/tinker": "^2.10.1",
+        "socialiteproviders/apple": "^5.10",
+        "socialiteproviders/microsoft-azure": "^5.2",
         "spatie/laravel-permission": "^6.25",
         "tightenco/ziggy": "^2.0"
     },

@@ -183,6 +183,53 @@ class SettingsController extends Controller
         return back()->with('success', 'Agentul a fost eliminat.');
     }
 
+    public function updatePortalKeys(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $validated = $request->validate([
+            'portal_999md_api_key'     => 'nullable|string|max:200',
+            'p999_category_id'         => 'nullable|integer',
+            'p999_subcat_apartment'    => 'nullable|integer',
+            'p999_subcat_house'        => 'nullable|integer',
+            'p999_subcat_commercial'   => 'nullable|integer',
+            'p999_subcat_land'         => 'nullable|integer',
+            'p999_offer_sale'          => 'nullable|integer',
+            'p999_offer_rent'          => 'nullable|integer',
+            'p999_offer_rent_short'    => 'nullable|integer',
+            'p999_feature_price'       => 'nullable|integer',
+            'p999_feature_title'       => 'nullable|integer',
+            'p999_feature_description' => 'nullable|integer',
+            'p999_feature_images'      => 'nullable|integer',
+            'p999_feature_contacts'    => 'nullable|integer',
+            'p999_feature_location'    => 'nullable|integer',
+        ]);
+
+        $agency   = $request->user()->agency;
+        $settings = $agency->settings ?? [];
+
+        $agency->update([
+            'settings' => array_merge($settings, array_filter($validated, fn($v) => $v !== null)),
+        ]);
+
+        return back()->with('success', 'Configurarea portalurilor a fost salvată.');
+    }
+
+    public function discoverPortal999Categories(\Illuminate\Http\Request $request): \Illuminate\Http\JsonResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $agency  = $request->user()->agency;
+        $service = new \App\Services\Portals\Portal999Service();
+
+        try {
+            $categories = $service->getCategories($agency);
+            return response()->json(['categories' => $categories]);
+        } catch (\Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+    }
+
     public function logoutOtherDevices(Request $request): RedirectResponse
     {
         $request->validate(['password' => 'required|current_password']);

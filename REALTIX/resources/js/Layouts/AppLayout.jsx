@@ -1,24 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, usePage, router } from '@inertiajs/react';
-
-const sidebarItems = [
-    { key: 'properties',  label: 'Anunțurile mele',    href: '/properties',       icon: '🏠' },
-    { key: 'web-offers',  label: 'Web Oferte',          href: '/web-offers',       icon: '🌐' },
-    { key: 'create',      label: 'Adaugă anunț',        href: '/properties/create',icon: '➕' },
-    { key: 'ai',          label: 'Instrumente AI',      href: '/ai',               icon: '✨' },
-    { key: 'autopost',    label: 'Autopostare',         href: '/autopost',         icon: '📤' },
-    { key: 'contracts',   label: 'Contracte',           href: '/contracts',        icon: '📄' },
-    { key: 'calendar',    label: 'Calendar',            href: '/calendar',         icon: '📅' },
-    { key: 'contacts',    label: 'Clienți CRM',         href: '/contacts',         icon: '👥' },
-];
-
-const headerNavItems = [
-    { label: 'Panou principal', href: '/dashboard' },
-    { label: 'Statistici',     href: '/statistics' },
-    { label: 'Abonament',      href: '/subscription' },
-];
+import { useTranslation } from '@/Hooks/useTranslation';
 
 function ProfileDropdown({ user }) {
+    const { t } = useTranslation();
     const [open, setOpen] = useState(false);
     const ref = useRef(null);
 
@@ -54,16 +39,16 @@ function ProfileDropdown({ user }) {
                         <div className="text-xs text-slate-500 truncate">{user?.email}</div>
                     </div>
                     <Link href="/settings" className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
-                        <span>👤</span> Profilul meu
+                        <span>👤</span> {t('profile.my_profile')}
                     </Link>
                     <Link href="/settings?tab=notifications" className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
-                        <span>🔔</span> Notificări
+                        <span>🔔</span> {t('profile.notifications')}
                     </Link>
                     <Link href="/subscription" className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
-                        <span>💳</span> Abonament
+                        <span>💳</span> {t('profile.subscription')}
                     </Link>
                     <a href="mailto:support@realtix.md" className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
-                        <span>❓</span> Suport
+                        <span>❓</span> {t('profile.support')}
                     </a>
                     <div className="border-t border-slate-100 mt-1 pt-1">
                         <Link
@@ -72,7 +57,7 @@ function ProfileDropdown({ user }) {
                             as="button"
                             className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
                         >
-                            <span>🚪</span> Ieșire
+                            <span>🚪</span> {t('profile.logout')}
                         </Link>
                     </div>
                 </div>
@@ -83,8 +68,27 @@ function ProfileDropdown({ user }) {
 
 export default function AppLayout({ children, title }) {
     const { auth, flash, locale } = usePage().props;
+    const { t } = useTranslation();
     const user = auth?.user;
     const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
+
+    const sidebarItems = [
+        { key: 'properties',  label: t('nav.my_listings'),  href: '/properties',        icon: '🏠' },
+        { key: 'web-offers',  label: t('nav.web_offers'),   href: '/web-offers',        icon: '🌐' },
+        { key: 'create',      label: t('nav.add_listing'),  href: '/properties/create', icon: '➕' },
+        { key: 'ai',          label: t('nav.ai_tools'),     href: '/ai',                icon: '✨' },
+        { key: 'autopost',    label: t('nav.autopost'),     href: '/autopost',          icon: '📤' },
+        { key: 'contracts',   label: t('nav.contracts'),    href: '/contracts',         icon: '📄' },
+        { key: 'calendar',    label: t('nav.calendar'),     href: '/calendar',          icon: '📅' },
+        { key: 'contacts',    label: t('nav.crm_clients'),  href: '/contacts',          icon: '👥' },
+    ];
+
+    const headerNavItems = [
+        { label: t('nav.dashboard'),    href: '/dashboard' },
+        { label: t('nav.statistics'),   href: '/statistics' },
+        { label: t('nav.subscription'), href: '/subscription' },
+        ...(user?.is_super_admin ? [{ label: 'Admin', href: '/admin', highlight: true }] : []),
+    ];
 
     const activeKey = sidebarItems.find(item =>
         item.href !== '/properties/create'
@@ -122,42 +126,75 @@ export default function AppLayout({ children, title }) {
 
                     {/* Center nav */}
                     <nav className="hidden lg:flex items-center gap-1 text-sm font-medium">
-                        {headerNavItems.map(item => (
-                            <Link
-                                key={item.href}
-                                href={item.href}
-                                className={`px-4 py-2 rounded-xl transition-colors ${
-                                    currentPath.startsWith(item.href) || currentPath === item.href
-                                        ? 'bg-slate-100 text-slate-900 font-semibold'
-                                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                                }`}
-                            >
-                                {item.label}
-                            </Link>
-                        ))}
+                        {headerNavItems.map(item => {
+                            const isActive = currentPath.startsWith(item.href) || currentPath === item.href;
+                            if (item.highlight) {
+                                return (
+                                    <Link
+                                        key={item.href}
+                                        href={item.href}
+                                        className={`px-4 py-2 rounded-xl transition-colors font-semibold ${
+                                            isActive
+                                                ? 'bg-rose-600 text-white'
+                                                : 'bg-rose-100 text-rose-700 hover:bg-rose-200'
+                                        }`}
+                                    >
+                                        🛡 {item.label}
+                                    </Link>
+                                );
+                            }
+                            return (
+                                <Link
+                                    key={item.href}
+                                    href={item.href}
+                                    className={`px-4 py-2 rounded-xl transition-colors ${
+                                        isActive
+                                            ? 'bg-slate-100 text-slate-900 font-semibold'
+                                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    {item.label}
+                                </Link>
+                            );
+                        })}
                     </nav>
 
                     {/* Right side */}
                     <div className="flex items-center gap-3">
                         {/* Language switcher */}
-                        <div className="hidden sm:flex gap-0.5 text-xs font-bold bg-slate-100 rounded-xl p-1">
-                            {['ro', 'ru', 'en'].map(lang => (
-                                <button
-                                    key={lang}
-                                    onClick={() => switchLanguage(lang)}
-                                    className={`px-2.5 py-1 rounded-lg uppercase transition-colors ${locale === lang ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-700'}`}
-                                >
-                                    {lang}
-                                </button>
-                            ))}
-                        </div>
+                        {(() => {
+                            const langs = ['ro', 'ru', 'en'];
+                            const activeIndex = langs.indexOf(locale);
+                            return (
+                                <div className="hidden sm:flex relative text-xs font-bold bg-slate-100 rounded-xl p-1">
+                                    <span
+                                        className="absolute top-1 bottom-1 rounded-lg bg-white shadow-sm"
+                                        style={{
+                                            width: 'calc((100% - 8px) / 3)',
+                                            left: '4px',
+                                            transform: `translateX(calc(${activeIndex} * 100%))`,
+                                            transition: 'transform 0.2s ease',
+                                        }}
+                                    />
+                                    {langs.map(lang => (
+                                        <button
+                                            key={lang}
+                                            onClick={() => switchLanguage(lang)}
+                                            className={`relative z-10 flex-1 px-2.5 py-1 rounded-lg uppercase transition-colors duration-200 ${locale === lang ? 'text-slate-900' : 'text-slate-400 hover:text-slate-700'}`}
+                                        >
+                                            {lang}
+                                        </button>
+                                    ))}
+                                </div>
+                            );
+                        })()}
 
                         {/* Quick add */}
                         <Link
                             href="/properties/create"
                             className="hidden md:flex items-center gap-1.5 rounded-xl bg-linear-to-r from-slate-900 to-blue-700 px-4 py-2 text-white text-sm font-semibold hover:opacity-90 transition-opacity"
                         >
-                            <span className="text-base">+</span> Anunț nou
+                            <span className="text-base">+</span> {t('nav.new_listing')}
                         </Link>
 
                         <ProfileDropdown user={user} />
@@ -191,7 +228,7 @@ export default function AppLayout({ children, title }) {
                 {/* Sidebar */}
                 <aside className="w-14 lg:w-56 shrink-0 rounded-4xl bg-white/90 p-3 shadow-xl border border-slate-100/80 backdrop-blur-xl sticky top-24 self-start mr-5">
                     <div className="hidden lg:block mb-3 text-xs font-bold uppercase tracking-wider text-slate-400 px-3">
-                        Navigare
+                        {t('nav.navigate')}
                     </div>
                     <div className="space-y-1">
                         {sidebarItems.map((item) => {
@@ -219,13 +256,13 @@ export default function AppLayout({ children, title }) {
                     <div className="mt-4 pt-4 border-t border-slate-100 space-y-1">
                         <Link
                             href="/settings"
-                            title="Setări"
+                            title={t('nav.settings')}
                             className={`flex items-center gap-3 text-sm font-semibold transition-all duration-150 rounded-2xl p-3 ${
                                 currentPath.startsWith('/settings') ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'
                             }`}
                         >
                             <span className="text-base shrink-0">⚙️</span>
-                            <span className="hidden lg:block">Setări</span>
+                            <span className="hidden lg:block">{t('nav.settings')}</span>
                         </Link>
                     </div>
                 </aside>
@@ -235,6 +272,34 @@ export default function AppLayout({ children, title }) {
                     {title && (
                         <h1 className="text-2xl font-bold text-slate-900 mb-5">{title}</h1>
                     )}
+
+                    {/* Admin sub-nav (visible only on /admin/*) */}
+                    {user?.is_super_admin && currentPath.startsWith('/admin') && (
+                        <nav className="mb-5 flex gap-1.5 flex-wrap p-1.5 bg-rose-50 rounded-2xl border border-rose-100 w-fit">
+                            {[
+                                { href: '/admin',               label: 'Dashboard',   exact: true },
+                                { href: '/admin/users',         label: 'Utilizatori' },
+                                { href: '/admin/agencies',      label: 'Agenții' },
+                                { href: '/admin/subscriptions', label: 'Abonamente' },
+                            ].map(item => {
+                                const active = item.exact ? currentPath === item.href : currentPath.startsWith(item.href);
+                                return (
+                                    <Link
+                                        key={item.href}
+                                        href={item.href}
+                                        className={`px-4 py-1.5 rounded-xl text-sm font-semibold transition-colors ${
+                                            active
+                                                ? 'bg-rose-600 text-white shadow-sm'
+                                                : 'text-rose-700 hover:bg-rose-100'
+                                        }`}
+                                    >
+                                        {item.label}
+                                    </Link>
+                                );
+                            })}
+                        </nav>
+                    )}
+
                     {children}
                 </main>
             </div>

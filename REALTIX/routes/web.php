@@ -10,9 +10,14 @@ use App\Http\Controllers\PropertyController;
 use App\Http\Controllers\GoogleCalendarController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\StatisticsController;
+use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\AutoPostController;
 use App\Http\Controllers\WebOffersController;
+use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\UsersController       as AdminUsersController;
+use App\Http\Controllers\Admin\AgenciesController    as AdminAgenciesController;
+use App\Http\Controllers\Admin\SubscriptionsController as AdminSubscriptionsController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -32,6 +37,23 @@ Route::post('/language/{locale}', function (string $locale) {
     }
     return back();
 })->name('language.switch');
+
+// Onboarding — auth required, verification NOT required
+Route::middleware(['auth'])->group(function () {
+    Route::get('/onboarding', [OnboardingController::class, 'index'])->name('onboarding');
+    Route::post('/onboarding/complete', [OnboardingController::class, 'complete'])->name('onboarding.complete');
+
+    // Change email before verification
+    Route::post('/email/change', function (\Illuminate\Http\Request $request) {
+        $request->validate(['email' => 'required|email|unique:users,email']);
+        $request->user()->forceFill([
+            'email' => $request->email,
+            'email_verified_at' => null,
+        ])->save();
+        $request->user()->sendEmailVerificationNotification();
+        return back()->with('status', 'verification-link-sent');
+    })->name('email.change');
+});
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
@@ -150,6 +172,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Web Offers
     Route::get('/web-offers', [WebOffersController::class, 'index'])->name('web-offers.index');
+    Route::post('/web-offers/sync', [WebOffersController::class, 'sync'])->name('web-offers.sync');
     Route::post('/web-offers/{scrapedListing}/favorite', [WebOffersController::class, 'toggleFavorite'])->name('web-offers.favorite');
     Route::post('/web-offers/{scrapedListing}/import',   [WebOffersController::class, 'import'])->name('web-offers.import');
 
@@ -168,6 +191,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/contracts/{contractTemplate}', [ContractTemplateController::class, 'destroy'])->name('contracts.destroy');
     Route::get('/contracts/{contractTemplate}/preview', [ContractTemplateController::class, 'preview'])->name('contracts.preview');
     Route::post('/contracts/{contractTemplate}/generate', [ContractTemplateController::class, 'generate'])->name('contracts.generate');
+    Route::post('/run-seeder/contracts', [ContractTemplateController::class, 'installDefaults'])->name('contracts.install-defaults');
 
     // Google Calendar OAuth
     Route::get('/google/calendar/connect',    [GoogleCalendarController::class, 'redirect'])->name('google.calendar.connect');
@@ -186,6 +210,22 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('/settings/users/{user}', [SettingsController::class, 'updateAgent'])->name('settings.users.update');
     Route::delete('/settings/users/{user}', [SettingsController::class, 'removeAgent'])->name('settings.users.remove');
     Route::post('/settings/security/logout-others', [SettingsController::class, 'logoutOtherDevices'])->name('settings.logout.others');
+    Route::patch('/settings/portals', [SettingsController::class, 'updatePortalKeys'])->name('settings.portals');
+    Route::get('/settings/portals/discover-categories', [SettingsController::class, 'discoverPortal999Categories'])->name('settings.portals.discover');
+});
+
+// Platform admin (super_admin only)
+Route::middleware(['auth', 'super_admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/', AdminDashboardController::class)->name('dashboard');
+
+    Route::get('/users',                       [AdminUsersController::class, 'index'])->name('users.index');
+    Route::patch('/users/{user}/toggle-active',[AdminUsersController::class, 'toggleActive'])->name('users.toggle-active');
+    Route::delete('/users/{user}',             [AdminUsersController::class, 'destroy'])->name('users.destroy');
+
+    Route::get('/agencies',                 [AdminAgenciesController::class, 'index'])->name('agencies.index');
+    Route::delete('/agencies/{agency}',     [AdminAgenciesController::class, 'destroy'])->name('agencies.destroy');
+
+    Route::get('/subscriptions', [AdminSubscriptionsController::class, 'index'])->name('subscriptions.index');
 });
 
 require __DIR__.'/auth.php';

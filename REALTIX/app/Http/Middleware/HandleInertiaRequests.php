@@ -28,6 +28,7 @@ class HandleInertiaRequests extends Middleware
                     'avatar_path' => $user->avatar_path,
                     'locale' => $user->locale,
                     'is_admin' => $user->isAdmin(),
+                    'is_super_admin' => $user->isSuperAdmin(),
                     'agency' => $user->agency ? [
                         'id' => $user->agency->id,
                         'name' => $user->agency->name,

@@ -728,6 +728,175 @@ function IntegrationsTab({ agency, user }) {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+// ─── Portals Tab ──────────────────────────────────────────────────────────────
+
+function PortalsTab({ agency }) {
+    const s = agency?.settings ?? {};
+    const configured = !!s.portal_999md_api_key;
+    const [showAdvanced, setShowAdvanced] = useState(false);
+    const [discovering, setDiscovering] = useState(false);
+    const [categories, setCategories] = useState(null);
+
+    const { data, setData, patch, processing } = useForm({
+        portal_999md_api_key:     s.portal_999md_api_key     ?? '',
+        p999_category_id:         s.p999_category_id         ?? '',
+        p999_subcat_apartment:    s.p999_subcat_apartment    ?? '',
+        p999_subcat_house:        s.p999_subcat_house        ?? '',
+        p999_subcat_commercial:   s.p999_subcat_commercial   ?? '',
+        p999_subcat_land:         s.p999_subcat_land         ?? '',
+        p999_offer_sale:          s.p999_offer_sale          ?? '',
+        p999_offer_rent:          s.p999_offer_rent          ?? '',
+        p999_offer_rent_short:    s.p999_offer_rent_short    ?? '',
+        p999_feature_price:       s.p999_feature_price       ?? '2',
+        p999_feature_title:       s.p999_feature_title       ?? '12',
+        p999_feature_description: s.p999_feature_description ?? '13',
+        p999_feature_images:      s.p999_feature_images      ?? '14',
+        p999_feature_contacts:    s.p999_feature_contacts    ?? '16',
+        p999_feature_location:    s.p999_feature_location    ?? '',
+    });
+
+    const submit = (e) => { e.preventDefault(); patch(route('settings.portals')); };
+
+    const discoverCategories = () => {
+        setDiscovering(true);
+        fetch(route('settings.portals.discover'))
+            .then(r => r.json())
+            .then(d => { setCategories(d.categories); setDiscovering(false); })
+            .catch(() => setDiscovering(false));
+    };
+
+    return (
+        <form onSubmit={submit} className="space-y-4 max-w-lg">
+            {/* 999.md card */}
+            <div className="rounded-3xl border border-slate-100 bg-white p-5 space-y-4">
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-2xl shrink-0">
+                        🏠
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <div className="font-bold text-slate-900 text-sm">999.md Partners API</div>
+                        <div className="text-xs text-slate-500 mt-0.5">
+                            Publică anunțuri imobiliare direct pe 999.md din REALTIX.
+                        </div>
+                    </div>
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full shrink-0 ${configured ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                        {configured ? '✅ Configurat' : 'Neconfigurat'}
+                    </span>
+                </div>
+
+                <div>
+                    <Label>API Key 999.md</Label>
+                    <Input
+                        type="password"
+                        value={data.portal_999md_api_key}
+                        onChange={e => setData('portal_999md_api_key', e.target.value)}
+                        placeholder="Cheia ta API de pe partners-api.999.md"
+                    />
+                    <p className="text-xs text-slate-400 mt-1">
+                        Obține cheia din <span className="font-mono">partners-api.999.md</span> → Settings → API Keys
+                    </p>
+                </div>
+
+                {/* Discover button */}
+                {data.portal_999md_api_key && (
+                    <div>
+                        <button
+                            type="button"
+                            onClick={discoverCategories}
+                            disabled={discovering}
+                            className="text-xs text-blue-600 hover:underline disabled:opacity-50"
+                        >
+                            {discovering ? 'Se încarcă...' : '🔍 Descoperă categoriile disponibile'}
+                        </button>
+                        {categories && (
+                            <pre className="mt-2 text-xs bg-slate-50 rounded-xl p-3 overflow-auto max-h-40 border border-slate-100">
+                                {JSON.stringify(categories, null, 2)}
+                            </pre>
+                        )}
+                    </div>
+                )}
+
+                {/* Advanced toggle */}
+                <button
+                    type="button"
+                    onClick={() => setShowAdvanced(v => !v)}
+                    className="text-xs text-slate-400 hover:text-slate-600"
+                >
+                    {showAdvanced ? '▲ Ascunde' : '▼ Configurare avansată (categorii & features)'}
+                </button>
+
+                {showAdvanced && (
+                    <div className="space-y-3 pt-2 border-t border-slate-100">
+                        <p className="text-xs text-slate-500">
+                            Completează ID-urile după ce ai descoperit categoriile de mai sus.
+                        </p>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <Label>Category ID (Imobiliare)</Label>
+                                <Input value={data.p999_category_id} onChange={e => setData('p999_category_id', e.target.value)} placeholder="ex: 2" />
+                            </div>
+                            <div>
+                                <Label>Subcat. Apartamente</Label>
+                                <Input value={data.p999_subcat_apartment} onChange={e => setData('p999_subcat_apartment', e.target.value)} placeholder="ex: 201" />
+                            </div>
+                            <div>
+                                <Label>Subcat. Case</Label>
+                                <Input value={data.p999_subcat_house} onChange={e => setData('p999_subcat_house', e.target.value)} placeholder="ex: 202" />
+                            </div>
+                            <div>
+                                <Label>Subcat. Comercial</Label>
+                                <Input value={data.p999_subcat_commercial} onChange={e => setData('p999_subcat_commercial', e.target.value)} placeholder="ex: 203" />
+                            </div>
+                            <div>
+                                <Label>Subcat. Teren</Label>
+                                <Input value={data.p999_subcat_land} onChange={e => setData('p999_subcat_land', e.target.value)} placeholder="ex: 204" />
+                            </div>
+                            <div>
+                                <Label>Offer type: Vânzare</Label>
+                                <Input value={data.p999_offer_sale} onChange={e => setData('p999_offer_sale', e.target.value)} placeholder="ex: 18979" />
+                            </div>
+                            <div>
+                                <Label>Offer type: Chirie</Label>
+                                <Input value={data.p999_offer_rent} onChange={e => setData('p999_offer_rent', e.target.value)} placeholder="ex: 18980" />
+                            </div>
+                            <div>
+                                <Label>Offer type: Chirie scurtă</Label>
+                                <Input value={data.p999_offer_rent_short} onChange={e => setData('p999_offer_rent_short', e.target.value)} placeholder="ex: 18981" />
+                            </div>
+                        </div>
+
+                        <p className="text-xs font-semibold text-slate-600 mt-2">Feature IDs</p>
+                        <div className="grid grid-cols-3 gap-3">
+                            {[
+                                ['p999_feature_price',       'Preț'],
+                                ['p999_feature_title',       'Titlu'],
+                                ['p999_feature_description', 'Descriere'],
+                                ['p999_feature_images',      'Imagini'],
+                                ['p999_feature_contacts',    'Telefon'],
+                                ['p999_feature_location',    'Locație'],
+                            ].map(([key, label]) => (
+                                <div key={key}>
+                                    <Label>{label}</Label>
+                                    <Input value={data[key]} onChange={e => setData(key, e.target.value)} placeholder="ID" />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            <button
+                type="submit"
+                disabled={processing}
+                className="w-full rounded-2xl bg-slate-900 text-white text-sm font-semibold py-2.5 hover:bg-slate-800 disabled:opacity-50 transition-colors"
+            >
+                {processing ? 'Se salvează...' : 'Salvează configurarea portalurilor'}
+            </button>
+        </form>
+    );
+}
+
 const TABS = [
     { key: 'profile',       label: 'Profil',        icon: '👤', adminOnly: false },
     { key: 'agency',        label: 'Agenție',        icon: '🏢', adminOnly: true  },
@@ -735,6 +904,7 @@ const TABS = [
     { key: 'notifications', label: 'Notificări',    icon: '🔔', adminOnly: false },
     { key: 'security',      label: 'Securitate',    icon: '🔒', adminOnly: false },
     { key: 'integrations',  label: 'Integrări',     icon: '🔗', adminOnly: true  },
+    { key: 'portals',       label: 'Portaluri',     icon: '🌐', adminOnly: true  },
 ];
 
 export default function Index({ user, agency, isAdmin, sessions = [], agents = [], flash }) {
@@ -783,6 +953,7 @@ export default function Index({ user, agency, isAdmin, sessions = [], agents = [
                     {activeTab === 'notifications' && <NotificationsTab user={user} />}
                     {activeTab === 'security'      && <SecurityTab sessions={sessions} />}
                     {activeTab === 'integrations'  && <IntegrationsTab agency={agency} user={user} />}
+                    {activeTab === 'portals'       && <PortalsTab agency={agency} />}
                 </div>
             </div>
         </AppLayout>

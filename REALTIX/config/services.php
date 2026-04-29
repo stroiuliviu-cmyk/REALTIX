@@ -41,4 +41,20 @@ return [
         'redirect'      => env('GOOGLE_REDIRECT_URI', 'http://127.0.0.1:8000/google/calendar/callback'),
     ],
 
+    'azure' => [
+        'client_id'     => env('MICROSOFT_CLIENT_ID'),
+        'client_secret' => env('MICROSOFT_CLIENT_SECRET'),
+        'redirect'      => env('APP_URL', 'http://127.0.0.1:8000') . '/auth/microsoft/callback',
+        'tenant'        => env('MICROSOFT_TENANT_ID', 'common'),
+    ],
+
+    'apple' => [
+        'client_id'     => env('APPLE_CLIENT_ID'),
+        'client_secret' => env('APPLE_CLIENT_SECRET'),
+        'redirect'      => env('APP_URL', 'http://127.0.0.1:8000') . '/auth/apple/callback',
+        'team_id'       => env('APPLE_TEAM_ID'),
+        'key_id'        => env('APPLE_KEY_ID'),
+        'private_key'   => env('APPLE_PRIVATE_KEY'),
+    ],
+
 ];

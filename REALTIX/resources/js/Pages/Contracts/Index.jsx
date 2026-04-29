@@ -512,7 +512,7 @@ export default function Index({ templates = [], generated = [], properties = [],
                             <div className="text-5xl mb-4">📄</div>
                             <p className="font-bold text-slate-700 mb-2">Niciun șablon în bibliotecă</p>
                             <p className="text-sm text-slate-400 mb-6 max-w-md mx-auto">
-                                Creați primul șablon sau instalați setul implicit REALTIX (6 documente standard).
+                                Creați primul șablon sau instalați setul implicit REALTIX (13 documente standard, traduse în română).
                             </p>
                             <div className="flex justify-center gap-3">
                                 <button

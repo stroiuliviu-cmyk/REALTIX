@@ -13,7 +13,8 @@ use Inertia\Response;
 
 class ContractTemplateController extends Controller
 {
-    private const TYPES = 'sale,rent,mandate,advance,handover,viewing_sheet,gdpr_consent,exclusive';
+    private const TYPES = 'sale,rent,mandate,advance,handover,viewing_sheet,gdpr_consent,exclusive,'
+        . 'termination,service_act,power_of_attorney,service_buyer,service_seller,transaction_assist';
 
     public function index(): Response
     {
@@ -76,6 +77,18 @@ class ContractTemplateController extends Controller
     {
         $contractTemplate->delete();
         return back()->with('success', 'Șablonul a fost șters.');
+    }
+
+    public function installDefaults(Request $request)
+    {
+        $agency = $request->user()->agency;
+        if (! $agency) {
+            return back()->with('error', 'Nu ai o agenție asociată.');
+        }
+
+        $count = \App\Services\DefaultContractTemplates::install($agency);
+
+        return back()->with('success', "S-au instalat {$count} șabloane standard în biblioteca ta.");
     }
 
     public function preview(ContractTemplate $contractTemplate): \Illuminate\Http\Response

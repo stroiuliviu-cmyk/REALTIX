@@ -1,8 +1,6 @@
 import AppLayout from '@/Layouts/AppLayout';
 import { Head, Link, usePage } from '@inertiajs/react';
-
-const typeLabels = { buyer: 'Cumpărători', seller: 'Vânzători', tenant: 'Chiriași', landlord: 'Proprietari' };
-const monthNames = ['Ian', 'Feb', 'Mar', 'Apr', 'Mai', 'Iun', 'Iul', 'Aug', 'Sep', 'Oct', 'Noi', 'Dec'];
+import { useTranslation } from '@/Hooks/useTranslation';
 
 function StatCard({ icon, title, value, sub, href, color = 'blue' }) {
     const colors = {
@@ -32,11 +30,11 @@ function StatCard({ icon, title, value, sub, href, color = 'blue' }) {
     );
 }
 
-function AiDealCard({ listing }) {
+function AiDealCard({ listing, t }) {
     const badge = {
-        cheap:      { label: 'Avantajos', cls: 'bg-emerald-100 text-emerald-700' },
-        average:    { label: 'Mediu',     cls: 'bg-amber-100 text-amber-700' },
-        expensive:  { label: 'Scump',     cls: 'bg-red-100 text-red-700' },
+        cheap:     { label: t('dashboard.valuation_cheap'),    cls: 'bg-emerald-100 text-emerald-700' },
+        average:   { label: t('dashboard.valuation_average'),  cls: 'bg-amber-100 text-amber-700' },
+        expensive: { label: t('dashboard.valuation_expensive'), cls: 'bg-red-100 text-red-700' },
     };
     const b = badge[listing.ai_valuation] ?? badge.average;
 
@@ -58,7 +56,7 @@ function AiDealCard({ listing }) {
                         <div className="text-lg font-black text-slate-900">{listing.price ? `€${Number(listing.price).toLocaleString('ro')}` : '—'}</div>
                         {listing.area && <div className="text-xs text-slate-400">{listing.area} m²</div>}
                     </div>
-                    <Link href={`/web-offers`} className="text-xs font-semibold text-blue-700 hover:underline">Detalii →</Link>
+                    <Link href="/web-offers" className="text-xs font-semibold text-blue-700 hover:underline">{t('common.details')}</Link>
                 </div>
             </div>
         </div>
@@ -66,25 +64,34 @@ function AiDealCard({ listing }) {
 }
 
 export default function Index({ stats, recentProperties, recentContacts, hotDeals = [], lastUpdated }) {
+    const { t } = useTranslation();
     const { auth } = usePage().props;
     const user = auth?.user;
     const agency = user?.agency;
 
-    const planLabel  = { starter: 'Starter',  medium: 'Medium', pro: 'Pro' }[agency?.subscription_plan] ?? agency?.subscription_plan ?? '—';
-    const planEnds   = agency?.subscription_ends_at
+    const typeLabels = {
+        buyer:    t('contact_types.buyer'),
+        seller:   t('contact_types.seller'),
+        tenant:   t('contact_types.tenant'),
+        landlord: t('contact_types.landlord'),
+        developer:t('contact_types.developer'),
+    };
+
+    const planLabel = { starter: 'Starter', medium: 'Medium', pro: 'Pro' }[agency?.subscription_plan] ?? agency?.subscription_plan ?? '—';
+    const planEnds  = agency?.subscription_ends_at
         ? new Date(agency.subscription_ends_at).toLocaleDateString('ro', { day: 'numeric', month: 'long', year: 'numeric' })
         : null;
 
     return (
         <AppLayout>
-            <Head title="Panou principal" />
+            <Head title={t('dashboard.page_title')} />
             <div className="space-y-6">
 
-                {/* ─── Block 1: Welcome + Plan status ─── */}
+                {/* ─── Welcome + Plan ─── */}
                 <section className="rounded-4xl bg-linear-to-br from-blue-700 via-blue-800 to-slate-900 p-8 text-white shadow-2xl">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                         <div>
-                            <div className="text-xs font-bold uppercase tracking-widest text-blue-300 mb-1">Bun venit înapoi</div>
+                            <div className="text-xs font-bold uppercase tracking-widest text-blue-300 mb-1">{t('dashboard.welcome_back')}</div>
                             <h1 className="text-3xl font-black" style={{ fontFamily: 'Montserrat, sans-serif' }}>
                                 {user?.name}
                             </h1>
@@ -93,22 +100,22 @@ export default function Index({ stats, recentProperties, recentContacts, hotDeal
                             )}
                             <div className="mt-3 flex items-center gap-3 flex-wrap">
                                 <span className="bg-white/15 border border-white/20 rounded-full px-3 py-1 text-xs font-semibold">
-                                    Plan: {planLabel}
+                                    {t('dashboard.plan_prefix')} {planLabel}
                                 </span>
                                 {planEnds && (
-                                    <span className="text-xs text-blue-300">activ până la {planEnds}</span>
+                                    <span className="text-xs text-blue-300">{t('dashboard.active_until')} {planEnds}</span>
                                 )}
                                 <Link href="/subscription" className="bg-white text-slate-900 rounded-full px-4 py-1.5 text-xs font-bold hover:bg-blue-50 transition-colors">
-                                    Actualizează planul
+                                    {t('dashboard.upgrade_plan')}
                                 </Link>
                             </div>
                         </div>
                         <div className="grid grid-cols-2 gap-3 min-w-65">
                             {[
-                                { label: 'Anunțuri', value: stats.properties },
-                                { label: 'Clienți',  value: stats.contacts },
-                                { label: 'Tranzacții', value: stats.closed_deals },
-                                { label: 'Venit lunar', value: stats.monthly_revenue > 0 ? `€${Number(stats.monthly_revenue).toLocaleString('ro')}` : '—' },
+                                { label: t('dashboard.mini_properties'),   value: stats.properties },
+                                { label: t('dashboard.mini_clients'),      value: stats.contacts },
+                                { label: t('dashboard.mini_transactions'), value: stats.closed_deals },
+                                { label: t('dashboard.mini_revenue'),      value: stats.monthly_revenue > 0 ? `€${Number(stats.monthly_revenue).toLocaleString('ro')}` : '—' },
                             ].map(s => (
                                 <div key={s.label} className="rounded-2xl bg-white/10 border border-white/10 p-4 text-center">
                                     <div className="text-2xl font-black">{s.value}</div>
@@ -119,71 +126,71 @@ export default function Index({ stats, recentProperties, recentContacts, hotDeal
                     </div>
                 </section>
 
-                {/* ─── Block 2: Stats cards ─── */}
+                {/* ─── Stats cards ─── */}
                 <section>
-                    <h2 className="text-lg font-bold text-slate-900 mb-4">Statistici principale</h2>
+                    <h2 className="text-lg font-bold text-slate-900 mb-4">{t('dashboard.main_stats')}</h2>
                     <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
                         <StatCard
-                            icon="🏠" title="Anunțuri în bază"
+                            icon="🏠" title={t('dashboard.stat_properties')}
                             value={stats.properties}
-                            sub={`${stats.active_properties ?? 0} active`}
+                            sub={t('dashboard.sub_active', { n: stats.active_properties ?? 0 })}
                             href="/properties" color="blue"
                         />
                         <StatCard
-                            icon="👥" title="Clienți"
+                            icon="👥" title={t('dashboard.stat_clients')}
                             value={stats.contacts}
-                            sub={`${stats.buyers ?? 0} cumpărători`}
+                            sub={t('dashboard.sub_buyers', { n: stats.buyers ?? 0 })}
                             href="/contacts" color="purple"
                         />
                         <StatCard
-                            icon="🤝" title="Tranzacții / lună"
+                            icon="🤝" title={t('dashboard.stat_deals')}
                             value={stats.deals_month ?? 0}
                             href="/deals" color="green"
                         />
                         <StatCard
-                            icon="💰" title="Venit / lună"
+                            icon="💰" title={t('dashboard.stat_revenue')}
                             value={stats.monthly_revenue > 0 ? `€${Number(stats.monthly_revenue).toLocaleString('ro')}` : '—'}
                             href="/statistics" color="amber"
                         />
                         <StatCard
-                            icon="📅" title="Vizionări"
+                            icon="📅" title={t('dashboard.stat_viewings')}
                             value={stats.upcoming_events ?? 0}
-                            sub="programate"
+                            sub={t('dashboard.sub_scheduled')}
                             href="/calendar" color="rose"
                         />
                         <StatCard
-                            icon="👁" title="Vizualizări"
+                            icon="👁" title={t('dashboard.stat_views')}
                             value={stats.views_count ?? 0}
                             href="/statistics" color="slate"
                         />
                     </div>
                 </section>
 
-                {/* ─── Block 3: AI Hot Deals ─── */}
+                {/* ─── AI Hot Deals ─── */}
                 <section>
                     <div className="flex items-center justify-between mb-4">
                         <div>
-                            <h2 className="text-lg font-bold text-slate-900">Oferte recomandate de AI</h2>
-                            <p className="text-xs text-slate-500 mt-0.5">Cele mai avantajoase oferte după evaluarea AI</p>
+                            <h2 className="text-lg font-bold text-slate-900">{t('dashboard.ai_title')}</h2>
+                            <p className="text-xs text-slate-500 mt-0.5">{t('dashboard.ai_sub')}</p>
                         </div>
                         <Link href="/web-offers" className="rounded-2xl bg-slate-900 px-4 py-2 text-white text-sm font-semibold hover:bg-slate-700 transition-colors">
-                            Toate ofertele →
+                            {t('dashboard.all_offers')}
                         </Link>
                     </div>
 
                     {hotDeals.length > 0 ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
                             {hotDeals.slice(0, 6).map(deal => (
-                                <AiDealCard key={deal.id} listing={deal} />
+                                <AiDealCard key={deal.id} listing={deal} t={t} />
                             ))}
                         </div>
                     ) : (
                         <div className="rounded-4xl bg-white border border-slate-100 p-12 text-center">
                             <div className="text-4xl mb-3">✨</div>
-                            <div className="font-bold text-slate-700 mb-1">Niciun anunț Web încă</div>
-                            <p className="text-sm text-slate-400 mb-4">Scraper-ul va popula automat oferte avantajoase din 999.md</p>
+                            <div className="font-bold text-slate-700 mb-1">{t('dashboard.no_web_title')}</div>
+                            <p className="text-sm text-slate-400 mb-4">{t('dashboard.no_web_sub')}</p>
                             <Link href="/web-offers" className="inline-block rounded-2xl bg-slate-900 px-5 py-2.5 text-white text-sm font-semibold">
-                                Explorează Web Oferte
+                                {t('dashboard.explore_web')}
                             </Link>
                         </div>
                     )}
@@ -194,15 +201,15 @@ export default function Index({ stats, recentProperties, recentContacts, hotDeal
                     {/* Recent contacts */}
                     <div className="rounded-4xl bg-white p-6 shadow-xl border border-slate-100">
                         <div className="flex items-center justify-between mb-4">
-                            <h3 className="font-bold text-slate-900">Clienți recenți</h3>
-                            <Link href="/contacts" className="text-xs text-blue-700 font-semibold hover:underline">Vezi tot →</Link>
+                            <h3 className="font-bold text-slate-900">{t('dashboard.recent_contacts')}</h3>
+                            <Link href="/contacts" className="text-xs text-blue-700 font-semibold hover:underline">{t('dashboard.see_all')}</Link>
                         </div>
                         {recentContacts.length === 0 ? (
                             <div className="text-center py-6">
                                 <div className="text-3xl mb-2">👥</div>
-                                <p className="text-sm text-slate-400">Niciun client încă</p>
+                                <p className="text-sm text-slate-400">{t('dashboard.no_contacts')}</p>
                                 <Link href="/contacts" className="mt-3 inline-block text-sm text-blue-700 font-semibold hover:underline">
-                                    Adaugă primul client
+                                    {t('dashboard.add_first_contact')}
                                 </Link>
                             </div>
                         ) : (
@@ -239,15 +246,15 @@ export default function Index({ stats, recentProperties, recentContacts, hotDeal
                     {/* Recent properties */}
                     <div className="rounded-4xl bg-white p-6 shadow-xl border border-slate-100">
                         <div className="flex items-center justify-between mb-4">
-                            <h3 className="font-bold text-slate-900">Anunțuri recente</h3>
-                            <Link href="/properties" className="text-xs text-blue-700 font-semibold hover:underline">Vezi tot →</Link>
+                            <h3 className="font-bold text-slate-900">{t('dashboard.recent_properties')}</h3>
+                            <Link href="/properties" className="text-xs text-blue-700 font-semibold hover:underline">{t('dashboard.see_all')}</Link>
                         </div>
                         {recentProperties.length === 0 ? (
                             <div className="text-center py-6">
                                 <div className="text-3xl mb-2">🏠</div>
-                                <p className="text-sm text-slate-400">Niciun anunț încă</p>
+                                <p className="text-sm text-slate-400">{t('dashboard.no_properties')}</p>
                                 <Link href="/properties/create" className="mt-3 inline-block text-sm text-blue-700 font-semibold hover:underline">
-                                    Adaugă primul anunț
+                                    {t('dashboard.add_first_property')}
                                 </Link>
                             </div>
                         ) : (
@@ -282,13 +289,13 @@ export default function Index({ stats, recentProperties, recentContacts, hotDeal
                 {/* Bottom status bar */}
                 <div className="flex items-center justify-between text-xs text-slate-400 pb-2">
                     <span>
-                        Ultima actualizare: {lastUpdated ?? new Date().toLocaleTimeString('ro', { hour: '2-digit', minute: '2-digit' })}
+                        {t('dashboard.last_updated')} {lastUpdated ?? new Date().toLocaleTimeString('ro', { hour: '2-digit', minute: '2-digit' })}
                     </span>
                     <button
                         onClick={() => window.location.reload()}
                         className="flex items-center gap-1 hover:text-slate-700 transition-colors"
                     >
-                        <span>↻</span> Actualizează
+                        <span>↻</span> {t('dashboard.refresh')}
                     </button>
                 </div>
             </div>

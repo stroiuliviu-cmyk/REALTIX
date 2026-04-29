@@ -44,5 +44,9 @@ class RolesAndPermissionsSeeder extends Seeder
 
         $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $adminRole->syncPermissions(Permission::all());
+
+        // Platform-level super admin (full access across ALL agencies)
+        $superAdminRole = Role::firstOrCreate(['name' => 'super_admin']);
+        $superAdminRole->syncPermissions(Permission::all());
     }
 }

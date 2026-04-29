@@ -24,12 +24,14 @@ class Agency extends Model
         'pm_type',
         'pm_last_four',
         'trial_ends_at',
+        'onboarding_done',
     ];
 
     protected $casts = [
-        'settings' => 'array',
+        'settings'             => 'array',
         'subscription_ends_at' => 'datetime',
-        'trial_ends_at' => 'datetime',
+        'trial_ends_at'        => 'datetime',
+        'onboarding_done'      => 'boolean',
     ];
 
     public function users(): HasMany

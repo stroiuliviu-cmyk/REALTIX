@@ -33,11 +33,46 @@ function ProfileDropdown({ user }) {
             </button>
 
             {open && (
-                <div className="absolute right-0 mt-2 w-52 rounded-2xl bg-white shadow-2xl border border-slate-100 py-2 z-50">
+                <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-white shadow-2xl border border-slate-100 py-2 z-50">
                     <div className="px-4 py-2 border-b border-slate-100 mb-1">
                         <div className="text-sm font-bold text-slate-900 truncate">{user?.name}</div>
                         <div className="text-xs text-slate-500 truncate">{user?.email}</div>
                     </div>
+
+                    {/* Multi-agency switcher: shown only when user is linked to 2+ agencies */}
+                    {user?.linked_agencies?.length > 1 && (
+                        <div className="border-b border-slate-100 mb-1 pb-1">
+                            <div className="px-4 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                Schimbă agenția
+                            </div>
+                            {user.linked_agencies.map(a => (
+                                <button
+                                    key={a.id}
+                                    onClick={() => {
+                                        if (a.is_active) return;
+                                        router.post(`/agency/switch/${a.id}`, {}, {
+                                            onSuccess: () => { setOpen(false); router.reload(); },
+                                        });
+                                    }}
+                                    disabled={a.is_active}
+                                    className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors ${
+                                        a.is_active
+                                            ? 'bg-blue-50 text-blue-700 cursor-default font-semibold'
+                                            : 'text-slate-700 hover:bg-slate-50 cursor-pointer'
+                                    }`}
+                                >
+                                    {a.logo_path ? (
+                                        <img src={`/storage/${a.logo_path}`} alt={a.name} className="w-6 h-6 rounded-md object-cover shrink-0" />
+                                    ) : (
+                                        <div className="w-6 h-6 rounded-md bg-slate-100 flex items-center justify-center text-xs shrink-0">🏢</div>
+                                    )}
+                                    <span className="flex-1 truncate text-left">{a.name}</span>
+                                    {a.is_active && <span className="text-blue-600">✓</span>}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
                     <Link href="/settings" className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
                         <span>👤</span> {t('profile.my_profile')}
                     </Link>
@@ -117,9 +152,18 @@ export default function AppLayout({ children, title }) {
                             REALTIX
                         </div>
                         {user?.agency && (
-                            <div className="hidden sm:block text-xs text-slate-400 border-l border-slate-200 pl-3 leading-tight">
-                                <div className="font-semibold text-slate-600">{user.agency.name}</div>
-                                <div className="text-slate-400">{planLabel}</div>
+                            <div className="hidden sm:flex items-center gap-2 text-xs text-slate-400 border-l border-slate-200 pl-3">
+                                {user.agency.logo_path && (
+                                    <img
+                                        src={`/storage/${user.agency.logo_path}`}
+                                        alt={user.agency.name}
+                                        className="w-8 h-8 rounded-lg object-cover border border-slate-200 shadow-sm"
+                                    />
+                                )}
+                                <div className="leading-tight">
+                                    <div className="font-semibold text-slate-600">{user.agency.name}</div>
+                                    <div className="text-slate-400">{planLabel}</div>
+                                </div>
                             </div>
                         )}
                     </Link>

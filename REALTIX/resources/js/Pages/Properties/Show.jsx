@@ -372,7 +372,131 @@ const VIEWING_STATUS = {
     pending:  { l: 'Programat',     c: 'bg-blue-100 text-blue-600' },
 };
 
-export default function Show({ property, contracts = [], viewings = [] }) {
+const RELATION_LABELS = { owner: 'Proprietar', interested: 'Interesat', tenant: 'Chiriaș' };
+const RELATION_COLORS = {
+    owner:      'bg-emerald-100 text-emerald-700',
+    interested: 'bg-blue-100 text-blue-700',
+    tenant:     'bg-violet-100 text-violet-700',
+};
+const CONTACT_TYPE_LABELS = { buyer: 'Cumpărător', seller: 'Vânzător', landlord: 'Proprietar', tenant: 'Chiriaș' };
+
+function LinkedContacts({ property, availableContacts = [] }) {
+    const [adding, setAdding]     = useState(false);
+    const [pickedId, setPickedId] = useState('');
+    const [relation, setRelation] = useState('interested');
+    const [notes, setNotes]       = useState('');
+    const linked = property.contacts ?? [];
+
+    const submit = () => {
+        if (!pickedId) return;
+        router.post(route('properties.contacts.attach', property.id), {
+            contact_id: pickedId, relation, notes,
+        }, {
+            preserveScroll: true,
+            onSuccess: () => { setAdding(false); setPickedId(''); setNotes(''); setRelation('interested'); },
+        });
+    };
+
+    const detach = (contactId) => {
+        if (!confirm('Sigur elimini asocierea?')) return;
+        router.delete(route('properties.contacts.detach', [property.id, contactId]), { preserveScroll: true });
+    };
+
+    return (
+        <div className="rounded-4xl bg-white shadow-2xl border border-slate-100 overflow-hidden">
+            <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                    <span className="text-lg">👥</span>
+                    <h3 className="font-bold text-slate-800">Clienți asociați ({linked.length})</h3>
+                </div>
+                <button
+                    onClick={() => setAdding(v => !v)}
+                    className="text-xs font-semibold text-blue-700 hover:underline"
+                >
+                    {adding ? 'Anulează' : '+ Asociază'}
+                </button>
+            </div>
+
+            {adding && (
+                <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 space-y-3">
+                    <select
+                        value={pickedId} onChange={e => setPickedId(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 bg-white"
+                    >
+                        <option value="">— Alege client —</option>
+                        {availableContacts.map(c => (
+                            <option key={c.id} value={c.id}>
+                                {c.first_name} {c.last_name} {c.phone ? `· ${c.phone}` : ''} {c.type ? `(${CONTACT_TYPE_LABELS[c.type] ?? c.type})` : ''}
+                            </option>
+                        ))}
+                    </select>
+                    <div className="flex gap-2 flex-wrap">
+                        {Object.entries(RELATION_LABELS).map(([v, l]) => (
+                            <button
+                                key={v}
+                                onClick={() => setRelation(v)}
+                                className={`text-xs font-semibold px-3 py-1.5 rounded-full transition-colors ${
+                                    relation === v ? RELATION_COLORS[v] : 'bg-white text-slate-500 border border-slate-200 hover:border-slate-300'
+                                }`}
+                            >
+                                {l}
+                            </button>
+                        ))}
+                    </div>
+                    <textarea
+                        value={notes} onChange={e => setNotes(e.target.value)}
+                        placeholder="Notițe (opțional)"
+                        rows={2}
+                        className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 resize-none bg-white"
+                    />
+                    <button
+                        onClick={submit}
+                        disabled={!pickedId}
+                        className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        Asociază
+                    </button>
+                </div>
+            )}
+
+            {linked.length === 0 && !adding && (
+                <div className="px-6 py-8 text-center text-sm text-slate-400">
+                    Niciun client asociat. Apasă „+ Asociază" pentru a adăuga.
+                </div>
+            )}
+
+            <div className="divide-y divide-slate-50">
+                {linked.map(c => (
+                    <div key={c.id} className="flex items-center justify-between px-6 py-3 hover:bg-slate-50 transition-colors">
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                                <Link href={route('contacts.show', c.id)} className="text-sm font-semibold text-slate-800 hover:text-blue-700 truncate">
+                                    {c.first_name} {c.last_name}
+                                </Link>
+                                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${RELATION_COLORS[c.pivot?.relation] ?? 'bg-slate-100 text-slate-600'}`}>
+                                    {RELATION_LABELS[c.pivot?.relation] ?? c.pivot?.relation}
+                                </span>
+                            </div>
+                            <p className="text-xs text-slate-400">
+                                {[c.phone, c.email].filter(Boolean).join(' · ')}
+                            </p>
+                            {c.pivot?.notes && <p className="text-xs text-slate-500 mt-1 italic">{c.pivot.notes}</p>}
+                        </div>
+                        <button
+                            onClick={() => detach(c.id)}
+                            className="text-xs text-red-500 hover:text-red-700 font-semibold ml-3 shrink-0"
+                            title="Elimină asociere"
+                        >
+                            ✕
+                        </button>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+export default function Show({ property, contracts = [], viewings = [], availableContacts = [] }) {
     const { flash } = usePage().props;
     const [aiTab, setAiTab] = useState('description');
 
@@ -480,6 +604,9 @@ export default function Show({ property, contracts = [], viewings = [] }) {
                                 );
                             })}
                         </div>
+
+                        {/* ── Linked clients ── */}
+                        <LinkedContacts property={property} availableContacts={availableContacts} />
 
                         {/* ── Viewings Card ── */}
                         {viewings.length > 0 && (

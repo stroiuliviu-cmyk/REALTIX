@@ -69,6 +69,7 @@ class RegisteredUserController extends Controller
         ]);
 
         $user->assignRole('admin');
+        $user->linkToAgency($agency->id, 'admin');
 
         event(new Registered($user));
 

@@ -38,8 +38,38 @@ return [
     ],
 
     'plan_features' => [
-        'starter' => ['crm', 'properties'],
-        'medium' => ['crm', 'properties', 'ai_tools', 'scraper', 'pdf_contracts'],
-        'pro' => ['crm', 'properties', 'ai_tools', 'scraper', 'pdf_contracts', 'analytics', 'white_label', 'api'],
+        'starter' => ['crm', 'properties', 'calendar'],
+        'medium'  => ['crm', 'properties', 'calendar', 'ai_tools', 'scraper', 'pdf_contracts', 'autoposting', 'team'],
+        'pro'     => ['crm', 'properties', 'calendar', 'ai_tools', 'scraper', 'pdf_contracts', 'autoposting', 'team', 'analytics', 'export', 'white_label', 'api'],
     ],
+
+    // Human-readable feature labels for UpgradeLock banners
+    'feature_labels' => [
+        'ai_tools'      => 'Instrumente AI',
+        'scraper'       => 'Web Offers (scraping piață)',
+        'pdf_contracts' => 'Contracte PDF',
+        'autoposting'   => 'Autopostare 999.md / FB',
+        'team'          => 'Echipă (multi-agent)',
+        'analytics'     => 'Statistici avansate',
+        'export'        => 'Export PDF / Excel',
+        'white_label'   => 'White-label',
+        'api'           => 'API public',
+    ],
+
+    // Minimum plan needed for each feature (used by UpgradeLock)
+    'feature_min_plan' => [
+        'ai_tools'      => 'medium',
+        'scraper'       => 'medium',
+        'pdf_contracts' => 'medium',
+        'autoposting'   => 'medium',
+        'team'          => 'medium',
+        'analytics'     => 'pro',
+        'export'        => 'pro',
+        'white_label'   => 'pro',
+        'api'           => 'pro',
+    ],
+
+    // Plans that allow inviting agents and showing multi-agency switcher.
+    // Starter is single-user only.
+    'team_plans' => ['medium', 'pro'],
 ];

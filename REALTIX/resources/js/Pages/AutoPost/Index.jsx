@@ -1,6 +1,8 @@
 import { useState, useCallback } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
+import UpgradeLock from '@/Components/UpgradeLock';
+import { useFeature } from '@/Hooks/useFeature';
 
 // ── constants ────────────────────────────────────────────────────────────────
 const PLATFORM_META = {
@@ -391,6 +393,7 @@ export default function AutoPostIndex({ requests = [], properties = [], isAdmin 
     const statusCounts = requests.reduce((acc, r) => ({ ...acc, [r.status]: (acc[r.status] ?? 0) + 1 }), {});
     const pending      = requests.filter(r => r.status === 'pending');
     const filtered     = statusFilter === 'all' ? requests : requests.filter(r => r.status === statusFilter);
+    const { allowed: autopostAllowed } = useFeature('autoposting');
 
     return (
         <AppLayout title="Autopostare">
@@ -400,6 +403,10 @@ export default function AutoPostIndex({ requests = [], properties = [], isAdmin 
                 <div className="mb-5 rounded-2xl bg-emerald-50 border border-emerald-200 px-5 py-3 text-sm text-emerald-800">
                     ✓ {flash.success}
                 </div>
+            )}
+
+            {!autopostAllowed && (
+                <UpgradeLock feature="autoposting" mode="banner" className="mb-5" />
             )}
 
             {showForm   && <NewRequestModal properties={properties} platforms={platforms} onClose={() => setShowForm(false)} />}

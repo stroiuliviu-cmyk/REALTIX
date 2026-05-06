@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\SubscriptionPlan;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -41,5 +42,39 @@ class OnboardingController extends Controller
         }
 
         return redirect()->route('dashboard');
+    }
+
+    public function plan(Request $request): Response|RedirectResponse
+    {
+        $agency = $request->user()->agency;
+
+        if ($agency?->onboarding_done) {
+            return redirect()->route('dashboard');
+        }
+
+        return Inertia::render('Onboarding/Plan', [
+            'plans' => SubscriptionPlan::orderBy('price_monthly')->get(),
+        ]);
+    }
+
+    public function selectPlan(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'plan' => 'required|in:starter,medium,pro',
+        ]);
+
+        $agency = $request->user()->agency;
+        if (! $agency) {
+            return redirect()->route('dashboard')->with('error', 'Nu ai o agenție asociată.');
+        }
+
+        $agency->update([
+            'subscription_plan' => $request->plan,
+            'trial_ends_at'     => now()->addDays(14),
+            'onboarding_done'   => true,
+        ]);
+
+        return redirect()->route('dashboard')
+            ->with('success', 'Trial gratis de 14 zile activat. Bine ai venit în REALTIX!');
     }
 }

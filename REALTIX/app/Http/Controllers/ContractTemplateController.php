@@ -91,6 +91,82 @@ class ContractTemplateController extends Controller
         return back()->with('success', "S-au instalat {$count} șabloane standard în biblioteca ta.");
     }
 
+    public function uploadDocx(Request $request)
+    {
+        $request->validate([
+            'file'   => 'required|file|mimes:docx,doc|max:5120',
+            'name'   => 'nullable|string|max:255',
+            'type'   => 'required|in:' . self::TYPES,
+            'locale' => 'required|in:ro,ru,en',
+        ]);
+
+        $file = $request->file('file');
+        $text = $this->extractDocxText($file->getRealPath());
+
+        if (! $text) {
+            return back()->with('error', 'Nu am putut citi fișierul .docx. Verifică că nu e corupt.');
+        }
+
+        $name = $request->name ?: pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+
+        ContractTemplate::create([
+            'agency_id' => $request->user()->agency_id,
+            'name'      => $name,
+            'type'      => $request->type,
+            'locale'    => $request->locale,
+            'content'   => $text,
+        ]);
+
+        return back()->with('success', 'Șablonul „' . $name . '" a fost încărcat cu succes (' . number_format(strlen($text)) . ' caractere).');
+    }
+
+    /**
+     * Extract plain text from .docx using ZipArchive + XML parsing (no extra deps).
+     * .docx is a ZIP containing word/document.xml; text is in <w:t> nodes.
+     * Falls back to shell `unzip` if PHP zip extension is unavailable.
+     */
+    private function extractDocxText(string $path): ?string
+    {
+        $xml = null;
+
+        if (class_exists(\ZipArchive::class)) {
+            $zip = new \ZipArchive();
+            if ($zip->open($path) === true) {
+                $xml = $zip->getFromName('word/document.xml') ?: null;
+                $zip->close();
+            }
+        }
+
+        // Fallback: try `unzip -p <file> word/document.xml`
+        if (! $xml && function_exists('shell_exec')) {
+            $escaped = escapeshellarg($path);
+            $output  = @shell_exec("unzip -p {$escaped} word/document.xml 2>nul");
+            if ($output && strlen($output) > 100) {
+                $xml = $output;
+            }
+        }
+
+        if (! $xml) {
+            return null;
+        }
+
+        // Convert paragraph + line breaks to newlines, tabs preserved
+        $xml = str_replace(
+            ['</w:p>', '<w:tab/>', '<w:br/>'],
+            ["\n",     "\t",       "\n"],
+            $xml
+        );
+
+        // Strip all remaining XML tags
+        $text = strip_tags($xml);
+        $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        // Collapse 3+ blank lines to 2
+        $text = preg_replace("/\n{3,}/", "\n\n", $text);
+
+        return trim($text);
+    }
+
     public function preview(ContractTemplate $contractTemplate): \Illuminate\Http\Response
     {
         $highlighted = preg_replace(

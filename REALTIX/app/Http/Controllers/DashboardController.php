@@ -51,9 +51,9 @@ class DashboardController extends Controller
                 'id'           => $l->id,
                 'title'        => $l->title,
                 'price'        => $l->price,
-                'area'         => $l->raw_data['area'] ?? null,
-                'city'         => $l->raw_data['city'] ?? null,
-                'district'     => $l->raw_data['district'] ?? null,
+                'area'         => $l->area,
+                'city'         => $l->city,
+                'district'     => $l->district,
                 'images'       => $l->images ?? [],
                 'ai_valuation' => $l->ai_valuation,
             ]);

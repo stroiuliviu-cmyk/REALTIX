@@ -457,11 +457,123 @@ function TemplateCard({ template, onGenerate, onEdit, onPreview }) {
     );
 }
 
+// ── Upload .docx Modal ────────────────────────────────────────────────────────
+function UploadDocxModal({ onClose }) {
+    const { data, setData, post, processing, errors } = useForm({
+        file:   null,
+        name:   '',
+        type:   'sale',
+        locale: 'ro',
+    });
+
+    const handleFile = (e) => {
+        const f = e.target.files?.[0];
+        if (!f) return;
+        setData('file', f);
+        if (!data.name) {
+            setData('name', f.name.replace(/\.docx?$/i, ''));
+        }
+    };
+
+    const submit = (e) => {
+        e.preventDefault();
+        post(route('contracts.upload'), {
+            forceFormData: true,
+            onSuccess: () => onClose(),
+        });
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-4xl shadow-2xl w-full max-w-xl flex flex-col">
+                <div className="px-8 pt-8 pb-4 border-b border-slate-100 flex items-center justify-between">
+                    <h3 className="text-lg font-bold text-slate-900">📄 Încarcă șablon .docx</h3>
+                    <button onClick={onClose} className="text-slate-400 hover:text-slate-700 text-xl leading-none">✕</button>
+                </div>
+
+                <form onSubmit={submit} className="p-8 space-y-5">
+                    <div>
+                        <label className={LABEL_CLS}>Fișier .docx (max 5 MB)</label>
+                        <input
+                            type="file"
+                            accept=".docx,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                            onChange={handleFile}
+                            required
+                            className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm bg-white file:mr-3 file:rounded-xl file:border-0 file:bg-slate-100 file:px-4 file:py-1.5 file:text-sm file:font-semibold file:text-slate-700 hover:file:bg-slate-200 file:cursor-pointer cursor-pointer"
+                        />
+                        {errors.file && <p className="text-xs text-red-500 mt-1">{errors.file}</p>}
+                        <p className="text-xs text-slate-400 mt-1">
+                            Textul va fi extras automat. Pentru placeholderi folosește format <code className="bg-slate-100 px-1 rounded">{'{nume_client}'}</code>, <code className="bg-slate-100 px-1 rounded">{'{adresa_proprietate}'}</code> etc.
+                        </p>
+                    </div>
+
+                    <div>
+                        <label className={LABEL_CLS}>Denumire șablon</label>
+                        <input
+                            value={data.name}
+                            onChange={e => setData('name', e.target.value)}
+                            placeholder="ex. Contract personal vânzare 2026"
+                            required
+                            className={INPUT_CLS}
+                        />
+                        {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name}</p>}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className={LABEL_CLS}>Tip document</label>
+                            <select
+                                value={data.type}
+                                onChange={e => setData('type', e.target.value)}
+                                className={INPUT_CLS}
+                            >
+                                {Object.entries(TEMPLATE_TYPES).map(([k, t]) => (
+                                    <option key={k} value={k}>{t.icon} {t.label}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className={LABEL_CLS}>Limbă</label>
+                            <select
+                                value={data.locale}
+                                onChange={e => setData('locale', e.target.value)}
+                                className={INPUT_CLS}
+                            >
+                                <option value="ro">🇷🇴 Română</option>
+                                <option value="ru">🇷🇺 Русский</option>
+                                <option value="en">🇬🇧 English</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="flex gap-3 justify-end pt-3 border-t border-slate-100">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="rounded-2xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+                        >
+                            Anulează
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={processing || !data.file}
+                            className="rounded-2xl bg-blue-700 hover:bg-blue-800 text-white px-5 py-2.5 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                            {processing ? 'Se încarcă…' : '📤 Încarcă'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function Index({ templates = [], generated = [], properties = [], contacts = [] }) {
     const [generateFor, setGenerateFor]   = useState(null);
     const [editTemplate, setEditTemplate] = useState(null); // null=closed, {}=new, obj=edit
+    const [uploadOpen, setUploadOpen]     = useState(false);
     const { flash } = usePage().props;
 
     return (
@@ -482,6 +594,9 @@ export default function Index({ templates = [], generated = [], properties = [],
                     onClose={() => setGenerateFor(null)}
                 />
             )}
+            {uploadOpen && (
+                <UploadDocxModal onClose={() => setUploadOpen(false)} />
+            )}
 
             <div className="space-y-8">
                 {/* Flash */}
@@ -494,17 +609,25 @@ export default function Index({ templates = [], generated = [], properties = [],
 
                 {/* ── Library ── */}
                 <div>
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
                         <div>
                             <h2 className="text-lg font-bold text-slate-900">Biblioteca de șabloane</h2>
                             <p className="text-sm text-slate-400 mt-0.5">{templates.length} șabloane active</p>
                         </div>
-                        <button
-                            onClick={() => setEditTemplate({})}
-                            className="rounded-2xl bg-linear-to-br from-slate-900 to-blue-700 px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90 transition-opacity"
-                        >
-                            + Șablon nou
-                        </button>
+                        <div className="flex gap-2 flex-wrap">
+                            <button
+                                onClick={() => setUploadOpen(true)}
+                                className="rounded-2xl bg-white border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                            >
+                                📄 Încarcă .docx
+                            </button>
+                            <button
+                                onClick={() => setEditTemplate({})}
+                                className="rounded-2xl bg-linear-to-br from-slate-900 to-blue-700 px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90 transition-opacity"
+                            >
+                                + Șablon nou
+                            </button>
+                        </div>
                     </div>
 
                     {templates.length === 0 ? (

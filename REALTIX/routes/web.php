@@ -12,7 +12,9 @@ use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\StatisticsController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\SubscriptionController;
+use App\Http\Controllers\AgencyContextController;
 use App\Http\Controllers\AutoPostController;
+use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\WebOffersController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\UsersController       as AdminUsersController;
@@ -28,6 +30,10 @@ Route::get('/', function () {
     return Inertia::render('Welcome');
 })->name('home');
 
+// Public invitation accept flow (no auth required)
+Route::get('/invitations/{token}',         [InvitationController::class, 'show'])->name('invitations.show');
+Route::post('/invitations/{token}/accept', [InvitationController::class, 'accept'])->name('invitations.accept');
+
 Route::post('/language/{locale}', function (string $locale) {
     if (in_array($locale, ['ro', 'ru', 'en'])) {
         session(['locale' => $locale]);
@@ -38,8 +44,10 @@ Route::post('/language/{locale}', function (string $locale) {
     return back();
 })->name('language.switch');
 
-// Onboarding — auth required, verification NOT required
+// Onboarding — auth required, verification NOT required, NO `onboarded` gate (this IS the gate)
 Route::middleware(['auth'])->group(function () {
+    Route::get('/onboarding/plan',  [OnboardingController::class, 'plan'])->name('onboarding.plan');
+    Route::post('/onboarding/plan', [OnboardingController::class, 'selectPlan'])->name('onboarding.plan.select');
     Route::get('/onboarding', [OnboardingController::class, 'index'])->name('onboarding');
     Route::post('/onboarding/complete', [OnboardingController::class, 'complete'])->name('onboarding.complete');
 
@@ -55,8 +63,13 @@ Route::middleware(['auth'])->group(function () {
     })->name('email.change');
 });
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'verified', 'onboarded'])->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
+
+    // Multi-agency context switcher (team plan only)
+    Route::post('/agency/switch/{agency}', [AgencyContextController::class, 'switch'])
+        ->middleware('agency.subscription:team')
+        ->name('agency.switch');
 
     // Properties
     Route::post('/properties/bulk-action', [PropertyController::class, 'bulkAction'])->name('properties.bulk');
@@ -68,6 +81,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('contacts', ContactController::class)->except(['create', 'edit']);
     Route::post('contacts/{contact}/interactions', [ContactController::class, 'addInteraction'])
         ->name('contacts.interactions.store');
+    Route::post('contacts/{contact}/properties',              [ContactController::class, 'attachProperty'])->name('contacts.properties.attach');
+    Route::delete('contacts/{contact}/properties/{property}', [ContactController::class, 'detachProperty'])->name('contacts.properties.detach');
+    Route::post('properties/{property}/contacts',             [PropertyController::class, 'attachContact'])->name('properties.contacts.attach');
+    Route::delete('properties/{property}/contacts/{contact}', [PropertyController::class, 'detachContact'])->name('properties.contacts.detach');
 
     // Deals
     Route::resource('deals', DealController::class)->only(['index', 'store', 'update']);
@@ -84,7 +101,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    // AI Tools page
+    // AI Tools page (open, lock applied per-action below)
     Route::get('/ai', fn () => Inertia::render('AiTools/Index'))->name('ai.index');
 
     // AI web actions — synchronous JSON endpoints (called via fetch from React)
@@ -112,7 +129,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         } catch (\RuntimeException $e) {
             return response()->json(['error' => $e->getMessage()], 422);
         }
-    })->name('ai.generate');
+    })->middleware('agency.subscription:ai_tools')->name('ai.generate');
 
     Route::post('/ai/estimate', function (\Illuminate\Http\Request $request) {
         $request->validate([
@@ -131,7 +148,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         } catch (\RuntimeException $e) {
             return response()->json(['error' => $e->getMessage()], 422);
         }
-    })->name('ai.estimate');
+    })->middleware('agency.subscription:ai_tools')->name('ai.estimate');
 
     Route::post('/properties/{property}/ai/save-description', function (
         \App\Models\Property $property,
@@ -141,7 +158,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         $request->validate(['locale' => 'required|in:ro,ru,en', 'text' => 'required|string']);
         $property->update(["description_{$request->locale}" => $request->text]);
         return response()->json(['ok' => true]);
-    })->name('properties.ai.save-description');
+    })->middleware('agency.subscription:ai_tools')->name('properties.ai.save-description');
 
     // Legacy queue-based AI actions (kept for backward compat)
     Route::post('/properties/{property}/ai/description', function (\App\Models\Property $property, \Illuminate\Http\Request $request) {
@@ -151,15 +168,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
             $request->user()->id
         );
         return back()->with('ai_queued', 'Descrierea AI este în curs de generare. Reîncarcă pagina în câteva secunde.');
-    })->name('properties.ai.description');
+    })->middleware('agency.subscription:ai_tools')->name('properties.ai.description');
 
     Route::post('/properties/{property}/ai/price', function (\App\Models\Property $property, \Illuminate\Http\Request $request) {
         \App\Jobs\EstimatePropertyPriceJob::dispatch($property->id, $request->user()->id);
         return back()->with('ai_queued', 'Estimarea prețului AI este în curs. Reîncarcă pagina în câteva secunde.');
-    })->name('properties.ai.price');
+    })->middleware('agency.subscription:ai_tools')->name('properties.ai.price');
 
     // Statistics
-    Route::get('/statistics', [StatisticsController::class, 'index'])->name('statistics.index');
+    Route::get('/statistics',             [StatisticsController::class, 'index'])->name('statistics.index');
+    Route::get('/statistics/export/pdf',  [StatisticsController::class, 'exportPdf'])->middleware('agency.subscription:export')->name('statistics.export.pdf');
+    Route::get('/statistics/export/csv',  [StatisticsController::class, 'exportCsv'])->middleware('agency.subscription:export')->name('statistics.export.csv');
 
     // Subscription
     Route::prefix('subscription')->name('subscription.')->group(function () {
@@ -170,28 +189,33 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/cancel', [SubscriptionController::class, 'cancel'])->name('cancel');
     });
 
-    // Web Offers
+    // Web Offers — index/listings open; only active actions need scraper feature
     Route::get('/web-offers', [WebOffersController::class, 'index'])->name('web-offers.index');
-    Route::post('/web-offers/sync', [WebOffersController::class, 'sync'])->name('web-offers.sync');
+    Route::post('/web-offers/sync', [WebOffersController::class, 'sync'])->middleware('agency.subscription:scraper')->name('web-offers.sync');
     Route::post('/web-offers/{scrapedListing}/favorite', [WebOffersController::class, 'toggleFavorite'])->name('web-offers.favorite');
-    Route::post('/web-offers/{scrapedListing}/import',   [WebOffersController::class, 'import'])->name('web-offers.import');
+    Route::post('/web-offers/{scrapedListing}/import',   [WebOffersController::class, 'import'])->middleware('agency.subscription:scraper')->name('web-offers.import');
 
-    // Auto Post
+    // Auto Post — index open, actions gated
     Route::get('/autopost', [AutoPostController::class, 'index'])->name('autopost.index');
-    Route::post('/autopost', [AutoPostController::class, 'store'])->name('autopost.store');
-    Route::post('/autopost/{autoPost}/approve', [AutoPostController::class, 'approve'])->name('autopost.approve');
-    Route::post('/autopost/{autoPost}/reject', [AutoPostController::class, 'reject'])->name('autopost.reject');
-    Route::delete('/autopost/{autoPost}', [AutoPostController::class, 'cancel'])->name('autopost.cancel');
-    Route::post('/autopost/{autoPost}/remove', [AutoPostController::class, 'removeEverywhere'])->name('autopost.remove');
+    Route::middleware('agency.subscription:autoposting')->group(function () {
+        Route::post('/autopost', [AutoPostController::class, 'store'])->name('autopost.store');
+        Route::post('/autopost/{autoPost}/approve', [AutoPostController::class, 'approve'])->name('autopost.approve');
+        Route::post('/autopost/{autoPost}/reject', [AutoPostController::class, 'reject'])->name('autopost.reject');
+        Route::delete('/autopost/{autoPost}', [AutoPostController::class, 'cancel'])->name('autopost.cancel');
+        Route::post('/autopost/{autoPost}/remove', [AutoPostController::class, 'removeEverywhere'])->name('autopost.remove');
+    });
 
-    // Contracts
+    // Contracts (medium+ for generation/upload, index/preview stays open)
     Route::get('/contracts', [ContractTemplateController::class, 'index'])->name('contracts.index');
-    Route::post('/contracts', [ContractTemplateController::class, 'store'])->name('contracts.store');
-    Route::patch('/contracts/{contractTemplate}', [ContractTemplateController::class, 'update'])->name('contracts.update');
-    Route::delete('/contracts/{contractTemplate}', [ContractTemplateController::class, 'destroy'])->name('contracts.destroy');
     Route::get('/contracts/{contractTemplate}/preview', [ContractTemplateController::class, 'preview'])->name('contracts.preview');
-    Route::post('/contracts/{contractTemplate}/generate', [ContractTemplateController::class, 'generate'])->name('contracts.generate');
-    Route::post('/run-seeder/contracts', [ContractTemplateController::class, 'installDefaults'])->name('contracts.install-defaults');
+    Route::middleware('agency.subscription:pdf_contracts')->group(function () {
+        Route::post('/contracts', [ContractTemplateController::class, 'store'])->name('contracts.store');
+        Route::patch('/contracts/{contractTemplate}', [ContractTemplateController::class, 'update'])->name('contracts.update');
+        Route::delete('/contracts/{contractTemplate}', [ContractTemplateController::class, 'destroy'])->name('contracts.destroy');
+        Route::post('/contracts/{contractTemplate}/generate', [ContractTemplateController::class, 'generate'])->name('contracts.generate');
+        Route::post('/run-seeder/contracts', [ContractTemplateController::class, 'installDefaults'])->name('contracts.install-defaults');
+        Route::post('/contracts/upload', [ContractTemplateController::class, 'uploadDocx'])->name('contracts.upload');
+    });
 
     // Google Calendar OAuth
     Route::get('/google/calendar/connect',    [GoogleCalendarController::class, 'redirect'])->name('google.calendar.connect');
@@ -206,9 +230,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('/settings/notifications', [SettingsController::class, 'updateNotifications'])->name('settings.notifications');
     Route::patch('/settings/password', [SettingsController::class, 'updatePassword'])->name('settings.password');
     Route::patch('/settings/integrations', [SettingsController::class, 'updateIntegrations'])->name('settings.integrations');
-    Route::post('/settings/users/invite', [SettingsController::class, 'inviteAgent'])->name('settings.users.invite');
-    Route::patch('/settings/users/{user}', [SettingsController::class, 'updateAgent'])->name('settings.users.update');
-    Route::delete('/settings/users/{user}', [SettingsController::class, 'removeAgent'])->name('settings.users.remove');
+    Route::post('/settings/users/invite', [SettingsController::class, 'inviteAgent'])->middleware('agency.subscription:team')->name('settings.users.invite');
+    Route::patch('/settings/users/{user}', [SettingsController::class, 'updateAgent'])->middleware('agency.subscription:team')->name('settings.users.update');
+    Route::delete('/settings/users/{user}', [SettingsController::class, 'removeAgent'])->middleware('agency.subscription:team')->name('settings.users.remove');
+    Route::delete('/settings/invitations/{invitation}',         [SettingsController::class, 'cancelInvitation'])->middleware('agency.subscription:team')->name('settings.invitations.cancel');
+    Route::post('/settings/invitations/{invitation}/resend',    [SettingsController::class, 'resendInvitation'])->middleware('agency.subscription:team')->name('settings.invitations.resend');
     Route::post('/settings/security/logout-others', [SettingsController::class, 'logoutOtherDevices'])->name('settings.logout.others');
     Route::patch('/settings/portals', [SettingsController::class, 'updatePortalKeys'])->name('settings.portals');
     Route::get('/settings/portals/discover-categories', [SettingsController::class, 'discoverPortal999Categories'])->name('settings.portals.discover');

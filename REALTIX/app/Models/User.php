@@ -62,6 +62,24 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->belongsTo(Agency::class);
     }
 
+    /**
+     * All agencies this user has access to (multi-agency support).
+     * Pivot stores the role per agency.
+     */
+    public function linkedAgencies(): BelongsToMany
+    {
+        return $this->belongsToMany(Agency::class, 'agency_user_links')
+            ->withPivot('role')
+            ->withTimestamps();
+    }
+
+    public function linkToAgency(int $agencyId, string $role = 'realtor'): void
+    {
+        $this->linkedAgencies()->syncWithoutDetaching([
+            $agencyId => ['role' => $role],
+        ]);
+    }
+
     public function properties(): HasMany
     {
         return $this->hasMany(Property::class);

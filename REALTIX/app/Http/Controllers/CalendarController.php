@@ -57,13 +57,19 @@ class CalendarController extends Controller
             'all_day'     => 'boolean',
         ]);
 
+        $conflict = $this->findConflict($request->user(), $data['starts_at'], $data['ends_at'] ?? null);
+
         $event    = CalendarEvent::create(array_merge($data, ['user_id' => $request->user()->id]));
         $googleId = $this->gcal->push($request->user(), $event);
         if ($googleId) {
             $event->update(['google_event_id' => $googleId]);
         }
 
-        return back()->with('success', 'Evenimentul a fost creat.' . ($googleId ? ' ✅ Sincronizat cu Google.' : ''));
+        $msg = 'Evenimentul a fost creat.' . ($googleId ? ' ✅ Sincronizat cu Google.' : '');
+        if ($conflict) {
+            return back()->with('warning', $msg . ' ⚠ Atenție: se suprapune cu „' . $conflict->title . '" (' . $conflict->starts_at->format('H:i') . ').');
+        }
+        return back()->with('success', $msg);
     }
 
     public function update(Request $request, CalendarEvent $calendarEvent): RedirectResponse
@@ -79,13 +85,52 @@ class CalendarController extends Controller
             'all_day'     => 'boolean',
         ]);
 
+        $conflict = $this->findConflict(
+            $request->user(),
+            $data['starts_at'],
+            $data['ends_at'] ?? null,
+            $calendarEvent->id,
+        );
+
         $calendarEvent->update($data);
         $googleId = $this->gcal->push($request->user(), $calendarEvent->fresh());
         if ($googleId && ! $calendarEvent->google_event_id) {
             $calendarEvent->update(['google_event_id' => $googleId]);
         }
 
+        if ($conflict) {
+            return back()->with('warning', 'Evenimentul a fost actualizat. ⚠ Atenție: se suprapune cu „' . $conflict->title . '" (' . $conflict->starts_at->format('H:i') . ').');
+        }
         return back()->with('success', 'Evenimentul a fost actualizat.');
+    }
+
+    /**
+     * Detect any other event from the same user that overlaps the given window.
+     * Empty ends_at is treated as a 1-hour window starting at starts_at.
+     */
+    private function findConflict($user, string $startsAt, ?string $endsAt, ?int $excludeId = null): ?CalendarEvent
+    {
+        $start = \Carbon\Carbon::parse($startsAt);
+        $end   = $endsAt ? \Carbon\Carbon::parse($endsAt) : $start->copy()->addHour();
+
+        return CalendarEvent::query()
+            ->where('user_id', $user->id)
+            ->when($excludeId, fn($q) => $q->where('id', '!=', $excludeId))
+            ->whereNotIn('status', ['rejected', 'no_show'])
+            ->where(function ($q) use ($start, $end) {
+                // Existing event starts before our end AND ends after our start.
+                // For events without ends_at, treat as 1h slot.
+                $q->where('starts_at', '<', $end)
+                  ->where(function ($q2) use ($start) {
+                      $q2->where('ends_at', '>', $start)
+                         ->orWhere(function ($q3) use ($start) {
+                             $q3->whereNull('ends_at')
+                                ->whereRaw("datetime(starts_at, '+1 hour') > ?", [$start->toDateTimeString()]);
+                         });
+                  });
+            })
+            ->orderBy('starts_at')
+            ->first();
     }
 
     public function updateStatus(Request $request, CalendarEvent $calendarEvent): RedirectResponse

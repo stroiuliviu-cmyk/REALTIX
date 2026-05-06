@@ -30,6 +30,12 @@ function StatCard({ icon, title, value, sub, href, color = 'blue' }) {
     );
 }
 
+function resolveImg(path) {
+    if (!path) return null;
+    if (/^https?:\/\//i.test(path)) return path;
+    return `/storage/${path}`;
+}
+
 function AiDealCard({ listing, t }) {
     const badge = {
         cheap:     { label: t('dashboard.valuation_cheap'),    cls: 'bg-emerald-100 text-emerald-700' },
@@ -37,12 +43,13 @@ function AiDealCard({ listing, t }) {
         expensive: { label: t('dashboard.valuation_expensive'), cls: 'bg-red-100 text-red-700' },
     };
     const b = badge[listing.ai_valuation] ?? badge.average;
+    const img = resolveImg(listing.images?.[0]);
 
     return (
         <div className="rounded-3xl bg-white border border-slate-100 overflow-hidden hover:shadow-xl transition-shadow group">
             <div className="h-40 bg-slate-100 overflow-hidden relative">
-                {listing.images?.[0] ? (
-                    <img src={listing.images[0]} alt={listing.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                {img ? (
+                    <img src={img} alt={listing.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                 ) : (
                     <div className="w-full h-full flex items-center justify-center text-3xl text-slate-300">🏠</div>
                 )}
@@ -82,10 +89,53 @@ export default function Index({ stats, recentProperties, recentContacts, hotDeal
         ? new Date(agency.subscription_ends_at).toLocaleDateString('ro', { day: 'numeric', month: 'long', year: 'numeric' })
         : null;
 
+    const trialBanner = (() => {
+        if (!agency) return null;
+        if (user?.is_super_admin) return null;
+        if (agency.subscription_active === false) {
+            return {
+                tone: 'red',
+                title: 'Trial-ul a expirat',
+                msg: 'Activează un abonament pentru a continua să folosești toate funcțiile.',
+                cta: 'Vezi planuri',
+            };
+        }
+        if (agency.on_trial && agency.trial_days_left !== null && agency.trial_days_left <= 7) {
+            return {
+                tone: 'amber',
+                title: `Trial: ${agency.trial_days_left} ${agency.trial_days_left === 1 ? 'zi rămasă' : 'zile rămase'}`,
+                msg: 'Adaugă o metodă de plată ca să continui după trial fără întrerupere.',
+                cta: 'Activează abonament',
+            };
+        }
+        return null;
+    })();
+
     return (
         <AppLayout>
             <Head title={t('dashboard.page_title')} />
             <div className="space-y-6">
+
+                {trialBanner && (
+                    <div className={`rounded-3xl border p-5 flex items-center justify-between gap-4 flex-wrap ${
+                        trialBanner.tone === 'red'
+                            ? 'bg-red-50 border-red-200 text-red-900'
+                            : 'bg-amber-50 border-amber-200 text-amber-900'
+                    }`}>
+                        <div className="flex items-start gap-3">
+                            <span className="text-2xl">{trialBanner.tone === 'red' ? '⚠️' : '⏳'}</span>
+                            <div>
+                                <div className="font-bold">{trialBanner.title}</div>
+                                <div className="text-sm opacity-80">{trialBanner.msg}</div>
+                            </div>
+                        </div>
+                        <Link href="/subscription" className={`rounded-2xl px-4 py-2 text-sm font-bold text-white ${
+                            trialBanner.tone === 'red' ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-600 hover:bg-amber-700'
+                        }`}>
+                            {trialBanner.cta}
+                        </Link>
+                    </div>
+                )}
 
                 {/* ─── Welcome + Plan ─── */}
                 <section className="rounded-4xl bg-linear-to-br from-blue-700 via-blue-800 to-slate-900 p-8 text-white shadow-2xl">

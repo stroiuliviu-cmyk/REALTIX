@@ -21,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'agency.subscription' => \App\Http\Middleware\EnsureAgencySubscription::class,
+            'onboarded' => \App\Http\Middleware\EnsureOnboardingDone::class,
             'super_admin' => \App\Http\Middleware\EnsureSuperAdmin::class,
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,

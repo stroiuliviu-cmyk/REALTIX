@@ -59,6 +59,11 @@ class Agency extends Model
         return config('realtix.plan_features.' . $this->subscription_plan, []);
     }
 
+    public function canUseFeature(string $feature): bool
+    {
+        return in_array($feature, $this->planFeatures(), true);
+    }
+
     public function isOnPlan(string $plan): bool
     {
         return $this->subscription_plan === $plan;
@@ -69,9 +74,32 @@ class Agency extends Model
         if ($this->subscribed('default')) {
             return true;
         }
-        if ($this->subscription_plan === 'starter') {
+        if ($this->onTrial()) {
             return true;
         }
         return $this->subscription_ends_at !== null && $this->subscription_ends_at->isFuture();
+    }
+
+    public function onTrial(): bool
+    {
+        return $this->trial_ends_at !== null && $this->trial_ends_at->isFuture();
+    }
+
+    public function trialDaysLeft(): ?int
+    {
+        if (! $this->onTrial()) {
+            return null;
+        }
+        return (int) ceil(now()->diffInHours($this->trial_ends_at, false) / 24);
+    }
+
+    /**
+     * True if the current plan allows inviting agents / multi-user team.
+     * Starter is single-user only — only Medium and Pro can invite.
+     */
+    public function canInviteAgents(): bool
+    {
+        $teamPlans = config('realtix.team_plans', ['medium', 'pro']);
+        return in_array($this->subscription_plan, $teamPlans, true);
     }
 }

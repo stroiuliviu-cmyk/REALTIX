@@ -10,7 +10,14 @@ class EnsureAgencySubscription
 {
     public function handle(Request $request, Closure $next, string ...$features): Response
     {
-        $agency = $request->user()?->agency;
+        $user = $request->user();
+
+        // Super admins bypass subscription/feature checks entirely
+        if ($user?->isSuperAdmin()) {
+            return $next($request);
+        }
+
+        $agency = $user?->agency;
 
         if (! $agency || ! $agency->isSubscriptionActive()) {
             if ($request->expectsJson()) {
@@ -21,14 +28,23 @@ class EnsureAgencySubscription
         }
 
         foreach ($features as $feature) {
-            $plan = $agency->subscription_plan;
-            $planFeatures = config("realtix.plan_features.{$plan}", []);
-            if (! in_array($feature, $planFeatures)) {
-                if ($request->expectsJson()) {
-                    return response()->json(['message' => "Feature '{$feature}' not available on your plan."], 403);
+            if (! $agency->canUseFeature($feature)) {
+                $label    = config("realtix.feature_labels.{$feature}", $feature);
+                $minPlan  = config("realtix.feature_min_plan.{$feature}");
+                $msg      = "„{$label}\" nu este disponibilă pe planul tău (" . ucfirst($agency->subscription_plan ?? 'starter') . ").";
+                if ($minPlan) {
+                    $msg .= ' Necesită planul ' . ucfirst($minPlan) . ' sau superior.';
                 }
-                return redirect()->back()
-                    ->with('error', 'Această funcție nu este disponibilă pe planul tău curent.');
+
+                if ($request->expectsJson()) {
+                    return response()->json([
+                        'message'      => $msg,
+                        'feature'      => $feature,
+                        'min_plan'     => $minPlan,
+                        'current_plan' => $agency->subscription_plan,
+                    ], 403);
+                }
+                return redirect()->route('subscription.index')->with('error', $msg);
             }
         }
 

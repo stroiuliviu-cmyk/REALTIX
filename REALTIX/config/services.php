@@ -57,4 +57,9 @@ return [
         'private_key'   => env('APPLE_PRIVATE_KEY'),
     ],
 
+    'portal_999md' => [
+        'api_key'  => env('PORTAL_999MD_API_KEY'),
+        'base_url' => env('PORTAL_999MD_BASE_URL', 'https://partners-api.999.md'),
+    ],
+
 ];

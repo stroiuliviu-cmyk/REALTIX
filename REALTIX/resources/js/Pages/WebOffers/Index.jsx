@@ -1,4 +1,5 @@
 import AppLayout from '@/Layouts/AppLayout';
+import UpgradeLock from '@/Components/UpgradeLock';
 import { Head, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 
@@ -23,18 +24,33 @@ const SOURCE_COLORS = {
 const TYPE_LABELS  = { apartment: 'Apartament', house: 'Casă', commercial: 'Comercial', land: 'Teren' };
 const TRANS_LABELS = { sale: 'Vânzare', rent: 'Chirie' };
 
+// Raioanele Chișinău (sectoare oficiale + cele mai des întâlnite)
+const CHISINAU_DISTRICTS = [
+    'Botanica', 'Buiucani', 'Centru', 'Ciocana', 'Râșcani',
+    'Telecentru', 'Poșta Veche', 'Durlești', 'Codru', 'Cricova',
+    'Vadul lui Vodă', 'Sîngera', 'Bubuieci',
+];
+
+// Orașe principale în Moldova
+const TOP_CITIES = [
+    'Chișinău', 'Bălți', 'Cahul', 'Orhei', 'Ungheni',
+    'Soroca', 'Hîncești', 'Comrat', 'Edineț', 'Strășeni',
+    'Anenii Noi', 'Ialoveni', 'Căușeni', 'Rezina', 'Drochia',
+];
+
 /* ─── Sidebar helpers ───────────────────────────────────────────────────── */
 function SideLabel({ children }) {
     return <div className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">{children}</div>;
 }
 
-function CheckGroup({ label, options, values, onChange }) {
+function CheckGroup({ label, options, values, onChange, counts = {} }) {
     return (
         <div>
             <SideLabel>{label}</SideLabel>
             <div className="space-y-2">
                 {options.map(([v, l]) => {
                     const checked = values.includes(v);
+                    const count = counts[v];
                     return (
                         <label key={v} className="flex items-center gap-2 cursor-pointer group">
                             <div
@@ -45,7 +61,12 @@ function CheckGroup({ label, options, values, onChange }) {
                             >
                                 {checked && <span className="text-white" style={{ fontSize: 10 }}>✓</span>}
                             </div>
-                            <span className="text-sm text-slate-700">{l}</span>
+                            <span className="text-sm text-slate-700 flex-1">{l}</span>
+                            {count != null && (
+                                <span className="text-xs text-slate-400 font-mono">
+                                    {count.toLocaleString('ro')}
+                                </span>
+                            )}
                         </label>
                     );
                 })}
@@ -79,8 +100,15 @@ function RangeRow({ label, minVal, maxVal, onMin, onMax, onApply }) {
 }
 
 /* ─── Listing row ───────────────────────────────────────────────────────── */
+// Resolve image: local relative path → /storage/, remote http(s) URL → as-is
+function resolveImg(path) {
+    if (!path) return null;
+    if (/^https?:\/\//i.test(path)) return path;
+    return `/storage/${path}`;
+}
+
 function ListingRow({ l, isFavorite, isImported, onFav, onImport }) {
-    const img  = l.images?.[0] ?? null;
+    const img  = resolveImg(l.images?.[0]);
     const ai   = AI_COLORS[l.ai_valuation];
     const srcLabel = SOURCE_LABELS[l.source] ?? l.source;
     const srcColor = SOURCE_COLORS[l.source] ?? 'bg-slate-100 text-slate-600';
@@ -203,7 +231,7 @@ const EMPTY = {
     ai_valuation: '', date_filter: '', favorite: false, sort: '',
 };
 
-export default function Index({ listings, filters = {}, favoriteIds = [], importedIds = [] }) {
+export default function Index({ listings, filters = {}, favoriteIds = [], importedIds = [], counts = {}, districts = [], cities = [] }) {
     const { flash } = usePage().props;
 
     const [f, setF] = useState({
@@ -217,6 +245,7 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
 
     const [localFavs,     setLocalFavs]     = useState(new Set(favoriteIds));
     const [localImported, setLocalImported] = useState(new Set(importedIds));
+    const [syncing,       setSyncing]       = useState(false);
 
     const push = (updated) => {
         const params = {};
@@ -285,6 +314,7 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
                             ]}
                             values={f.sources}
                             onChange={v => set('sources', v)}
+                            counts={counts.by_source ?? {}}
                         />
 
                         <CheckGroup
@@ -292,6 +322,7 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
                             options={[['owner', '👤 Proprietar'], ['agency', '🏢 Agenție']]}
                             values={f.owner_types}
                             onChange={v => set('owner_types', v)}
+                            counts={counts.by_owner ?? {}}
                         />
 
                         <CheckGroup
@@ -299,20 +330,32 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
                             options={[['apartment','Apartament'],['house','Casă'],['commercial','Comercial'],['land','Teren']]}
                             values={f.types}
                             onChange={v => set('types', v)}
+                            counts={counts.by_type ?? {}}
                         />
 
                         {/* Transaction type */}
                         <div>
                             <SideLabel>Tip tranzacție</SideLabel>
                             <div className="flex gap-1.5">
-                                {[['', 'Toate'], ['sale', 'Vânzare'], ['rent', 'Chirie']].map(([v, l]) => (
+                                {[
+                                    ['',     'Toate', counts.total],
+                                    ['sale', 'Vânzare', counts.by_transaction?.sale],
+                                    ['rent', 'Chirie',  counts.by_transaction?.rent],
+                                ].map(([v, l, n]) => (
                                     <button
                                         key={v}
                                         onClick={() => set('transaction_type', f.transaction_type === v ? '' : v)}
-                                        className={`flex-1 text-xs font-semibold py-1.5 rounded-xl transition-colors ${
+                                        className={`flex-1 text-xs font-semibold py-1.5 rounded-xl transition-colors flex flex-col items-center gap-0.5 ${
                                             f.transaction_type === v ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                                         }`}
-                                    >{l}</button>
+                                    >
+                                        <span>{l}</span>
+                                        {n != null && (
+                                            <span className={`text-[10px] font-mono ${f.transaction_type === v ? 'text-blue-100' : 'text-slate-400'}`}>
+                                                {n.toLocaleString('ro')}
+                                            </span>
+                                        )}
+                                    </button>
                                 ))}
                             </div>
                         </div>
@@ -322,23 +365,67 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
                             <div>
                                 <SideLabel>Localitate</SideLabel>
                                 <input
+                                    list="city-list"
                                     value={f.city}
                                     onChange={e => setF(s => ({ ...s, city: e.target.value }))}
                                     onBlur={() => push(f)} onKeyDown={e => e.key === 'Enter' && push(f)}
                                     placeholder="Ex: Chișinău"
                                     className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
                                 />
+                                <datalist id="city-list">
+                                    {(cities.length > 0 ? cities.map(c => c.city) : TOP_CITIES).map(c => (
+                                        <option key={c} value={c} />
+                                    ))}
+                                </datalist>
                             </div>
-                            <div>
-                                <SideLabel>Sector / Raion</SideLabel>
-                                <input
-                                    value={f.district}
-                                    onChange={e => setF(s => ({ ...s, district: e.target.value }))}
-                                    onBlur={() => push(f)} onKeyDown={e => e.key === 'Enter' && push(f)}
-                                    placeholder="Ex: Centru"
-                                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
-                                />
-                            </div>
+
+                            {/* District: dropdown when city is Chișinău, otherwise free input */}
+                            {(() => {
+                                const isChisinau = f.city.trim().toLowerCase().startsWith('chișinău')
+                                                || f.city.trim().toLowerCase().startsWith('chisinau');
+                                if (isChisinau) {
+                                    // Combine real DB districts with Chișinău canonical list
+                                    const dbDistricts = new Set(districts.map(d => d.district));
+                                    const merged = [
+                                        ...CHISINAU_DISTRICTS.filter(d => dbDistricts.has(d) || true),
+                                        ...districts.map(d => d.district).filter(d => !CHISINAU_DISTRICTS.includes(d)),
+                                    ];
+                                    const countsMap = Object.fromEntries(districts.map(d => [d.district, d.cnt]));
+                                    return (
+                                        <div>
+                                            <SideLabel>Raionul Chișinău</SideLabel>
+                                            <select
+                                                value={f.district}
+                                                onChange={e => set('district', e.target.value)}
+                                                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 bg-white"
+                                            >
+                                                <option value="">— Toate raioanele —</option>
+                                                {merged.map(d => (
+                                                    <option key={d} value={d}>
+                                                        {d}{countsMap[d] ? ` (${countsMap[d]})` : ''}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    );
+                                }
+                                return (
+                                    <div>
+                                        <SideLabel>Sector / Raion</SideLabel>
+                                        <input
+                                            list="district-list"
+                                            value={f.district}
+                                            onChange={e => setF(s => ({ ...s, district: e.target.value }))}
+                                            onBlur={() => push(f)} onKeyDown={e => e.key === 'Enter' && push(f)}
+                                            placeholder="Ex: Centru"
+                                            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                                        />
+                                        <datalist id="district-list">
+                                            {districts.map(d => <option key={d.district} value={d.district} />)}
+                                        </datalist>
+                                    </div>
+                                );
+                            })()}
                         </div>
 
                         <RangeRow
@@ -360,12 +447,18 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
                         {/* Date filter */}
                         <div>
                             <SideLabel>Dată publicare</SideLabel>
-                            <div className="flex gap-1.5">
-                                {[['', 'Toate'], ['week', 'Săptămâna'], ['month', 'Luna']].map(([v, l]) => (
+                            <div className="grid grid-cols-3 gap-1.5">
+                                {[
+                                    ['',      'Toate'],
+                                    ['today', 'Astăzi'],
+                                    ['week',  'Săptămâna'],
+                                    ['month', 'Luna'],
+                                    ['year',  'Anul'],
+                                ].map(([v, l]) => (
                                     <button
                                         key={v}
                                         onClick={() => set('date_filter', f.date_filter === v ? '' : v)}
-                                        className={`flex-1 text-xs font-semibold py-1.5 rounded-xl transition-colors ${
+                                        className={`text-xs font-semibold py-1.5 rounded-xl transition-colors ${
                                             f.date_filter === v ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                                         }`}
                                     >{l}</button>
@@ -420,23 +513,55 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
                     )}
 
                     {/* Top bar */}
-                    <div className="flex items-center justify-between bg-white rounded-4xl border border-slate-100 shadow-xl px-6 py-4">
+                    <div className="flex items-center justify-between gap-3 flex-wrap bg-white rounded-4xl border border-slate-100 shadow-xl px-6 py-4">
                         <div>
                             <h2 className="text-lg font-bold text-slate-900">Web Oferte</h2>
-                            <p className="text-xs text-slate-400 mt-0.5">
-                                {listings.total} anunțuri din surse externe
+                            <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-2 flex-wrap">
+                                <span>
+                                    <strong className="text-slate-700">{listings.total.toLocaleString('ro')}</strong> rezultate filtrate
+                                    {counts.total != null && counts.total !== listings.total && (
+                                        <> din <strong className="text-slate-700">{counts.total.toLocaleString('ro')}</strong> total</>
+                                    )}
+                                </span>
+                                {counts.last_synced && (
+                                    <span className="text-slate-300">·</span>
+                                )}
+                                {counts.last_synced && (
+                                    <span title={new Date(counts.last_synced).toLocaleString('ro-RO')}>
+                                        🔄 ultima sincronizare {new Date(counts.last_synced).toLocaleString('ro-RO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                )}
                             </p>
                         </div>
-                        <select
-                            value={f.sort}
-                            onChange={e => set('sort', e.target.value)}
-                            className="rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 bg-white"
-                        >
-                            <option value="">Sortare: Recente</option>
-                            <option value="price_asc">Preț ↑</option>
-                            <option value="price_desc">Preț ↓</option>
-                            <option value="cheap_first">Cele mai avantajoase</option>
-                        </select>
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <UpgradeLock feature="scraper" mode="disable">
+                                <button
+                                    onClick={() => {
+                                        setSyncing(true);
+                                        router.post(route('web-offers.sync'), {}, {
+                                            preserveScroll: true,
+                                            onFinish: () => setSyncing(false),
+                                        });
+                                    }}
+                                    disabled={syncing}
+                                    className="flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-semibold px-4 py-2 transition-colors"
+                                    title="Preia anunțurile tale de pe 999.md prin Partners API"
+                                >
+                                    <span className={syncing ? 'animate-spin inline-block' : ''}>🔄</span>
+                                    {syncing ? 'Se sincronizează…' : 'Sincronizează 999.md'}
+                                </button>
+                            </UpgradeLock>
+                            <select
+                                value={f.sort}
+                                onChange={e => set('sort', e.target.value)}
+                                className="rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 bg-white"
+                            >
+                                <option value="">Sortare: Recente</option>
+                                <option value="price_asc">Preț ↑</option>
+                                <option value="price_desc">Preț ↓</option>
+                                <option value="cheap_first">Cele mai avantajoase</option>
+                            </select>
+                        </div>
                     </div>
 
                     {/* List */}

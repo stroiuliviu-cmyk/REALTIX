@@ -72,6 +72,23 @@ class Property extends Model
         return $this->belongsToMany(User::class, 'property_favorites')->withTimestamps();
     }
 
+    public function contacts(): BelongsToMany
+    {
+        return $this->belongsToMany(Contact::class, 'property_contact')
+            ->withPivot('relation', 'notes')
+            ->withTimestamps();
+    }
+
+    public function owners(): BelongsToMany
+    {
+        return $this->contacts()->wherePivot('relation', 'owner');
+    }
+
+    public function interestedClients(): BelongsToMany
+    {
+        return $this->contacts()->wherePivot('relation', 'interested');
+    }
+
     public function getDescriptionAttribute(): ?string
     {
         $locale = app()->getLocale();

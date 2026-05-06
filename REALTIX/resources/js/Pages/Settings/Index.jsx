@@ -1,6 +1,6 @@
 import AppLayout from '@/Layouts/AppLayout';
-import { Head, router, useForm, usePage } from '@inertiajs/react';
-import { useEffect, useState } from 'react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { useEffect, useRef, useState } from 'react';
 
 // ─── Primitive helpers ────────────────────────────────────────────────────────
 
@@ -190,7 +190,8 @@ function ProfileTab({ user }) {
 
 function AgencyTab({ agency }) {
     const s = agency?.settings ?? {};
-    const { data, setData, patch, processing, errors } = useForm({
+    const { data, setData, post, processing, errors } = useForm({
+        _method:       'PATCH',
         name:          agency?.name          ?? '',
         contact_phone: s.contact_phone       ?? '',
         contact_email: s.contact_email       ?? '',
@@ -198,20 +199,75 @@ function AgencyTab({ agency }) {
         director_name: s.director_name       ?? '',
         about:         s.about               ?? '',
         brand_color:   s.brand_color         ?? '#1e40af',
+        logo:          null,
+        remove_logo:   false,
     });
 
-    const submit = (e) => { e.preventDefault(); patch(route('settings.agency')); };
+    const [logoPreview, setLogoPreview] = useState(null);
+    const fileInputRef = useRef(null);
+
+    const handleLogoChange = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setData('logo', file);
+        setData('remove_logo', false);
+        const reader = new FileReader();
+        reader.onload = (ev) => setLogoPreview(ev.target.result);
+        reader.readAsDataURL(file);
+    };
+
+    const handleLogoRemove = () => {
+        setData('logo', null);
+        setData('remove_logo', true);
+        setLogoPreview(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+
+    const submit = (e) => {
+        e.preventDefault();
+        post(route('settings.agency'), { forceFormData: true, preserveScroll: true });
+    };
+
+    const currentLogoUrl = logoPreview
+        ?? (data.remove_logo ? null : (agency?.logo_path ? `/storage/${agency.logo_path}` : null));
 
     return (
         <form onSubmit={submit} className="space-y-5 max-w-lg">
             {/* Logo */}
             <div className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-3xl shadow-sm">
-                    🏢
+                <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 flex items-center justify-center overflow-hidden shadow-sm">
+                    {currentLogoUrl ? (
+                        <img src={currentLogoUrl} alt={agency?.name} className="w-full h-full object-cover" />
+                    ) : (
+                        <span className="text-3xl">🏢</span>
+                    )}
                 </div>
                 <div>
                     <div className="font-bold text-slate-900 text-sm">{agency?.name}</div>
-                    <button type="button" className="text-xs text-blue-700 hover:underline mt-1">Încarcă logo</button>
+                    <div className="flex items-center gap-3 mt-1">
+                        <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="text-xs text-blue-700 hover:underline font-semibold"
+                        >
+                            {currentLogoUrl ? 'Schimbă logo' : 'Încarcă logo'}
+                        </button>
+                        {currentLogoUrl && (
+                            <button
+                                type="button"
+                                onClick={handleLogoRemove}
+                                className="text-xs text-red-600 hover:underline"
+                            >Elimină</button>
+                        )}
+                    </div>
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                        onChange={handleLogoChange}
+                        className="hidden"
+                    />
+                    <FieldError msg={errors.logo} />
                 </div>
                 <div className="ml-auto flex items-center gap-2">
                     <Label>Culoare brand</Label>
@@ -286,16 +342,29 @@ function AgencyTab({ agency }) {
 
 // ─── Users Tab ────────────────────────────────────────────────────────────────
 
-function UsersTab({ agents, currentUserId }) {
-    const [inviteEmail, setInviteEmail] = useState('');
+function UsersTab({ agents, invitations = [], currentUserId, canInvite = true, agencyPlan = 'starter' }) {
     const [showInvite, setShowInvite] = useState(false);
 
-    const invite = useForm({ email: '' });
+    const invite = useForm({ email: '', role: 'realtor' });
     const submitInvite = (e) => {
         e.preventDefault();
         invite.post(route('settings.users.invite'), {
             onSuccess: () => { setShowInvite(false); invite.reset(); },
         });
+    };
+
+    const cancelInvitation = (inv) => {
+        if (!confirm(`Anulezi invitația pentru ${inv.email}?`)) return;
+        router.delete(route('settings.invitations.cancel', inv.id), { preserveScroll: true });
+    };
+
+    const resendInvitation = (inv) => {
+        router.post(route('settings.invitations.resend', inv.id), {}, { preserveScroll: true });
+    };
+
+    const copyLink = (inv) => {
+        const url = `${window.location.origin}/invitations/${inv.token}`;
+        navigator.clipboard?.writeText(url);
     };
 
     const toggleActive = (agent) => {
@@ -313,20 +382,47 @@ function UsersTab({ agents, currentUserId }) {
 
     return (
         <div className="space-y-5">
+            {/* Plan-gated banner */}
+            {!canInvite && (
+                <div className="rounded-2xl bg-amber-50 border border-amber-200 p-4 flex items-start gap-3">
+                    <span className="text-2xl shrink-0">🔒</span>
+                    <div className="flex-1">
+                        <p className="text-sm font-bold text-amber-900">
+                            Pachetul {agencyPlan === 'starter' ? 'Starter' : agencyPlan} nu permite invitarea agenților
+                        </p>
+                        <p className="text-xs text-amber-800 mt-1">
+                            Pachetul <strong>Starter</strong> e single-user. Pentru a adăuga colegi în echipă și pentru funcționalitatea de schimb context între agenții, fă upgrade la <strong>Medium</strong> sau <strong>Pro</strong>.
+                        </p>
+                        <Link
+                            href="/subscription"
+                            className="inline-block mt-2 text-xs font-bold text-amber-900 hover:underline"
+                        >
+                            Vezi pachete →
+                        </Link>
+                    </div>
+                </div>
+            )}
+
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div className="text-sm text-slate-500">{agents.length} cont{agents.length !== 1 ? 'uri' : ''} înregistrate</div>
                 <button
-                    onClick={() => setShowInvite(!showInvite)}
-                    className="rounded-2xl bg-slate-900 text-white px-5 py-2 text-sm font-bold hover:bg-slate-700 transition-colors"
+                    onClick={() => canInvite && setShowInvite(!showInvite)}
+                    disabled={!canInvite}
+                    title={canInvite ? '' : 'Disponibil cu pachetul Medium sau Pro'}
+                    className={`rounded-2xl px-5 py-2 text-sm font-bold transition-colors ${
+                        canInvite
+                            ? 'bg-slate-900 text-white hover:bg-slate-700'
+                            : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                    }`}
                 >
-                    + Invită agent
+                    {canInvite ? '+ Invită agent' : '🔒 Invită agent (Medium/Pro)'}
                 </button>
             </div>
 
             {/* Invite form */}
             {showInvite && (
-                <form onSubmit={submitInvite} className="flex gap-3 items-center p-4 rounded-2xl bg-blue-50 border border-blue-100">
+                <form onSubmit={submitInvite} className="flex gap-3 items-center p-4 rounded-2xl bg-blue-50 border border-blue-100 flex-wrap">
                     <span className="text-lg">✉️</span>
                     <input
                         type="email"
@@ -334,14 +430,75 @@ function UsersTab({ agents, currentUserId }) {
                         onChange={e => invite.setData('email', e.target.value)}
                         placeholder="email@agent.md"
                         required
-                        className="flex-1 rounded-xl border border-blue-200 px-4 py-2 text-sm focus:outline-none focus:border-blue-700 bg-white"
+                        className="flex-1 min-w-48 rounded-xl border border-blue-200 px-4 py-2 text-sm focus:outline-none focus:border-blue-700 bg-white"
                     />
+                    <select
+                        value={invite.data.role}
+                        onChange={e => invite.setData('role', e.target.value)}
+                        className="rounded-xl border border-blue-200 px-3 py-2 text-sm font-semibold focus:outline-none bg-white"
+                    >
+                        <option value="realtor">Agent</option>
+                        <option value="admin">Admin</option>
+                    </select>
                     <button type="submit" disabled={invite.processing}
                         className="rounded-xl bg-blue-700 text-white px-4 py-2 text-sm font-bold hover:bg-blue-800 disabled:opacity-50">
                         Trimite invitație
                     </button>
                     <button type="button" onClick={() => setShowInvite(false)} className="text-slate-400 hover:text-slate-600">✕</button>
                 </form>
+            )}
+
+            {/* Pending invitations */}
+            {invitations.length > 0 && (
+                <div className="rounded-2xl border border-amber-100 bg-amber-50/50 overflow-hidden">
+                    <div className="px-4 py-2.5 border-b border-amber-100 bg-amber-100/50 flex items-center gap-2">
+                        <span className="text-base">⏳</span>
+                        <h4 className="text-sm font-bold text-amber-900">Invitații în așteptare ({invitations.length})</h4>
+                    </div>
+                    <div className="divide-y divide-amber-100">
+                        {invitations.map(inv => (
+                            <div key={inv.id} className="flex items-center gap-3 px-4 py-3 flex-wrap">
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="text-sm font-semibold text-slate-800">{inv.email}</span>
+                                        <span className="text-[10px] font-bold uppercase bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                                            {inv.role === 'admin' ? 'Admin' : 'Agent'}
+                                        </span>
+                                        {inv.is_expired && (
+                                            <span className="text-[10px] font-bold uppercase bg-red-100 text-red-700 px-2 py-0.5 rounded-full">
+                                                Expirat
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="text-xs text-slate-500 mt-0.5">
+                                        Trimisă de {inv.invited_by ?? '—'}
+                                        {inv.expires_at && ` · expiră ${new Date(inv.expires_at).toLocaleDateString('ro-RO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`}
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => copyLink(inv)}
+                                    className="text-xs font-semibold text-slate-600 hover:text-blue-700 px-2"
+                                    title="Copiază linkul"
+                                >
+                                    🔗 Copiază
+                                </button>
+                                <button
+                                    onClick={() => resendInvitation(inv)}
+                                    className="text-xs font-semibold text-blue-700 hover:text-blue-900 px-2"
+                                    title="Retrimite email-ul"
+                                >
+                                    ↻ Retrimite
+                                </button>
+                                <button
+                                    onClick={() => cancelInvitation(inv)}
+                                    className="text-xs font-semibold text-red-600 hover:text-red-800 px-2"
+                                >
+                                    ✕ Anulează
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
             )}
 
             {/* Agent list */}
@@ -907,7 +1064,7 @@ const TABS = [
     { key: 'portals',       label: 'Portaluri',     icon: '🌐', adminOnly: true  },
 ];
 
-export default function Index({ user, agency, isAdmin, sessions = [], agents = [], flash }) {
+export default function Index({ user, agency, isAdmin, sessions = [], agents = [], invitations = [], canInviteAgents = false, flash }) {
     const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
     const [activeTab, setActiveTab] = useState(urlParams.get('tab') ?? 'profile');
     const [toast, setToast] = useState(flash ?? null);
@@ -949,7 +1106,7 @@ export default function Index({ user, agency, isAdmin, sessions = [], agents = [
 
                     {activeTab === 'profile'       && <ProfileTab user={user} />}
                     {activeTab === 'agency'        && <AgencyTab agency={agency} />}
-                    {activeTab === 'users'         && <UsersTab agents={agents} currentUserId={user.id} />}
+                    {activeTab === 'users'         && <UsersTab agents={agents} invitations={invitations} currentUserId={user.id} canInvite={canInviteAgents} agencyPlan={agency?.subscription_plan ?? 'starter'} />}
                     {activeTab === 'notifications' && <NotificationsTab user={user} />}
                     {activeTab === 'security'      && <SecurityTab sessions={sessions} />}
                     {activeTab === 'integrations'  && <IntegrationsTab agency={agency} user={user} />}

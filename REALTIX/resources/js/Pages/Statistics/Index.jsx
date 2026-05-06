@@ -167,18 +167,22 @@ function AdminDashboard({
                 ))}
 
                 <div className="ml-auto flex gap-2">
-                    <button
-                        onClick={() => window.print()}
+                    <a
+                        href={route('statistics.export.pdf', { period })}
+                        target="_blank"
+                        rel="noopener"
                         className="rounded-2xl px-4 py-2 text-sm font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+                        title="Descarcă raport PDF complet"
                     >
                         📄 PDF
-                    </button>
-                    <button
-                        onClick={() => exportCSV(agentStats)}
+                    </a>
+                    <a
+                        href={route('statistics.export.csv', { period })}
                         className="rounded-2xl px-4 py-2 text-sm font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+                        title="Descarcă raport Excel/CSV"
                     >
                         📊 Excel
-                    </button>
+                    </a>
                 </div>
             </div>
 
@@ -559,12 +563,26 @@ function RealtorDashboard({
 }) {
     return (
         <div className="space-y-6">
-            {/* Notice */}
-            <div className="rounded-3xl bg-blue-50 border border-blue-100 p-4 flex items-center gap-3">
+            {/* Notice + Export */}
+            <div className="rounded-3xl bg-blue-50 border border-blue-100 p-4 flex items-center gap-3 flex-wrap">
                 <span className="text-xl">ℹ️</span>
-                <p className="text-sm text-blue-700">
+                <p className="text-sm text-blue-700 flex-1 min-w-0">
                     Vizualizezi <strong>statisticile tale personale</strong>. Administratorul agenției are acces la datele complete.
                 </p>
+                <a
+                    href={route('statistics.export.pdf', { period })}
+                    target="_blank"
+                    rel="noopener"
+                    className="rounded-xl px-3 py-1.5 text-xs font-semibold bg-white border border-blue-200 text-blue-700 hover:bg-blue-100 transition-colors"
+                >
+                    📄 PDF
+                </a>
+                <a
+                    href={route('statistics.export.csv', { period })}
+                    className="rounded-xl px-3 py-1.5 text-xs font-semibold bg-white border border-blue-200 text-blue-700 hover:bg-blue-100 transition-colors"
+                >
+                    📊 Excel
+                </a>
             </div>
 
             {/* Personal KPIs */}

@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Contact;
 use App\Models\ContactInteraction;
+use App\Models\Property;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -15,21 +17,43 @@ class ContactController extends Controller
     {
         $user = $request->user();
         $query = Contact::with('user')
+            ->withCount('interactions')
             ->when(! $user->isAdmin(), fn ($q) => $q->where('user_id', $user->id))
             ->when($request->search, fn ($q, $s) =>
                 $q->where(fn ($q) =>
-                    $q->where('first_name', 'ilike', "%{$s}%")
-                      ->orWhere('last_name', 'ilike', "%{$s}%")
-                      ->orWhere('phone', 'ilike', "%{$s}%")
+                    $q->where('first_name', 'like', "%{$s}%")
+                      ->orWhere('last_name', 'like', "%{$s}%")
+                      ->orWhere('phone', 'like', "%{$s}%")
                 )
             )
             ->when($request->status, fn ($q, $s) => $q->where('status', $s))
             ->when($request->type, fn ($q, $t) => $q->where('type', $t))
+            ->when($request->forgotten, fn ($q) => $q->where(function ($q) {
+                $q->whereDoesntHave('interactions', fn ($iq) => $iq->where('created_at', '>=', now()->subDays(30)))
+                  ->where('updated_at', '<', now()->subDays(30));
+            }))
             ->latest();
 
+        $contacts = $query->paginate(20)->withQueryString();
+
+        // Add `is_forgotten` flag to each: no interaction in last 30 days AND not recently updated
+        $thirtyDaysAgo = now()->subDays(30);
+        $contactIds = $contacts->getCollection()->pluck('id');
+        $recentInteractionIds = \App\Models\ContactInteraction::whereIn('contact_id', $contactIds)
+            ->where('created_at', '>=', $thirtyDaysAgo)
+            ->pluck('contact_id')
+            ->unique()
+            ->all();
+
+        $contacts->getCollection()->transform(function ($c) use ($recentInteractionIds, $thirtyDaysAgo) {
+            $hasRecent = in_array($c->id, $recentInteractionIds, true);
+            $c->is_forgotten = ! $hasRecent && $c->updated_at?->lt($thirtyDaysAgo);
+            return $c;
+        });
+
         return Inertia::render('Contacts/Index', [
-            'contacts' => $query->paginate(20)->withQueryString(),
-            'filters' => $request->only(['search', 'status', 'type']),
+            'contacts' => $contacts,
+            'filters'  => $request->only(['search', 'status', 'type', 'forgotten']),
         ]);
     }
 
@@ -46,7 +70,25 @@ class ContactController extends Controller
             'source' => 'nullable|string|max:100',
         ]);
 
-        Contact::create(array_merge($data, ['user_id' => $request->user()->id]));
+        $user      = $request->user();
+        $duplicate = null;
+
+        // Phone duplicate detection within the agency
+        if (! empty($data['phone'])) {
+            $normalizedPhone = preg_replace('/\s+/', '', $data['phone']);
+            $duplicate = Contact::where('phone', 'like', "%{$normalizedPhone}%")
+                ->with('user:id,name')
+                ->first();
+        }
+
+        Contact::create(array_merge($data, ['user_id' => $user->id]));
+
+        if ($duplicate) {
+            $owner = $duplicate->user?->name ?? 'altcineva';
+            $name  = trim($duplicate->first_name . ' ' . $duplicate->last_name);
+            return redirect()->route('contacts.index')
+                ->with('warning', '⚠ Telefonul ' . $data['phone'] . ' există deja la „' . $name . '" (agent: ' . $owner . '). Contactul a fost totuși adăugat.');
+        }
 
         return redirect()->route('contacts.index')
             ->with('success', 'Contactul a fost adăugat.');
@@ -67,11 +109,55 @@ class ContactController extends Controller
             ->limit(15)
             ->get();
 
-        return Inertia::render('Contacts/Show', [
-            'contact'   => $contact->load('interactions.user', 'deals.property'),
-            'contracts' => $contracts,
-            'meetings'  => $meetings,
+        $contact->load([
+            'interactions.user',
+            'deals.property',
+            'properties' => fn ($q) => $q->select('properties.id', 'title', 'address', 'city', 'price', 'currency', 'type', 'transaction_type', 'status'),
         ]);
+
+        // Available properties (not yet linked) for the "add" picker
+        $linkedIds = $contact->properties->pluck('id')->all();
+        $availableProperties = Property::whereNotIn('id', $linkedIds)
+            ->select('id', 'title', 'address', 'city', 'price', 'currency')
+            ->latest()
+            ->limit(100)
+            ->get();
+
+        return Inertia::render('Contacts/Show', [
+            'contact'             => $contact,
+            'contracts'           => $contracts,
+            'meetings'            => $meetings,
+            'availableProperties' => $availableProperties,
+        ]);
+    }
+
+    public function attachProperty(Request $request, Contact $contact)
+    {
+        Gate::authorize('update', $contact);
+
+        $data = $request->validate([
+            'property_id' => 'required|exists:properties,id',
+            'relation'    => 'required|in:owner,interested,tenant',
+            'notes'       => 'nullable|string|max:500',
+        ]);
+
+        $contact->properties()->syncWithoutDetaching([
+            $data['property_id'] => [
+                'relation' => $data['relation'],
+                'notes'    => $data['notes'] ?? null,
+            ],
+        ]);
+
+        return back()->with('success', 'Proprietatea a fost asociată contactului.');
+    }
+
+    public function detachProperty(Contact $contact, Property $property)
+    {
+        Gate::authorize('update', $contact);
+
+        $contact->properties()->detach($property->id);
+
+        return back()->with('success', 'Asocierea a fost eliminată.');
     }
 
     public function update(Request $request, Contact $contact)

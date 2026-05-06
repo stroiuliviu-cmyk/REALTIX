@@ -8,9 +8,11 @@ use App\Models\Deal;
 use App\Models\Property;
 use App\Models\ScrapedListing;
 use App\Models\User;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class StatisticsController extends Controller
 {
@@ -34,6 +36,182 @@ class StatisticsController extends Controller
             'isAdmin' => $isAdmin,
             'period'  => $period,
         ]));
+    }
+
+    public function exportPdf(Request $request)
+    {
+        $user    = $request->user();
+        $isAdmin = $user->hasRole('admin');
+        $period  = $request->get('period', 'month');
+
+        $from = match($period) {
+            'week'  => now()->startOfWeek(),
+            'year'  => now()->startOfYear(),
+            default => now()->startOfMonth(),
+        };
+
+        $data = $isAdmin
+            ? $this->adminStats($user, $from, $period)
+            : $this->realtorStats($user, $from);
+
+        $pdf = Pdf::loadView('statistics.pdf', array_merge($data, [
+            'isAdmin'      => $isAdmin,
+            'period'       => $period,
+            'periodLabel'  => $this->periodLabel($period),
+            'agency'       => $user->agency,
+            'user'         => $user,
+            'generatedAt'  => now(),
+        ]))->setPaper('a4', 'portrait');
+
+        $filename = sprintf(
+            'realtix-statistics-%s-%s.pdf',
+            $period,
+            now()->format('Y-m-d')
+        );
+
+        return $pdf->download($filename);
+    }
+
+    public function exportCsv(Request $request): StreamedResponse
+    {
+        $user    = $request->user();
+        $isAdmin = $user->hasRole('admin');
+        $period  = $request->get('period', 'month');
+
+        $from = match($period) {
+            'week'  => now()->startOfWeek(),
+            'year'  => now()->startOfYear(),
+            default => now()->startOfMonth(),
+        };
+
+        $data = $isAdmin
+            ? $this->adminStats($user, $from, $period)
+            : $this->realtorStats($user, $from);
+
+        $filename = sprintf('realtix-statistics-%s-%s.csv', $period, now()->format('Y-m-d'));
+
+        return response()->stream(function () use ($data, $isAdmin, $period, $user) {
+            $out = fopen('php://output', 'w');
+            // BOM for Excel UTF-8
+            fwrite($out, "\xEF\xBB\xBF");
+
+            $sep = [];
+            $row = fn (array $r) => fputcsv($out, $r, ';');
+
+            $row(['REALTIX — Raport Statistici']);
+            $row(['Agenție', $user->agency?->name ?? '—']);
+            $row(['Utilizator', $user->name]);
+            $row(['Perioadă', $this->periodLabel($period)]);
+            $row(['Generat', now()->format('d.m.Y H:i')]);
+            $row($sep);
+
+            if ($isAdmin) {
+                $row(['== SUMAR AGENȚIE ==']);
+                $row(['Metric', 'Valoare']);
+                $row(['Proprietăți total', $data['propertiesTotal']]);
+                $row(['Proprietăți active', $data['propertiesActive']]);
+                $row(['Proprietăți noi (perioada)', $data['propertiesThisPeriod']]);
+                $row(['Proprietăți noi (perioada anterioară)', $data['propertiesPrevPeriod']]);
+                $row(['Contacte total', $data['contactsTotal']]);
+                $row(['Apeluri total', $data['callsTotal']]);
+                $row(['Apeluri (perioada)', $data['callsPeriod']]);
+                $row(['Conversie apel→sdelka (%)', $data['callConversion']]);
+                $row(['Tranzacții (perioada)', $data['dealsPeriod']]);
+                $row(['Venit (perioada)', number_format($data['revenuePeriod'], 2, '.', '')]);
+                $row(['Venit (perioada anterioară)', number_format($data['revenuePrev'], 2, '.', '')]);
+                $row(['Comision mediu', number_format($data['avgCommission'], 2, '.', '')]);
+                $row(['Zile mediu închidere', $data['avgDaysToClose']]);
+                $row(['Anunțuri scrap. total', $data['scrapedTotal']]);
+                $row($sep);
+
+                $row(['== PROPRIETĂȚI PE TIP ==']);
+                $row(['Tip', 'Total']);
+                foreach ($data['propertiesByType'] as $t => $n) {
+                    $row([$t, $n]);
+                }
+                $row($sep);
+
+                $row(['== AGENȚI ==']);
+                $row(['Nume', 'Proprietăți', 'Tranzacții', 'Contacte', 'Apeluri', 'Vizualizări', 'Venit', 'Zile mediu închidere']);
+                foreach ($data['agentStats'] as $a) {
+                    $row([
+                        $a['name'],
+                        $a['properties_count'],
+                        $a['deals_count'],
+                        $a['contacts_count'],
+                        $a['calls_count'],
+                        $a['views_total'],
+                        number_format($a['revenue'], 2, '.', ''),
+                        $a['avg_days_close'] ?? '—',
+                    ]);
+                }
+                $row($sep);
+
+                $row(['== VENIT PE LUNI (an curent) ==']);
+                $row(['Luna', 'Venit']);
+                foreach ($data['revenueByMonth'] as $m) {
+                    $row([$m['month'], number_format($m['total'], 2, '.', '')]);
+                }
+                $row($sep);
+
+                $row(['== TOP DISTRICTE (anunțuri săptămâna asta) ==']);
+                $row(['District', 'Anunțuri']);
+                foreach ($data['top5Districts'] as $d) {
+                    $row([$d['district'], $d['count']]);
+                }
+                $row($sep);
+
+                $row(['== PREȚ MEDIU PE DISTRICT ==']);
+                $row(['District', 'Preț mediu', 'Anunțuri']);
+                foreach ($data['avgPriceByDistrict'] as $d) {
+                    $row([$d['district'], $d['avg_price'], $d['count']]);
+                }
+            } else {
+                $row(['== SUMAR PERSONAL ==']);
+                $row(['Metric', 'Valoare']);
+                $row(['Proprietăți total', $data['propertiesTotal']]);
+                $row(['Proprietăți active', $data['propertiesActive']]);
+                $row(['Proprietăți arhivate', $data['propertiesArchived']]);
+                $row(['Contacte total', $data['contactsTotal']]);
+                $row(['Vizualizări total', $data['viewsTotal']]);
+                $row(['Apeluri total', $data['myCallsTotal']]);
+                $row(['Apeluri (perioada)', $data['myCallsPeriod']]);
+                $row(['Conversie apel→sdelka (%)', $data['callConversion']]);
+                $row(['Tranzacții închise', $data['myDealsTotal']]);
+                $row(['Tranzacții în lucru', $data['myDealsInProgress']]);
+                $row(['Tranzacții (perioada)', $data['dealsPeriod']]);
+                $row(['Venit (perioada)', number_format($data['revenuePeriod'], 2, '.', '')]);
+                $row(['Venit total', number_format($data['revenueTotal'], 2, '.', '')]);
+                $row($sep);
+
+                $row(['== TOP 3 PROPRIETĂȚI (după vizualizări) ==']);
+                $row(['ID', 'Titlu', 'Vizualizări', 'Status', 'Tip']);
+                foreach ($data['top3Properties'] as $p) {
+                    $row([$p['id'], $p['title'], $p['views_count'], $p['status'], $p['type']]);
+                }
+                $row($sep);
+
+                $row(['== VENIT PE LUNI (an curent) ==']);
+                $row(['Luna', 'Venit']);
+                foreach ($data['revenueByMonth'] as $m) {
+                    $row([$m['month'], number_format($m['total'], 2, '.', '')]);
+                }
+            }
+
+            fclose($out);
+        }, 200, [
+            'Content-Type'        => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ]);
+    }
+
+    private function periodLabel(string $period): string
+    {
+        return match($period) {
+            'week'  => 'Săptămâna curentă',
+            'year'  => 'Anul curent',
+            default => 'Luna curentă',
+        };
     }
 
     private function adminStats(User $user, $from, string $period): array

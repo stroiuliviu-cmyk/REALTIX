@@ -180,11 +180,54 @@ class PropertyController extends Controller
             ->limit(15)
             ->get();
 
-        return Inertia::render('Properties/Show', [
-            'property'  => $property->load('media', 'user'),
-            'contracts' => $contracts,
-            'viewings'  => $viewings,
+        $property->load([
+            'media',
+            'user',
+            'contacts' => fn ($q) => $q->select('contacts.id', 'first_name', 'last_name', 'phone', 'email', 'type'),
         ]);
+
+        $linkedIds = $property->contacts->pluck('id')->all();
+        $availableContacts = \App\Models\Contact::whereNotIn('id', $linkedIds)
+            ->select('id', 'first_name', 'last_name', 'phone', 'type')
+            ->latest()
+            ->limit(100)
+            ->get();
+
+        return Inertia::render('Properties/Show', [
+            'property'           => $property,
+            'contracts'          => $contracts,
+            'viewings'           => $viewings,
+            'availableContacts'  => $availableContacts,
+        ]);
+    }
+
+    public function attachContact(Request $request, Property $property)
+    {
+        Gate::authorize('update', $property);
+
+        $data = $request->validate([
+            'contact_id' => 'required|exists:contacts,id',
+            'relation'   => 'required|in:owner,interested,tenant',
+            'notes'      => 'nullable|string|max:500',
+        ]);
+
+        $property->contacts()->syncWithoutDetaching([
+            $data['contact_id'] => [
+                'relation' => $data['relation'],
+                'notes'    => $data['notes'] ?? null,
+            ],
+        ]);
+
+        return back()->with('success', 'Clientul a fost asociat proprietății.');
+    }
+
+    public function detachContact(Property $property, \App\Models\Contact $contact)
+    {
+        Gate::authorize('update', $property);
+
+        $property->contacts()->detach($contact->id);
+
+        return back()->with('success', 'Asocierea a fost eliminată.');
     }
 
     public function edit(Property $property): Response

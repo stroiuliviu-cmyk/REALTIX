@@ -172,7 +172,7 @@ export default function Index({ contacts, filters }) {
                         />
                         <select
                             value={filters?.status ?? ''}
-                            onChange={e => router.get('/contacts', { search, status: e.target.value }, { preserveState: true })}
+                            onChange={e => router.get('/contacts', { ...filters, search, status: e.target.value }, { preserveState: true })}
                             className="rounded-2xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:border-blue-700"
                         >
                             <option value="">Toate statusurile</option>
@@ -180,6 +180,18 @@ export default function Index({ contacts, filters }) {
                             <option value="active">Activ</option>
                             <option value="closed">Închis</option>
                         </select>
+                        <button
+                            type="button"
+                            onClick={() => router.get('/contacts', { ...filters, search, forgotten: filters?.forgotten ? '' : '1' }, { preserveState: true })}
+                            className={`rounded-2xl px-4 py-2.5 text-sm font-semibold transition-colors ${
+                                filters?.forgotten
+                                    ? 'bg-amber-500 text-white hover:bg-amber-600'
+                                    : 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'
+                            }`}
+                            title="Doar contacte fără activitate de >30 zile"
+                        >
+                            ⏰ Uitate
+                        </button>
                         <button type="submit" className="rounded-2xl bg-slate-900 px-5 py-2.5 text-white text-sm font-semibold">
                             Caută
                         </button>
@@ -210,9 +222,19 @@ export default function Index({ contacts, filters }) {
                                 ) : contacts.data.map(contact => (
                                     <tr key={contact.id} className="border-b border-slate-100 hover:bg-slate-50">
                                         <td className="px-4 py-4 font-bold text-slate-900">
-                                            <Link href={`/contacts/${contact.id}`} className="hover:text-blue-700">
-                                                {contact.first_name} {contact.last_name}
-                                            </Link>
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <Link href={`/contacts/${contact.id}`} className="hover:text-blue-700">
+                                                    {contact.first_name} {contact.last_name}
+                                                </Link>
+                                                {contact.is_forgotten && (
+                                                    <span
+                                                        className="text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full"
+                                                        title="Niciun contact > 30 zile"
+                                                    >
+                                                        ⏰ Uitat
+                                                    </span>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="px-4 py-4">{contact.phone ?? '—'}</td>
                                         <td className="px-4 py-4">{typeLabels[contact.type] ?? contact.type}</td>

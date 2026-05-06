@@ -57,13 +57,34 @@ class SettingsController extends Controller
         $userData['google_access_token'] = $user->google_access_token ? '***connected***' : null;
         unset($userData['google_refresh_token']);
 
+        $invitations = [];
+        if ($isAdmin) {
+            $invitations = \App\Models\AgencyInvitation::where('agency_id', $user->agency_id)
+                ->whereNull('accepted_at')
+                ->with('invitedBy:id,name')
+                ->latest()
+                ->get()
+                ->map(fn ($i) => [
+                    'id'         => $i->id,
+                    'email'      => $i->email,
+                    'role'       => $i->role,
+                    'token'      => $i->token,
+                    'expires_at' => $i->expires_at?->toDateTimeString(),
+                    'created_at' => $i->created_at->toDateTimeString(),
+                    'is_expired' => $i->isExpired(),
+                    'invited_by' => $i->invitedBy?->name,
+                ]);
+        }
+
         return Inertia::render('Settings/Index', [
-            'user'    => $userData,
-            'agency'  => $user->agency,
-            'isAdmin' => $isAdmin,
-            'sessions'=> $sessions,
-            'agents'  => $agents,
-            'flash'   => session('success'),
+            'user'             => $userData,
+            'agency'           => $user->agency,
+            'isAdmin'          => $isAdmin,
+            'sessions'         => $sessions,
+            'agents'           => $agents,
+            'invitations'      => $invitations,
+            'canInviteAgents'  => (bool) ($user->agency?->canInviteAgents() ?? false),
+            'flash'            => session('success'),
         ]);
     }
 
@@ -105,12 +126,14 @@ class SettingsController extends Controller
             'director_name' => 'nullable|string|max:255',
             'about'         => 'nullable|string|max:2000',
             'brand_color'   => 'nullable|string|max:7|regex:/^#[0-9a-fA-F]{6}$/',
+            'logo'          => 'nullable|image|mimes:png,jpg,jpeg,webp,svg|max:2048',
+            'remove_logo'   => 'nullable|boolean',
         ]);
 
         $agency   = $user->agency;
         $settings = $agency->settings ?? [];
 
-        $agency->update([
+        $update = [
             'name'     => $validated['name'],
             'settings' => array_merge($settings, array_filter([
                 'contact_phone' => $validated['contact_phone'] ?? null,
@@ -120,7 +143,21 @@ class SettingsController extends Controller
                 'about'         => $validated['about'] ?? null,
                 'brand_color'   => $validated['brand_color'] ?? null,
             ], fn($v) => $v !== null)),
-        ]);
+        ];
+
+        // Handle logo: upload, replace or remove
+        if ($request->hasFile('logo')) {
+            // Delete old logo file if any
+            if ($agency->logo_path) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($agency->logo_path);
+            }
+            $update['logo_path'] = $request->file('logo')->store("agencies/{$agency->id}", 'public');
+        } elseif (! empty($validated['remove_logo']) && $agency->logo_path) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($agency->logo_path);
+            $update['logo_path'] = null;
+        }
+
+        $agency->update($update);
 
         return back()->with('success', 'Datele agenției au fost salvate.');
     }
@@ -148,11 +185,99 @@ class SettingsController extends Controller
 
     public function inviteAgent(Request $request): RedirectResponse
     {
-        abort_unless($request->user()->isAdmin(), 403);
+        $admin = $request->user();
+        abort_unless($admin->isAdmin(), 403);
 
-        $request->validate(['email' => 'required|email']);
+        // Plan gate: only Medium and Pro can invite agents
+        if (! $admin->agency->canInviteAgents()) {
+            $current = ucfirst($admin->agency->subscription_plan ?? 'Starter');
+            return back()->with('error', 'Pachetul curent (' . $current . ') nu permite invitarea agenților. Trebuie să faci upgrade la Medium sau Pro.');
+        }
 
-        return back()->with('success', "Invitația a fost trimisă la {$request->email}.");
+        $validated = $request->validate([
+            'email' => 'required|email|max:255',
+            'role'  => 'nullable|in:admin,realtor',
+        ]);
+
+        $email = strtolower(trim($validated['email']));
+        $role  = $validated['role'] ?? 'realtor';
+
+        // Reject self-invite
+        if ($email === strtolower($admin->email)) {
+            return back()->with('error', 'Nu te poți invita pe tine însuți.');
+        }
+
+        // Check if there's already a user with this email already linked to this agency
+        $existingUser = User::where('email', $email)->first();
+        if ($existingUser) {
+            $alreadyLinked = $existingUser->linkedAgencies()
+                ->where('agencies.id', $admin->agency_id)
+                ->exists();
+            if ($alreadyLinked) {
+                return back()->with('error', 'Acest utilizator face deja parte din agenție.');
+            }
+        }
+
+        // Check for existing pending invitation
+        $existingInv = \App\Models\AgencyInvitation::where('agency_id', $admin->agency_id)
+            ->where('email', $email)
+            ->whereNull('accepted_at')
+            ->where(function ($q) {
+                $q->whereNull('expires_at')->orWhere('expires_at', '>', now());
+            })
+            ->first();
+
+        if ($existingInv) {
+            return back()->with('warning', 'Există deja o invitație activă pentru acest email. Anuleaz-o sau retrimite-o din lista de invitații.');
+        }
+
+        $invitation = \App\Models\AgencyInvitation::create([
+            'agency_id'          => $admin->agency_id,
+            'invited_by_user_id' => $admin->id,
+            'email'              => $email,
+            'token'              => \App\Models\AgencyInvitation::generateToken(),
+            'role'               => $role,
+            'expires_at'         => now()->addDays(7),
+        ]);
+
+        try {
+            \Illuminate\Support\Facades\Mail::to($email)->send(new \App\Mail\AgencyInvitationMail($invitation));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('AgencyInvitation mail failed: ' . $e->getMessage());
+            return back()->with('warning', 'Invitația a fost creată dar trimiterea email-ului a eșuat. Verifică SMTP. Linkul: ' . url('/invitations/' . $invitation->token));
+        }
+
+        return back()->with('success', 'Invitația a fost trimisă la ' . $email . '.');
+    }
+
+    public function cancelInvitation(Request $request, \App\Models\AgencyInvitation $invitation): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin() && $invitation->agency_id === $request->user()->agency_id, 403);
+
+        $invitation->delete();
+
+        return back()->with('success', 'Invitația a fost anulată.');
+    }
+
+    public function resendInvitation(Request $request, \App\Models\AgencyInvitation $invitation): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin() && $invitation->agency_id === $request->user()->agency_id, 403);
+
+        if ($invitation->isAccepted()) {
+            return back()->with('error', 'Această invitație a fost deja acceptată.');
+        }
+
+        // Refresh expiry
+        $invitation->update(['expires_at' => now()->addDays(7)]);
+
+        try {
+            \Illuminate\Support\Facades\Mail::to($invitation->email)->send(new \App\Mail\AgencyInvitationMail($invitation));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('AgencyInvitation resend mail failed: ' . $e->getMessage());
+            return back()->with('warning', 'Email-ul nu s-a putut trimite. Linkul direct: ' . url('/invitations/' . $invitation->token));
+        }
+
+        return back()->with('success', 'Invitația a fost retrimisă.');
     }
 
     public function updateAgent(Request $request, User $agent): RedirectResponse

@@ -1,6 +1,8 @@
 import { useState, useCallback } from 'react';
 import { Head } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
+import UpgradeLock from '@/Components/UpgradeLock';
+import { useFeature } from '@/Hooks/useFeature';
 
 // ── constants ────────────────────────────────────────────────────────────────
 const TYPES = [
@@ -176,6 +178,7 @@ export default function AiToolsIndex() {
 
     const devPct = priceResult?.deviation_pct ?? 0;
     const valCfg = priceResult ? (VALUATION_CFG[priceResult.valuation] ?? VALUATION_CFG.average) : null;
+    const { allowed: aiAllowed } = useFeature('ai_tools');
 
     return (
         <AppLayout title="Instrumente AI">
@@ -191,6 +194,10 @@ export default function AiToolsIndex() {
                         Completează datele proprietății și generează descrieri sau estimează prețul instant.
                     </p>
                 </div>
+
+                {!aiAllowed && (
+                    <UpgradeLock feature="ai_tools" mode="banner" className="mb-6" />
+                )}
 
                 <div className="grid grid-cols-1 xl:grid-cols-5 gap-6 items-start">
 

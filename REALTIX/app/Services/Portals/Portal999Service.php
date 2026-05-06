@@ -35,12 +35,22 @@ class Portal999Service
 
     // ── HTTP client ──────────────────────────────────────────────────────────
 
+    private function apiKey(Agency $agency): string
+    {
+        return $agency->settings['portal_999md_api_key']
+            ?? config('services.portal_999md.api_key')
+            ?? '';
+    }
+
+    private function baseUrl(): string
+    {
+        return config('services.portal_999md.base_url') ?? self::BASE_URL;
+    }
+
     private function client(Agency $agency): \Illuminate\Http\Client\PendingRequest
     {
-        $apiKey = $agency->settings['portal_999md_api_key'] ?? '';
-
-        return Http::baseUrl(self::BASE_URL)
-            ->withBasicAuth($apiKey, '')
+        return Http::baseUrl($this->baseUrl())
+            ->withBasicAuth($this->apiKey($agency), '')
             ->timeout(30)
             ->acceptJson();
     }
@@ -85,10 +95,8 @@ class Portal999Service
             return null;
         }
 
-        $apiKey = $agency->settings['portal_999md_api_key'] ?? '';
-
-        $response = Http::baseUrl(self::BASE_URL)
-            ->withBasicAuth($apiKey, '')
+        $response = Http::baseUrl($this->baseUrl())
+            ->withBasicAuth($this->apiKey($agency), '')
             ->timeout(60)
             ->attach('file', file_get_contents($absolutePath), basename($absolutePath))
             ->post('/images');
@@ -184,6 +192,74 @@ class Portal999Service
     public function listAds(Agency $agency, array $params = []): array
     {
         return $this->client($agency)->get('/adverts', $params)->json() ?? [];
+    }
+
+    /**
+     * Iterate through all pages of /adverts and return the merged list.
+     * Stops when the response has no more pages.
+     */
+    public function listAllAdverts(Agency $agency, string $lang = 'ro', array $states = ['public', 'hidden']): array
+    {
+        $all      = [];
+        $page     = 1;
+        $pageSize = 30;
+
+        do {
+            $params = [
+                'page'      => $page,
+                'page_size' => $pageSize,
+                'lang'      => $lang,
+            ];
+            if (! empty($states)) {
+                $params['states'] = implode(',', $states);
+            }
+
+            $response = $this->client($agency)->get('/adverts', $params);
+
+            if (! $response->successful()) {
+                Log::warning("999.md listAllAdverts: HTTP {$response->status()} on page {$page}");
+                break;
+            }
+
+            $body    = $response->json() ?? [];
+            $adverts = $body['adverts'] ?? [];
+
+            if (empty($adverts)) {
+                break;
+            }
+
+            $all = array_merge($all, $adverts);
+
+            // Stop when fewer than pageSize returned (last page)
+            if (count($adverts) < $pageSize) {
+                break;
+            }
+
+            $page++;
+
+            // Safety: hard cap at 100 pages = 3000 ads
+            if ($page > 100) {
+                Log::warning('999.md listAllAdverts: hit 100-page safety cap');
+                break;
+            }
+        } while (true);
+
+        return $all;
+    }
+
+    /**
+     * Get features array for a single advert (price, title, images, etc.)
+     */
+    public function getAdvertFeatures(string $advertId, Agency $agency, string $lang = 'ro'): array
+    {
+        $response = $this->client($agency)->get("/adverts/{$advertId}/features", ['lang' => $lang]);
+
+        if (! $response->successful()) {
+            Log::warning("999.md getAdvertFeatures #{$advertId}: HTTP {$response->status()}");
+            return [];
+        }
+
+        return $response->json('features') ?? $response->json() ?? [];
     }
 
     // ── Feature builder ──────────────────────────────────────────────────────

@@ -9,7 +9,10 @@ class PropertyPolicy
 {
     public function view(User $user, Property $property): bool
     {
-        return $user->agency_id === $property->agency_id;
+        if ($user->agency_id !== $property->agency_id) {
+            return false;
+        }
+        return $user->isAdmin() || $user->id === $property->user_id;
     }
 
     public function create(User $user): bool

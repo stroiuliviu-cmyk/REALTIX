@@ -10,7 +10,7 @@ class GeneratedContract extends Model
 {
     use BelongsToAgency;
 
-    protected $fillable = ['agency_id', 'property_id', 'contact_id', 'template_id', 'user_id', 'data', 'pdf_path'];
+    protected $fillable = ['agency_id', 'property_id', 'contact_id', 'template_id', 'user_id', 'data', 'pdf_path', 'docx_path'];
 
     protected $casts = ['data' => 'array'];
 

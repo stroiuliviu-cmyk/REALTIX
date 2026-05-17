@@ -25,6 +25,8 @@ class Agency extends Model
         'pm_last_four',
         'trial_ends_at',
         'onboarding_done',
+        'profile_filled',
+        'suspended_at',
     ];
 
     protected $casts = [
@@ -32,6 +34,8 @@ class Agency extends Model
         'subscription_ends_at' => 'datetime',
         'trial_ends_at'        => 'datetime',
         'onboarding_done'      => 'boolean',
+        'profile_filled'       => 'boolean',
+        'suspended_at'         => 'datetime',
     ];
 
     public function users(): HasMany
@@ -74,20 +78,24 @@ class Agency extends Model
         if ($this->subscribed('default')) {
             return true;
         }
-        if ($this->onTrial()) {
+        if ($this->inTrialPeriod()) {
             return true;
         }
         return $this->subscription_ends_at !== null && $this->subscription_ends_at->isFuture();
     }
 
-    public function onTrial(): bool
+    /**
+     * Local trial check (based on agencies.trial_ends_at column).
+     * Distinct from Cashier's onTrial() which checks the Stripe subscription's trial.
+     */
+    public function inTrialPeriod(): bool
     {
         return $this->trial_ends_at !== null && $this->trial_ends_at->isFuture();
     }
 
     public function trialDaysLeft(): ?int
     {
-        if (! $this->onTrial()) {
+        if (! $this->inTrialPeriod()) {
             return null;
         }
         return (int) ceil(now()->diffInHours($this->trial_ends_at, false) / 24);
@@ -95,11 +103,80 @@ class Agency extends Model
 
     /**
      * True if the current plan allows inviting agents / multi-user team.
-     * Starter is single-user only — only Medium and Pro can invite.
+     * Solo is single-user only — only Team and Growth can invite.
      */
     public function canInviteAgents(): bool
     {
         $teamPlans = config('realtix.team_plans', ['medium', 'pro']);
         return in_array($this->subscription_plan, $teamPlans, true);
+    }
+
+    /**
+     * True if there's still room within the plan's seat limit. Pending
+     * invitations count too — otherwise admin could over-invite.
+     */
+    public function canInviteMoreAgents(): bool
+    {
+        if (! $this->canInviteAgents()) {
+            return false;
+        }
+        $limit = $this->seatsLimit();
+        if ($limit === null) {
+            return true; // unlimited (Growth)
+        }
+        return $this->seatsUsed() < $limit;
+    }
+
+    /** Hard cap on agents for the current plan, or null when unlimited. */
+    public function seatsLimit(): ?int
+    {
+        $plan = SubscriptionPlan::where('slug', $this->subscription_plan)->first();
+        if (! $plan || (int) $plan->max_realtors <= 0) {
+            return null;
+        }
+        return (int) $plan->max_realtors;
+    }
+
+    /** Seats currently consumed: linked users + pending invitations. */
+    public function seatsUsed(): int
+    {
+        $primaryIds = $this->users()->pluck('users.id');
+        $linkedIds  = \DB::table('agency_user_links')
+            ->where('agency_id', $this->id)
+            ->pluck('user_id');
+        $accepted = $primaryIds->merge($linkedIds)->unique()->count();
+
+        $pending = \App\Models\AgencyInvitation::where('agency_id', $this->id)
+            ->whereNull('accepted_at')
+            ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))
+            ->count();
+
+        return $accepted + $pending;
+    }
+
+    /**
+     * Active listing slot quota for the current plan. Returns null when unlimited.
+     */
+    public function listingsLimit(): ?int
+    {
+        $plan = SubscriptionPlan::where('slug', $this->subscription_plan)->first();
+        if (! $plan || (int) $plan->max_listings <= 0) {
+            return null;
+        }
+        return (int) $plan->max_listings;
+    }
+
+    public function listingsCount(): int
+    {
+        return $this->properties()->count();
+    }
+
+    public function canAddListing(): bool
+    {
+        $limit = $this->listingsLimit();
+        if ($limit === null) {
+            return true;
+        }
+        return $this->listingsCount() < $limit;
     }
 }

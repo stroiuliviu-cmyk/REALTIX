@@ -20,15 +20,17 @@ class CalendarEvent extends Model
         'type',
         'starts_at',
         'ends_at',
+        'reminder_sent_at',
         'google_event_id',
         'status',
         'all_day',
     ];
 
     protected $casts = [
-        'starts_at' => 'datetime',
-        'ends_at'   => 'datetime',
-        'all_day'   => 'boolean',
+        'starts_at'        => 'datetime',
+        'ends_at'          => 'datetime',
+        'reminder_sent_at' => 'datetime',
+        'all_day'          => 'boolean',
     ];
 
     public function user(): BelongsTo { return $this->belongsTo(User::class); }

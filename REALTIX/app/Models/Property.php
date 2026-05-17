@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Property extends Model
 {
@@ -87,6 +88,21 @@ class Property extends Model
     public function interestedClients(): BelongsToMany
     {
         return $this->contacts()->wherePivot('relation', 'interested');
+    }
+
+    public function phoneInteractions(): MorphMany
+    {
+        return $this->morphMany(PhoneInteraction::class, 'subject')->latest();
+    }
+
+    protected static function booted(): void
+    {
+        static::deleting(function (Property $property) {
+            $property->phoneInteractions()->delete();
+            // Free the scraped-listing import link so the source listing
+            // becomes importable again on /web-offers ("✓ Adăugat" → "+ Adaugă").
+            \DB::table('scraped_listing_imports')->where('property_id', $property->id)->delete();
+        });
     }
 
     public function getDescriptionAttribute(): ?string

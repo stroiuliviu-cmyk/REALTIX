@@ -2,13 +2,19 @@
 
 namespace App\Models;
 
-use App\Traits\BelongsToAgency;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class ScrapedListing extends Model
 {
-    use BelongsToAgency;
+    protected $hidden = ['phone'];
+
+    public function agency(): BelongsTo
+    {
+        return $this->belongsTo(Agency::class);
+    }
 
     public function favoritedByUsers(): BelongsToMany
     {
@@ -21,10 +27,22 @@ class ScrapedListing extends Model
             ->withPivot('property_id')->withTimestamps();
     }
 
+    public function phoneInteractions(): MorphMany
+    {
+        return $this->morphMany(PhoneInteraction::class, 'subject')->latest();
+    }
+
+    protected static function booted(): void
+    {
+        static::deleting(function (ScrapedListing $listing) {
+            $listing->phoneInteractions()->delete();
+        });
+    }
+
     protected $fillable = [
         'agency_id', 'source', 'external_id', 'external_url',
         'title', 'price', 'currency',
-        'area', 'rooms', 'floor', 'floors_total',
+        'area', 'price_per_m2', 'rooms', 'floor', 'floors_total',
         'city', 'district', 'address', 'year_built',
         'images', 'ai_valuation', 'raw_data',
         'type', 'transaction_type', 'owner_type',
@@ -37,6 +55,7 @@ class ScrapedListing extends Model
     protected $casts = [
         'images'           => 'array',
         'raw_data'         => 'array',
+        'price_per_m2'     => 'decimal:2',
         'price'            => 'decimal:2',
         'published_at'     => 'datetime',
         'furnished'        => 'boolean',

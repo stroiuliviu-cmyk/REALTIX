@@ -49,7 +49,7 @@ class ScrapedListing extends Model
         'published_at', 'phone',
         'condition', 'building_type', 'heating',
         'furnished', 'parking', 'balcony', 'elevator', 'pets_allowed', 'air_conditioning',
-        'description',
+        'description', 'matched_at',
     ];
 
     protected $casts = [
@@ -58,6 +58,7 @@ class ScrapedListing extends Model
         'price_per_m2'     => 'decimal:2',
         'price'            => 'decimal:2',
         'published_at'     => 'datetime',
+        'matched_at'       => 'datetime',
         'furnished'        => 'boolean',
         'parking'          => 'boolean',
         'balcony'          => 'boolean',

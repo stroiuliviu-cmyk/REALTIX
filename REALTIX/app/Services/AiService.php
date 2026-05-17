@@ -65,20 +65,35 @@ class AiService
         ];
         $txMap = [
             'sale'       => 'vânzare',  'rent'       => 'chirie',
-            'rent_short' => 'chirie scurtă', 'new_build' => 'construcție nouă',
+            'inchiriere_zilnica' => 'chirie zilnică', 'new_build' => 'construcție nouă',
         ];
+
+        $sourceDescription = trim((string) ($data["description_{$locale}"] ?? $data['description_ro'] ?? $data['description_ru'] ?? ''));
+        $sourceBlock = '';
+        if ($sourceDescription !== '') {
+            $trimmed = mb_substr($sourceDescription, 0, 2000);
+            $sourceBlock = "\nDescriere existentă (folosește ca referință pentru detalii suplimentare — extrage doar informații utile, dar rescrie complet, fără copy-paste):\n\"\"\"\n{$trimmed}\n\"\"\"\n";
+        }
 
         $prompt = "Ești expert imobiliar din Moldova. Generează text de promovare în limba {$lang}.\n\n"
             . 'Tip: '      . ($typeMap[$data['type'] ?? ''] ?? ($data['type'] ?? 'necunoscut')) . "\n"
             . 'Operație: ' . ($txMap[$data['transaction_type'] ?? ''] ?? ($data['transaction_type'] ?? '')) . "\n"
-            . 'Locație: '  . ($data['city'] ?? '') . (!empty($data['district']) ? ", {$data['district']}" : '') . "\n"
-            . (!empty($data['area_total'])  ? "Suprafață: {$data['area_total']} m²\n"  : '')
-            . (!empty($data['rooms'])       ? "Camere: {$data['rooms']}\n"              : '')
-            . (!empty($data['floor'])       ? "Etaj: {$data['floor']}"
+            . 'Oraș: '     . ($data['city'] ?? '') . "\n"
+            . (!empty($data['district']) ? "Sector/Raion: {$data['district']}\n" : '')
+            . (!empty($data['address'])  ? "Stradă/Adresă: {$data['address']}\n" : '')
+            . (!empty($data['area_total'])   ? "Suprafață totală: {$data['area_total']} m²\n"   : '')
+            . (!empty($data['area_living'])  ? "Suprafață locativă: {$data['area_living']} m²\n" : '')
+            . (!empty($data['rooms'])        ? "Număr camere: {$data['rooms']}\n"               : '')
+            . (!empty($data['floor'])        ? "Etaj: {$data['floor']}"
                 . (!empty($data['floors_total']) ? "/{$data['floors_total']}" : '') . "\n" : '')
-            . (!empty($condition)           ? "Stare: {$condition}\n"                  : '')
-            . (count($features)             ? 'Dotări: ' . implode(', ', $features) . "\n" : '')
-            . (!empty($data['price'])       ? "Preț: {$data['price']} " . ($data['currency'] ?? 'EUR') . "\n" : '')
+            . (!empty($condition)            ? "Stare: {$condition}\n"                  : '')
+            . (count($features)              ? 'Dotări: ' . implode(', ', $features) . "\n" : '')
+            . (!empty($data['price'])        ? "Preț: {$data['price']} " . ($data['currency'] ?? 'EUR') . "\n" : '')
+            . $sourceBlock
+            . "\nReguli stricte:\n"
+            . "- Folosește EXACT numărul de camere din 'Număr camere' — ignoră eventuale discrepanțe din titlu sau descriere.\n"
+            . "- Sector/Raion (ex: Botanica, Centru, Aeroport) NU este nume de stradă; nu scrie 'strada {sector}'. Dacă există 'Stradă/Adresă', folosește-o pentru locație concretă.\n"
+            . "- Nu inventa detalii care nu sunt în date (vecinătăți, an construcție, dotări nelistate).\n"
             . "\nStil: " . ($styleMap[$style] ?? $styleMap['detailed']) . "\n"
             . "\nRăspunde EXCLUSIV în JSON valid (fără markdown, fără text înainte sau după):\n"
             . '{"title":"titlu atractiv 60-80 caractere","description":"corpul descrierii","seo_tags":["tag1","tag2","tag3","tag4","tag5"]}';
@@ -113,17 +128,27 @@ class AiService
         ];
         $txMap = [
             'sale'       => 'vânzare',  'rent'       => 'chirie',
-            'rent_short' => 'chirie scurtă', 'new_build' => 'construcție nouă',
+            'inchiriere_zilnica' => 'chirie zilnică', 'new_build' => 'construcție nouă',
         ];
+
+        $sourceDescription = trim((string) ($data['description_ro'] ?? $data['description_ru'] ?? ''));
+        $sourceBlock = '';
+        if ($sourceDescription !== '') {
+            $trimmed = mb_substr($sourceDescription, 0, 2000);
+            $sourceBlock = "\nDescriere anunț (poate conține detalii relevante: renovare, an, etaj, vedere, mobilier — extrage semnale care influențează prețul):\n\"\"\"\n{$trimmed}\n\"\"\"\n";
+        }
 
         $prompt = "Ești evaluator imobiliar expert pentru piața din Moldova (Chișinău și regiuni).\n\n"
             . 'Tip: '      . ($typeMap[$data['type'] ?? ''] ?? ($data['type'] ?? '')) . "\n"
             . 'Operație: ' . ($txMap[$data['transaction_type'] ?? ''] ?? ($data['transaction_type'] ?? '')) . "\n"
-            . 'Locație: '  . ($data['city'] ?? '') . (!empty($data['district']) ? ", {$data['district']}" : '') . "\n"
+            . 'Oraș: '     . ($data['city'] ?? '') . "\n"
+            . (!empty($data['district']) ? "Sector/Raion: {$data['district']}\n" : '')
+            . (!empty($data['address'])  ? "Stradă/Adresă: {$data['address']}\n" : '')
             . (!empty($data['area_total']) ? "Suprafață: {$data['area_total']} m²\n" : '')
-            . (!empty($data['rooms'])      ? "Camere: {$data['rooms']}\n"            : '')
+            . (!empty($data['rooms'])      ? "Număr camere: {$data['rooms']}\n"      : '')
             . (!empty($data['floor'])      ? "Etaj: {$data['floor']}\n"              : '')
             . (!empty($data['price'])      ? "Preț solicitat: {$data['price']} " . ($data['currency'] ?? 'EUR') . "\n" : '')
+            . $sourceBlock
             . "\nRăspunde EXCLUSIV în JSON valid (fără markdown, fără text extra):\n"
             . '{"min":50000,"max":65000,"currency":"EUR","valuation":"cheap","reason":"Motiv scurt.","confidence":85,"regional_avg":62000,"deviation_pct":-6}'
             . "\n\nReguli: valuation=cheap (sub piață), average (la piață), expensive (peste piață)."
@@ -141,16 +166,65 @@ class AiService
             ];
         }
 
+        $min          = isset($decoded['min']) ? (float) $decoded['min'] : null;
+        $max          = isset($decoded['max']) ? (float) $decoded['max'] : null;
+        $regionalAvg  = isset($decoded['regional_avg']) ? (float) $decoded['regional_avg'] : null;
+        $askingPrice  = isset($data['price']) && $data['price'] !== '' && $data['price'] !== null
+                            ? (float) $data['price']
+                            : null;
+
+        // Deterministic recompute of valuation + deviation when we have actual price.
+        // This guards against the LLM mislabelling (e.g. saying "cheap" when price > max).
+        $valuation    = $decoded['valuation'] ?? 'average';
+        $deviationPct = isset($decoded['deviation_pct']) ? (float) $decoded['deviation_pct'] : 0.0;
+
+        if ($askingPrice !== null && $askingPrice > 0) {
+            if ($min !== null && $max !== null && $min > 0 && $max > 0) {
+                if ($askingPrice > $max) {
+                    $valuation = 'expensive';
+                } elseif ($askingPrice < $min) {
+                    $valuation = 'cheap';
+                } else {
+                    $valuation = 'average';
+                }
+            } elseif ($regionalAvg !== null && $regionalAvg > 0) {
+                $diff = ($askingPrice - $regionalAvg) / $regionalAvg;
+                if ($diff > 0.05)        $valuation = 'expensive';
+                elseif ($diff < -0.05)   $valuation = 'cheap';
+                else                     $valuation = 'average';
+            }
+
+            if ($regionalAvg !== null && $regionalAvg > 0) {
+                $deviationPct = round((($askingPrice - $regionalAvg) / $regionalAvg) * 100, 1);
+            }
+        }
+
+        if (! in_array($valuation, ['cheap', 'average', 'expensive'], true)) {
+            $valuation = 'average';
+        }
+
+        // Regenerate reason deterministically so it never contradicts the corrected valuation.
+        $reason = $decoded['reason'] ?? '';
+        if ($askingPrice !== null && $askingPrice > 0 && $regionalAvg !== null && $regionalAvg > 0) {
+            $absDev = abs($deviationPct);
+            if ($valuation === 'expensive') {
+                $reason = "Prețul solicitat este peste media regională cu {$absDev}%.";
+            } elseif ($valuation === 'cheap') {
+                $reason = "Prețul solicitat este sub media regională cu {$absDev}%.";
+            } else {
+                $reason = 'Prețul solicitat este în linie cu media regională.';
+            }
+        }
+
         return [
-            'min'           => $decoded['min']          ?? null,
-            'max'           => $decoded['max']          ?? null,
+            'min'           => $min,
+            'max'           => $max,
             'currency'      => $decoded['currency']     ?? 'EUR',
-            'valuation'     => in_array($decoded['valuation'] ?? '', ['cheap', 'average', 'expensive'])
-                                ? $decoded['valuation'] : 'average',
-            'reason'        => $decoded['reason']       ?? '',
+            'valuation'     => $valuation,
+            'reason'        => $reason,
             'confidence'    => (int)   ($decoded['confidence']    ?? 75),
-            'regional_avg'  => $decoded['regional_avg'] ?? null,
-            'deviation_pct' => (float) ($decoded['deviation_pct'] ?? 0),
+            'regional_avg'  => $regionalAvg,
+            'deviation_pct' => $deviationPct,
         ];
     }
 

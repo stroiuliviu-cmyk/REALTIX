@@ -35,21 +35,22 @@ class HandleInertiaRequests extends Middleware
                         'slug' => $user->agency->slug,
                         'logo_path' => $user->agency->logo_path,
                         'subscription_plan' => $user->agency->subscription_plan,
+                        'subscription_status' => optional($user->agency->subscription('default'))->stripe_status,
                         'trial_ends_at' => $user->agency->trial_ends_at,
-                        'on_trial' => $user->agency->onTrial(),
+                        'on_trial' => $user->agency->inTrialPeriod(),
                         'trial_days_left' => $user->agency->trialDaysLeft(),
                         'subscription_active' => $user->agency->isSubscriptionActive(),
                         'features' => $user->agency->planFeatures(),
                     ] : null,
+                    'unread_notifications_count' => $user->unreadNotifications()->count(),
                     'linked_agencies' => $user->linkedAgencies()
                         ->select('agencies.id', 'agencies.name', 'agencies.slug', 'agencies.logo_path', 'agencies.subscription_plan')
-                        ->get()
-                        // Show in switcher only the currently active agency + any team-plan agencies the user has been invited to
-                        ->filter(function ($a) use ($user) {
-                            if ($a->id === $user->agency_id) return true;
-                            $teamPlans = config('realtix.team_plans', ['medium', 'pro']);
-                            return in_array($a->subscription_plan, $teamPlans, true);
+                        // Show in switcher only the currently active agency + team-plan agencies the user is linked to
+                        ->where(function ($q) use ($user) {
+                            $q->where('agencies.id', $user->agency_id)
+                              ->orWhereIn('agencies.subscription_plan', config('realtix.team_plans', ['medium', 'pro']));
                         })
+                        ->get()
                         ->map(fn ($a) => [
                             'id'        => $a->id,
                             'name'      => $a->name,
@@ -67,6 +68,18 @@ class HandleInertiaRequests extends Middleware
                 'error'   => fn () => $request->session()->get('error'),
                 'warning' => fn () => $request->session()->get('warning'),
             ],
+            'plan_config' => fn () => [
+                'feature_min_plan' => config('realtix.feature_min_plan'),
+                'feature_labels'   => config('realtix.feature_labels'),
+            ],
+            'superAdminCounters' => fn () => $user?->isSuperAdmin() ? [
+                'moderation_pending' => \App\Models\ModerationReport::where('status', 'pending')->count(),
+                'support_open'       => \App\Models\SupportTicket::where('status', 'open')->count(),
+                'critical_alerts'    => \App\Models\PlatformAlert::active()->critical()->count(),
+            ] : null,
+            'impersonation' => fn () => session()->has('impersonator_id') ? [
+                'admin_name' => optional(\App\Models\User::find(session('impersonator_id')))->name,
+            ] : null,
             'locale' => app()->getLocale(),
             'translations' => fn () => $this->loadTranslations(),
         ];

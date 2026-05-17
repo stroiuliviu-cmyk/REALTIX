@@ -95,6 +95,8 @@ class InvitationController extends Controller
 
             $invitation->update(['accepted_at' => now()]);
 
+            app(\App\Services\SeatBillingSyncService::class)->sync($invitation->agency->fresh());
+
             return redirect('/dashboard')
                 ->with('success', 'Te-ai alăturat agenției „' . $invitation->agency->name . '". Folosește meniul profilului ca să comuți între agenții.');
         }
@@ -121,6 +123,8 @@ class InvitationController extends Controller
         $newUser->linkToAgency($invitation->agency_id, $invitation->role);
 
         $invitation->update(['accepted_at' => now()]);
+
+        app(\App\Services\SeatBillingSyncService::class)->sync($invitation->agency->fresh());
 
         event(new Registered($newUser));
         Auth::login($newUser);

@@ -75,6 +75,7 @@ class RegisteredUserController extends Controller
 
         Auth::login($user);
 
-        return redirect(route('onboarding', absolute: false));
+        // Step 3 — verify email is enforced by middleware on /onboarding/agency
+        return redirect(route('verification.notice', absolute: false));
     }
 }

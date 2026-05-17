@@ -15,7 +15,7 @@ class AiController extends Controller
     {
         $request->validate([
             'property_id' => 'required|exists:properties,id',
-            'locale'      => 'nullable|in:ro,ru,en',
+            'locale'      => 'nullable|in:ro,ru',
         ]);
 
         $property = Property::findOrFail($request->property_id);

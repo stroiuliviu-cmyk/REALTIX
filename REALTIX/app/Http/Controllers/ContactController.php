@@ -123,11 +123,23 @@ class ContactController extends Controller
             ->limit(100)
             ->get();
 
+        $user = request()->user();
+        $agencyAgents = $user->isAdmin()
+            ? \App\Models\User::withoutGlobalScopes()
+                ->where('agency_id', $user->agency_id)
+                ->where('id', '!=', $contact->user_id)
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(['id', 'name', 'email'])
+            : collect();
+
         return Inertia::render('Contacts/Show', [
             'contact'             => $contact,
             'contracts'           => $contracts,
             'meetings'            => $meetings,
             'availableProperties' => $availableProperties,
+            'isAdmin'             => $user->isAdmin(),
+            'agencyAgents'        => $agencyAgents,
         ]);
     }
 
@@ -188,6 +200,47 @@ class ContactController extends Controller
             ->with('success', 'Contactul a fost șters.');
     }
 
+    public function transfer(Request $request, Contact $contact)
+    {
+        $admin = $request->user();
+        abort_unless($admin->isAdmin() && $contact->agency_id === $admin->agency_id, 403);
+
+        $data = $request->validate([
+            'user_id' => 'required|integer|exists:users,id',
+            'notes'   => 'nullable|string|max:500',
+        ]);
+
+        $target = \App\Models\User::withoutGlobalScopes()->find($data['user_id']);
+        if (! $target || $target->agency_id !== $admin->agency_id) {
+            return back()->with('error', 'Agentul țintă nu aparține agenției tale.');
+        }
+
+        $oldUserId = $contact->user_id;
+        $contact->update(['user_id' => $target->id]);
+
+        \App\Models\ActivityLog::record(
+            'contact.transfer',
+            $contact,
+            "Client transferat de la user #{$oldUserId} la {$target->name}",
+            ['from_user_id' => $oldUserId, 'to_user_id' => $target->id, 'notes' => $data['notes'] ?? null]
+        );
+
+        return back()->with('success', "Client transferat către {$target->name}.");
+    }
+
+    public function updateStatus(Request $request, Contact $contact)
+    {
+        Gate::authorize('update', $contact);
+
+        $data = $request->validate([
+            'status' => 'required|in:lead,active,closed',
+        ]);
+
+        $contact->update($data);
+
+        return back()->with('success', 'Status actualizat.');
+    }
+
     public function addInteraction(Request $request, Contact $contact)
     {
         Gate::authorize('update', $contact);
@@ -201,5 +254,32 @@ class ContactController extends Controller
         $contact->interactions()->create(array_merge($data, ['user_id' => $request->user()->id]));
 
         return redirect()->back()->with('success', 'Interacțiunea a fost adăugată.');
+    }
+
+    public function updateInteraction(Request $request, Contact $contact, ContactInteraction $interaction)
+    {
+        Gate::authorize('update', $contact);
+        // Bind by parent — refuze rute cross-contact.
+        abort_unless($interaction->contact_id === $contact->id, 404);
+
+        $data = $request->validate([
+            'type' => 'required|in:note,call,email,viewing,contract',
+            'body' => 'required|string',
+            'scheduled_at' => 'nullable|date',
+        ]);
+
+        $interaction->update($data);
+
+        return back()->with('success', 'Interacțiunea a fost actualizată.');
+    }
+
+    public function destroyInteraction(Request $request, Contact $contact, ContactInteraction $interaction)
+    {
+        Gate::authorize('update', $contact);
+        abort_unless($interaction->contact_id === $contact->id, 404);
+
+        $interaction->delete();
+
+        return back()->with('success', 'Interacțiunea a fost ștearsă.');
     }
 }

@@ -31,8 +31,12 @@ class CalendarController extends Controller
             ->orderBy('starts_at')
             ->get();
 
-        $contacts   = Contact::select('id', 'first_name', 'last_name', 'phone')->latest()->limit(300)->get();
-        $properties = Property::select('id', 'title', 'address', 'city')->latest()->limit(300)->get();
+        $contacts = Contact::select('id', 'first_name', 'last_name', 'phone')
+            ->when(! $user->isAdmin(), fn ($q) => $q->where('user_id', $user->id))
+            ->latest()->limit(300)->get();
+        $properties = Property::select('id', 'title', 'address', 'city')
+            ->when(! $user->isAdmin(), fn ($q) => $q->where('user_id', $user->id))
+            ->latest()->limit(300)->get();
 
         return Inertia::render('Calendar/Index', [
             'events'          => $events,
@@ -120,12 +124,16 @@ class CalendarController extends Controller
             ->where(function ($q) use ($start, $end) {
                 // Existing event starts before our end AND ends after our start.
                 // For events without ends_at, treat as 1h slot.
+                // Use a Carbon-computed cutoff (start - 1h) and compare against starts_at
+                // for the null-ends_at branch. This avoids DB-specific date arithmetic
+                // (sqlite `datetime(x, '+1 hour')` vs pg `x + interval '1 hour'`).
+                $cutoff = $start->copy()->subHour();
                 $q->where('starts_at', '<', $end)
-                  ->where(function ($q2) use ($start) {
+                  ->where(function ($q2) use ($start, $cutoff) {
                       $q2->where('ends_at', '>', $start)
-                         ->orWhere(function ($q3) use ($start) {
+                         ->orWhere(function ($q3) use ($cutoff) {
                              $q3->whereNull('ends_at')
-                                ->whereRaw("datetime(starts_at, '+1 hour') > ?", [$start->toDateTimeString()]);
+                                ->where('starts_at', '>', $cutoff);
                          });
                   });
             })

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
@@ -33,12 +34,31 @@ class SettingsController extends Controller
 
         $agents = [];
         if ($isAdmin) {
-            $agents = User::withoutGlobalScopes()
+            $agentUsers = User::withoutGlobalScopes()
                 ->where('agency_id', $user->agency_id)
                 ->withCount(['properties', 'deals', 'contacts'])
                 ->with('roles')
-                ->get()
-                ->map(fn($u) => [
+                ->get();
+
+            // Pull last login info from activity_logs + active session for online status
+            $agentIds = $agentUsers->pluck('id');
+            $lastLogins = ActivityLog::whereIn('user_id', $agentIds)
+                ->where('action', 'auth.login')
+                ->orderByDesc('created_at')
+                ->get(['user_id', 'ip_address', 'user_agent', 'created_at'])
+                ->groupBy('user_id')
+                ->map(fn ($rows) => $rows->first());
+
+            $activeSessions = DB::table('sessions')
+                ->whereIn('user_id', $agentIds)
+                ->where('last_activity', '>=', now()->subMinutes(5)->timestamp)
+                ->pluck('user_id')
+                ->all();
+
+            $agents = $agentUsers->map(function ($u) use ($lastLogins, $activeSessions, $user) {
+                $login = $lastLogins[$u->id] ?? null;
+                $ua = $login?->user_agent ?? '';
+                return [
                     'id'               => $u->id,
                     'name'             => $u->name,
                     'email'            => $u->email,
@@ -50,7 +70,13 @@ class SettingsController extends Controller
                     'deals_count'      => $u->deals_count,
                     'contacts_count'   => $u->contacts_count,
                     'is_self'          => $u->id === $user->id,
-                ]);
+                    'is_online'        => in_array($u->id, $activeSessions, true),
+                    'last_login_at'    => $login?->created_at?->toIso8601String(),
+                    'last_login_ip'    => $login?->ip_address,
+                    'last_login_device' => $this->guessDevice($ua),
+                    'last_login_browser' => $this->guessBrowser($ua),
+                ];
+            });
         }
 
         $userData = $user->toArray();
@@ -76,15 +102,32 @@ class SettingsController extends Controller
                 ]);
         }
 
+        $activityLog = ActivityLog::forUser($user->id)
+            ->latest('created_at')
+            ->limit(30)
+            ->get()
+            ->map(fn ($a) => [
+                'id'          => $a->id,
+                'action'      => $a->action,
+                'description' => $a->description,
+                'ip'          => $a->ip_address,
+                'created_at'  => $a->created_at->diffForHumans(),
+                'created_iso' => $a->created_at->toIso8601String(),
+            ]);
+
         return Inertia::render('Settings/Index', [
-            'user'             => $userData,
-            'agency'           => $user->agency,
-            'isAdmin'          => $isAdmin,
-            'sessions'         => $sessions,
-            'agents'           => $agents,
-            'invitations'      => $invitations,
-            'canInviteAgents'  => (bool) ($user->agency?->canInviteAgents() ?? false),
-            'flash'            => session('success'),
+            'user'                => $userData,
+            'agency'              => $user->agency,
+            'isAdmin'             => $isAdmin,
+            'sessions'            => $sessions,
+            'agents'              => $agents,
+            'invitations'         => $invitations,
+            'canInviteAgents'     => (bool) ($user->agency?->canInviteAgents() ?? false),
+            'canInviteMoreAgents' => (bool) ($user->agency?->canInviteMoreAgents() ?? false),
+            'seatsUsed'           => (int) ($user->agency?->seatsUsed() ?? 0),
+            'seatsLimit'          => $user->agency?->seatsLimit(),
+            'activityLog'         => $activityLog,
+            'flash'               => session('success'),
         ]);
     }
 
@@ -100,7 +143,7 @@ class SettingsController extends Controller
             'viber'    => 'nullable|string|max:30',
             'telegram' => 'nullable|string|max:100',
             'position' => 'nullable|string|max:100',
-            'locale'   => 'nullable|in:ro,ru,en',
+            'locale'   => 'nullable|in:ro,ru',
             'timezone' => 'nullable|string|max:100',
         ]);
 
@@ -110,7 +153,43 @@ class SettingsController extends Controller
 
         $user->update($validated);
 
+        ActivityLog::record('profile.updated', $user, 'Profil actualizat', ['fields' => array_keys($validated)]);
+
         return back()->with('success', 'Profilul a fost salvat.');
+    }
+
+    public function updateAvatar(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'avatar' => 'required|image|mimes:png,jpg,jpeg,webp|max:2048',
+        ]);
+
+        $user = $request->user();
+
+        if ($user->avatar_path) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($user->avatar_path);
+        }
+
+        $user->update([
+            'avatar_path' => $request->file('avatar')->store("users/{$user->id}", 'public'),
+        ]);
+
+        ActivityLog::record('profile.avatar_updated', $user, 'Fotografie de profil actualizată');
+
+        return back()->with('success', 'Fotografia a fost actualizată.');
+    }
+
+    public function removeAvatar(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+
+        if ($user->avatar_path) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($user->avatar_path);
+            $user->update(['avatar_path' => null]);
+            ActivityLog::record('profile.avatar_removed', $user, 'Fotografie de profil ștearsă');
+        }
+
+        return back()->with('success', 'Fotografia a fost ștearsă.');
     }
 
     public function updateAgency(Request $request): RedirectResponse
@@ -180,6 +259,8 @@ class SettingsController extends Controller
 
         $request->user()->update(['password' => Hash::make($request->password)]);
 
+        ActivityLog::record('profile.password_changed', $request->user(), 'Parolă schimbată');
+
         return back()->with('success', 'Parola a fost actualizată.');
     }
 
@@ -188,10 +269,19 @@ class SettingsController extends Controller
         $admin = $request->user();
         abort_unless($admin->isAdmin(), 403);
 
-        // Plan gate: only Medium and Pro can invite agents
+        $planLabels = ['starter' => 'Solo', 'medium' => 'Team', 'pro' => 'Growth'];
+        $currentSlug = $admin->agency->subscription_plan ?? 'starter';
+        $currentLabel = $planLabels[$currentSlug] ?? ucfirst($currentSlug);
+
+        // Plan gate: only Team and Growth can invite agents (Solo is single-user)
         if (! $admin->agency->canInviteAgents()) {
-            $current = ucfirst($admin->agency->subscription_plan ?? 'Starter');
-            return back()->with('error', 'Pachetul curent (' . $current . ') nu permite invitarea agenților. Trebuie să faci upgrade la Medium sau Pro.');
+            return back()->with('error', "Pachetul curent ({$currentLabel}) nu permite invitarea agenților. Fă upgrade la Team sau Growth.");
+        }
+
+        // Seat-limit gate: Team has 5 seats max; Growth is unlimited (overage billed automatically).
+        if (! $admin->agency->canInviteMoreAgents()) {
+            $limit = $admin->agency->seatsLimit();
+            return back()->with('error', "Ai atins limita de {$limit} agenți a planului {$currentLabel}. Fă upgrade la Growth pentru agenți nelimitați (8€/agent extra).");
         }
 
         $validated = $request->validate([
@@ -290,9 +380,17 @@ class SettingsController extends Controller
             'role'      => 'nullable|in:admin,realtor',
         ]);
 
-        $agent->update(['is_active' => $validated['is_active'] ?? $agent->is_active]);
+        $oldActive = $agent->is_active;
+        $newActive = $validated['is_active'] ?? $agent->is_active;
+        $agent->update(['is_active' => $newActive]);
         if (!empty($validated['role'])) {
             $agent->syncRoles([$validated['role']]);
+        }
+
+        // If the agent was just deactivated → force logout (revoke all sessions)
+        if ($oldActive && ! $newActive) {
+            $revoked = app(\App\Services\UserSessionManager::class)->revokeAll($agent);
+            ActivityLog::record('agent.deactivated_forced_logout', $agent, "Sesiuni revocate: {$revoked}");
         }
 
         return back()->with('success', 'Agentul a fost actualizat.');
@@ -304,6 +402,8 @@ class SettingsController extends Controller
         abort_unless($user->isAdmin() && $agent->agency_id === $user->agency_id && $agent->id !== $user->id, 403);
 
         $agent->delete();
+
+        app(\App\Services\SeatBillingSyncService::class)->sync($user->agency->fresh());
 
         return back()->with('success', 'Agentul a fost eliminat.');
     }
@@ -365,6 +465,47 @@ class SettingsController extends Controller
             ->delete();
 
         return back()->with('success', 'Toate celelalte sesiuni au fost deconectate.');
+    }
+
+    public function loginHistory(Request $request, User $agent): \Illuminate\Http\JsonResponse
+    {
+        abort_unless($request->user()->isAdmin() && $agent->agency_id === $request->user()->agency_id, 403);
+
+        $logs = ActivityLog::where('user_id', $agent->id)
+            ->whereIn('action', ['auth.login', 'auth.logout', 'auth.failed'])
+            ->latest()->take(30)
+            ->get(['id', 'action', 'description', 'ip_address', 'user_agent', 'created_at'])
+            ->map(fn ($l) => [
+                'id'         => $l->id,
+                'action'     => $l->action,
+                'ip'         => $l->ip_address,
+                'device'     => $this->guessDevice($l->user_agent ?? ''),
+                'browser'    => $this->guessBrowser($l->user_agent ?? ''),
+                'created_at' => $l->created_at->toIso8601String(),
+            ]);
+
+        return response()->json(['logs' => $logs]);
+    }
+
+    private function guessDevice(string $ua): string
+    {
+        if (str_contains($ua, 'iPhone'))  return 'iPhone';
+        if (str_contains($ua, 'iPad'))    return 'iPad';
+        if (str_contains($ua, 'Android')) return 'Android';
+        if (str_contains($ua, 'Windows')) return 'Windows';
+        if (str_contains($ua, 'Mac OS'))  return 'macOS';
+        if (str_contains($ua, 'Linux'))   return 'Linux';
+        return $ua ? 'Other' : '—';
+    }
+
+    private function guessBrowser(string $ua): string
+    {
+        if (str_contains($ua, 'Firefox/'))      return 'Firefox';
+        if (str_contains($ua, 'Edg/'))          return 'Edge';
+        if (str_contains($ua, 'OPR/'))          return 'Opera';
+        if (str_contains($ua, 'Chrome/'))       return 'Chrome';
+        if (str_contains($ua, 'Safari/'))       return 'Safari';
+        return $ua ? '—' : '—';
     }
 
     public function updateIntegrations(Request $request): RedirectResponse

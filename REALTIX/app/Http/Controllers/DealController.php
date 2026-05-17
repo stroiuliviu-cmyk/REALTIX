@@ -21,10 +21,11 @@ class DealController extends Controller
             ->paginate(20)
             ->withQueryString();
 
+        $own = fn ($q) => $user->isAdmin() ? $q : $q->where('user_id', $user->id);
         $stats = [
-            'total_volume' => Deal::where('status', 'closed')->sum('value'),
-            'total_commission' => Deal::where('status', 'closed')->sum('commission'),
-            'active_count' => Deal::whereNotIn('status', ['closed', 'lost'])->count(),
+            'total_volume' => $own(Deal::query())->where('status', 'closed')->sum('value'),
+            'total_commission' => $own(Deal::query())->where('status', 'closed')->sum('commission'),
+            'active_count' => $own(Deal::query())->whereNotIn('status', ['closed', 'lost'])->count(),
         ];
 
         return Inertia::render('Deals/Index', [

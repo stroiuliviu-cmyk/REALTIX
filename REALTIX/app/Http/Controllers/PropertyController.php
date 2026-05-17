@@ -10,6 +10,27 @@ use Inertia\Response;
 
 class PropertyController extends Controller
 {
+    private const PHOTOS_MAX        = 15;
+    private const PHOTO_MAX_KB      = 5120;
+    private const PHOTO_MAX_DIM     = 8000;
+    private const PHOTO_MIME_TYPES  = 'image/jpeg,image/png,image/webp';
+    private const PHOTO_EXTENSIONS  = 'jpeg,jpg,png,webp';
+
+    private function photoRules(): array
+    {
+        // Server-side hardening for /properties photo uploads.
+        // `mimes` blocks spoofed extensions; `mimetypes` blocks spoofed MIME via finfo;
+        // `dimensions` mitigates pixel-flood / decompression-bomb payloads.
+        return [
+            'photos'   => 'nullable|array|max:' . self::PHOTOS_MAX,
+            'photos.*' => 'file'
+                . '|mimes:' . self::PHOTO_EXTENSIONS
+                . '|mimetypes:' . self::PHOTO_MIME_TYPES
+                . '|max:' . self::PHOTO_MAX_KB
+                . '|dimensions:max_width=' . self::PHOTO_MAX_DIM . ',max_height=' . self::PHOTO_MAX_DIM,
+        ];
+    }
+
     public function index(Request $request): Response
     {
         $user    = $request->user();
@@ -33,8 +54,17 @@ class PropertyController extends Controller
             ->when($request->price_max, fn ($q, $v) => $q->where('price', '<=', (float) $v))
             ->when($request->area_min,  fn ($q, $v) => $q->where('area_total', '>=', (float) $v))
             ->when($request->area_max,  fn ($q, $v) => $q->where('area_total', '<=', (float) $v))
-            ->when($request->rooms, function ($q, $r) {
-                $r === '5+' ? $q->where('rooms', '>=', 5) : $q->where('rooms', (int) $r);
+            ->when($request->filled('rooms'), function ($q) use ($request) {
+                $rooms = is_array($request->rooms) ? $request->rooms : [$request->rooms];
+                $q->where(function ($q) use ($rooms) {
+                    foreach ($rooms as $r) {
+                        if ($r === '5+' || (int) $r >= 5) {
+                            $q->orWhere('rooms', '>=', 5);
+                        } else {
+                            $q->orWhere('rooms', (int) $r);
+                        }
+                    }
+                });
             })
             ->when($request->date_from, fn ($q, $v) => $q->where('created_at', '>=', $v))
             ->when($request->date_to,   fn ($q, $v) => $q->where('created_at', '<=', $v . ' 23:59:59'))
@@ -48,6 +78,25 @@ class PropertyController extends Controller
             default      => $query->latest(),
         };
 
+        // City + district auto-complete sources — pulled from market (scraped_listings)
+        // so users get the full canonical list, same as in WebOffers.
+        $cities = \App\Models\ScrapedListing::query()
+            ->whereNotNull('city')->where('city', '!=', '')
+            ->selectRaw('city, COUNT(*) as cnt')
+            ->groupBy('city')
+            ->orderByDesc('cnt')
+            ->limit(30)
+            ->get(['city', 'cnt']);
+
+        $districts = \App\Models\ScrapedListing::query()
+            ->whereNotNull('district')->where('district', '!=', '')
+            ->when($request->city, fn ($q, $c) => $q->where('city', 'like', "%{$c}%"))
+            ->selectRaw('district, COUNT(*) as cnt')
+            ->groupBy('district')
+            ->orderByDesc('cnt')
+            ->limit(50)
+            ->get(['district', 'cnt']);
+
         return Inertia::render('Properties/Index', [
             'properties'  => $query->paginate(20)->withQueryString(),
             'filters'     => $request->only([
@@ -56,15 +105,54 @@ class PropertyController extends Controller
                 'price_min', 'price_max', 'area_min', 'area_max',
                 'date_from', 'date_to', 'favorite', 'sort', 'phone',
             ]),
+            'cities'      => $cities,
+            'districts'   => $districts,
             'isAdmin'     => $isAdmin,
             'authUserId'  => $user->id,
             'favoriteIds' => $user->favoritePropertyIds(),
         ]);
     }
 
-    public function create(): Response
+    public function transfer(Request $request, Property $property): \Illuminate\Http\RedirectResponse
     {
-        $user = request()->user();
+        $admin = $request->user();
+        abort_unless($admin->isAdmin() && $property->agency_id === $admin->agency_id, 403);
+
+        $data = $request->validate([
+            'user_id' => 'required|integer|exists:users,id',
+            'notes'   => 'nullable|string|max:500',
+        ]);
+
+        // Target user must belong to the same agency
+        $target = \App\Models\User::withoutGlobalScopes()->find($data['user_id']);
+        if (! $target || $target->agency_id !== $admin->agency_id) {
+            return back()->with('error', 'Agentul țintă nu aparține agenției tale.');
+        }
+
+        $oldUserId = $property->user_id;
+        $property->update(['user_id' => $target->id]);
+
+        \App\Models\ActivityLog::record(
+            'property.transfer',
+            $property,
+            "Anunț transferat de la user #{$oldUserId} la {$target->name}",
+            ['from_user_id' => $oldUserId, 'to_user_id' => $target->id, 'notes' => $data['notes'] ?? null]
+        );
+
+        return back()->with('success', "Anunț transferat către {$target->name}.");
+    }
+
+    public function create(): Response|\Illuminate\Http\RedirectResponse
+    {
+        $user   = request()->user();
+        $agency = $user->agency;
+
+        if ($agency && ! $agency->canAddListing()) {
+            $limit = $agency->listingsLimit();
+            return redirect()->route('properties.index')
+                ->with('error', "Ai atins limita de {$limit} anunțuri pe planul curent. Fă upgrade pentru mai multe.");
+        }
+
         return Inertia::render('Properties/Create', [
             'authUser' => [
                 'phone' => $user->phone,
@@ -75,10 +163,17 @@ class PropertyController extends Controller
 
     public function store(Request $request)
     {
+        $agency = $request->user()->agency;
+        if ($agency && ! $agency->canAddListing()) {
+            $limit = $agency->listingsLimit();
+            return redirect()->route('properties.index')
+                ->with('error', "Ai atins limita de {$limit} anunțuri pe planul curent. Fă upgrade pentru mai multe.");
+        }
+
         $validated = $request->validate([
             'title'            => 'required|string|max:255',
             'type'             => 'required|in:apartment,house,commercial,land',
-            'transaction_type' => 'required|in:sale,rent,rent_short,new_build',
+            'transaction_type' => 'required|in:sale,rent,inchiriere_zilnica,new_build',
             'price'            => 'nullable|numeric|min:0',
             'currency'         => 'required|in:EUR,USD,MDL',
             'area_total'       => 'nullable|numeric|min:0',
@@ -96,11 +191,9 @@ class PropertyController extends Controller
             'description_en'   => 'nullable|string',
             'status'           => 'required|in:active,draft,inactive,sold,rented',
             'meta'             => 'nullable|array',
-            'photos'           => 'nullable|array|max:15',
-            'photos.*'         => 'file|image|max:5120',
             'cover_index'      => 'nullable|integer|min:0',
             'generate_ai'      => 'nullable|string|in:description,price',
-        ]);
+        ] + $this->photoRules());
 
         $property = Property::create([
             'user_id'          => $request->user()->id,
@@ -186,18 +279,47 @@ class PropertyController extends Controller
             'contacts' => fn ($q) => $q->select('contacts.id', 'first_name', 'last_name', 'phone', 'email', 'type'),
         ]);
 
+        // Internal notes about the owner-contact (relation=owner). Shown as
+        // "Comentarii interne" in the property sidebar. Stored as
+        // ContactInteraction(type='note') on the owner Contact.
+        $ownerContact = $property->contacts->first(
+            fn ($c) => ($c->pivot->relation ?? null) === 'owner'
+        );
+        $ownerNotes = $ownerContact
+            ? \App\Models\ContactInteraction::where('contact_id', $ownerContact->id)
+                ->where('type', 'note')
+                ->with('user:id,name')
+                ->latest()
+                ->limit(20)
+                ->get(['id', 'contact_id', 'user_id', 'type', 'body', 'created_at'])
+            : collect();
+
+        $user = request()->user();
         $linkedIds = $property->contacts->pluck('id')->all();
         $availableContacts = \App\Models\Contact::whereNotIn('id', $linkedIds)
             ->select('id', 'first_name', 'last_name', 'phone', 'type')
+            ->when(! $user->isAdmin(), fn ($q) => $q->where('user_id', $user->id))
             ->latest()
             ->limit(100)
             ->get();
+        $agencyAgents = $user->isAdmin()
+            ? \App\Models\User::withoutGlobalScopes()
+                ->where('agency_id', $user->agency_id)
+                ->where('id', '!=', $property->user_id)
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(['id', 'name', 'email'])
+            : collect();
 
         return Inertia::render('Properties/Show', [
             'property'           => $property,
             'contracts'          => $contracts,
             'viewings'           => $viewings,
             'availableContacts'  => $availableContacts,
+            'isAdmin'            => $user->isAdmin(),
+            'agencyAgents'       => $agencyAgents,
+            'ownerContactId'     => $ownerContact?->id,
+            'ownerNotes'         => $ownerNotes,
         ]);
     }
 
@@ -234,8 +356,14 @@ class PropertyController extends Controller
     {
         Gate::authorize('update', $property);
 
+        $user = request()->user();
+
         return Inertia::render('Properties/Edit', [
             'property' => $property->load('media'),
+            'authUser' => [
+                'phone' => $user->phone,
+                'email' => $user->email,
+            ],
         ]);
     }
 
@@ -243,28 +371,71 @@ class PropertyController extends Controller
     {
         Gate::authorize('update', $property);
 
-        $data = $request->validate([
-            'title'            => 'required|string|max:255',
-            'type'             => 'required|in:apartment,house,commercial,land',
-            'transaction_type' => 'required|in:sale,rent,rent_short,new_build',
-            'price'            => 'nullable|numeric|min:0',
-            'currency'         => 'required|in:EUR,USD,MDL',
-            'area_total'       => 'nullable|numeric|min:0',
-            'area_living'      => 'nullable|numeric|min:0',
-            'rooms'            => 'nullable|integer|min:0',
-            'floor'            => 'nullable|integer',
-            'floors_total'     => 'nullable|integer|min:1',
-            'address'          => 'nullable|string|max:255',
-            'city'             => 'required|string|max:100',
-            'district'         => 'nullable|string|max:100',
-            'description_ro'   => 'nullable|string',
-            'description_ru'   => 'nullable|string',
-            'description_en'   => 'nullable|string',
-            'status'           => 'required|in:active,draft,inactive,sold,rented',
-            'meta'             => 'nullable|array',
-        ]);
+        $validated = $request->validate([
+            'title'              => 'required|string|max:255',
+            'type'               => 'required|in:apartment,house,commercial,land',
+            'transaction_type'   => 'required|in:sale,rent,inchiriere_zilnica,new_build',
+            'price'              => 'nullable|numeric|min:0',
+            'currency'           => 'required|in:EUR,USD,MDL',
+            'area_total'         => 'nullable|numeric|min:0',
+            'area_living'        => 'nullable|numeric|min:0',
+            'rooms'              => 'nullable|integer|min:0',
+            'floor'              => 'nullable|integer',
+            'floors_total'       => 'nullable|integer|min:1',
+            'address'            => 'nullable|string|max:255',
+            'city'               => 'required|string|max:100',
+            'district'           => 'nullable|string|max:100',
+            'latitude'           => 'nullable|numeric',
+            'longitude'          => 'nullable|numeric',
+            'description_ro'     => 'nullable|string',
+            'description_ru'     => 'nullable|string',
+            'description_en'     => 'nullable|string',
+            'status'             => 'required|in:active,draft,inactive,sold,rented',
+            'meta'               => 'nullable|array',
+            'cover_index'        => 'nullable|integer|min:0',
+            'cover_media_id'     => 'nullable|integer|exists:property_media,id',
+            'deleted_media_ids'  => 'nullable|array',
+            'deleted_media_ids.*'=> 'integer|exists:property_media,id',
+        ] + $this->photoRules());
 
-        $property->update($data);
+        $property->update(\Illuminate\Support\Arr::except($validated, [
+            'photos', 'cover_index', 'cover_media_id', 'deleted_media_ids',
+        ]));
+
+        // Delete media flagged for removal (only those belonging to this property).
+        if (! empty($validated['deleted_media_ids'])) {
+            $toDelete = $property->media()->whereIn('id', $validated['deleted_media_ids'])->get();
+            foreach ($toDelete as $m) {
+                if ($m->path && \Storage::disk('public')->exists($m->path)) {
+                    \Storage::disk('public')->delete($m->path);
+                }
+                $m->delete();
+            }
+        }
+
+        // Append new photos.
+        $newMediaIds = [];
+        if ($request->hasFile('photos')) {
+            $existingMax = (int) $property->media()->max('sort_order');
+            foreach ($request->file('photos') as $idx => $photo) {
+                $path = $photo->store("properties/{$property->id}", 'public');
+                $m = $property->media()->create([
+                    'path'       => $path,
+                    'is_cover'   => false,
+                    'sort_order' => $existingMax + 1 + $idx,
+                ]);
+                $newMediaIds[] = $m->id;
+            }
+        }
+
+        // Cover selection: prefer cover_media_id (existing), fallback to cover_index (new uploads).
+        if (! empty($validated['cover_media_id'])) {
+            $property->media()->update(['is_cover' => false]);
+            $property->media()->where('id', $validated['cover_media_id'])->update(['is_cover' => true]);
+        } elseif (isset($validated['cover_index']) && isset($newMediaIds[$validated['cover_index']])) {
+            $property->media()->update(['is_cover' => false]);
+            $property->media()->where('id', $newMediaIds[$validated['cover_index']])->update(['is_cover' => true]);
+        }
 
         return redirect()->route('properties.show', $property)
             ->with('success', 'Proprietatea a fost actualizată.');

@@ -7,6 +7,8 @@ use App\Models\Property;
 use App\Models\ScrapedListing;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -43,7 +45,7 @@ class WebOffersController extends Controller
             shell_exec("nohup {$cmd} > " . escapeshellarg($logFile) . " 2>&1 &");
         }
 
-        return back()->with('success', 'Sincronizarea cu 999.md a fost inițiată. Procesul rulează în fundal (~3-7 minute pentru toate categoriile). Reîncarcă pagina după ce se termină. Log: storage/logs/scraper_999.log');
+        return back()->with('success', 'Sincronizarea cu 999.md a fost inițiată. Procesul rulează în fundal (~3-7 minute pentru toate categoriile). Reîncarcă pagina după ce se termină.');
     }
 
     public function index(Request $request): Response
@@ -72,15 +74,8 @@ class WebOffersController extends Controller
             ->when($request->area_min,  fn ($q, $v) => $q->where('area', '>=', (float) $v))
             ->when($request->area_max,  fn ($q, $v) => $q->where('area', '<=', (float) $v))
             ->when($request->ai_valuation, fn ($q, $v) => $q->where('ai_valuation', $v))
-            ->when($request->date_filter, function ($q, $d) {
-                match ($d) {
-                    'today' => $q->where('created_at', '>=', now()->startOfDay()),
-                    'week'  => $q->where('created_at', '>=', now()->subWeek()),
-                    'month' => $q->where('created_at', '>=', now()->subMonth()),
-                    'year'  => $q->where('created_at', '>=', now()->subYear()),
-                    default => null,
-                };
-            })
+            ->when($request->date_from, fn ($q, $d) => $q->where('created_at', '>=', \Carbon\Carbon::parse($d)->startOfDay()))
+            ->when($request->date_to,   fn ($q, $d) => $q->where('created_at', '<=', \Carbon\Carbon::parse($d)->endOfDay()))
             ->when($request->favorite,
                 fn ($q) => $q->whereHas('favoritedByUsers', fn ($fq) => $fq->where('user_id', $user->id)));
 
@@ -140,7 +135,7 @@ class WebOffersController extends Controller
             'filters'     => $request->only([
                 'search', 'sources', 'owner_types', 'types', 'transaction_type',
                 'city', 'district', 'price_min', 'price_max', 'area_min', 'area_max',
-                'ai_valuation', 'date_filter', 'favorite', 'sort',
+                'ai_valuation', 'date_from', 'date_to', 'favorite', 'sort',
             ]),
             'counts' => [
                 'total'        => $totalCount,
@@ -217,17 +212,26 @@ class WebOffersController extends Controller
             ], fn($v) => $v !== null && $v !== ''),
         ]);
 
-        // Copy images: if scraped images are local paths (scraped/{id}/...), reuse them as PropertyMedia
+        // Copy images: max 15. Local scraper paths (scraped/{id}/N.jpg) are reused
+        // as-is; remote CDN URLs (https://i.simpalsmedia.com/...) are downloaded
+        // into storage/properties/{id}/ so the property owns its own copy.
         if (! empty($scrapedListing->images) && is_array($scrapedListing->images)) {
-            foreach ($scrapedListing->images as $idx => $imgPath) {
-                if (! is_string($imgPath)) continue;
-                // Only register local images (skip remote URLs to avoid PropertyMedia having external paths)
-                if (str_starts_with($imgPath, 'http')) continue;
+            $sortOrder = 0;
+            foreach (array_slice($scrapedListing->images, 0, 15) as $imgPath) {
+                if (! is_string($imgPath) || $imgPath === '') continue;
+
+                $localPath = str_starts_with($imgPath, 'http')
+                    ? $this->downloadRemoteImage($imgPath, $property->id, $sortOrder + 1)
+                    : $imgPath;
+
+                if (! $localPath) continue;
+
                 $property->media()->create([
-                    'path'       => $imgPath,
-                    'is_cover'   => $idx === 0,
-                    'sort_order' => $idx,
+                    'path'       => $localPath,
+                    'is_cover'   => $sortOrder === 0,
+                    'sort_order' => $sortOrder,
                 ]);
+                $sortOrder++;
             }
         }
 
@@ -237,5 +241,36 @@ class WebOffersController extends Controller
 
         return redirect()->route('properties.show', $property)
             ->with('success', 'Anunțul a fost adăugat în proprietățile tale.');
+    }
+
+    private const ALLOWED_IMG_EXT = ['jpg', 'jpeg', 'png', 'webp'];
+
+    private function downloadRemoteImage(string $url, int $propertyId, int $idx): ?string
+    {
+        try {
+            $response = Http::withHeaders([
+                'User-Agent' => 'Mozilla/5.0 REALTIX-Importer/1.0',
+                'Accept'     => 'image/*,*/*;q=0.8',
+            ])->timeout(15)->get($url);
+
+            if (! $response->successful()) return null;
+
+            $body = $response->body();
+            if (strlen($body) < 1000) return null; // likely 1x1 placeholder
+
+            $path = parse_url($url, PHP_URL_PATH) ?: '';
+            $ext  = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+            if (! in_array($ext, self::ALLOWED_IMG_EXT, true)) {
+                $ext = 'jpg';
+            }
+
+            $filename     = sprintf('%02d.%s', $idx, $ext);
+            $relativePath = "properties/{$propertyId}/{$filename}";
+
+            Storage::disk('public')->put($relativePath, $body);
+            return $relativePath;
+        } catch (\Throwable) {
+            return null;
+        }
     }
 }

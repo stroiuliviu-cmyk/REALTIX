@@ -101,6 +101,79 @@ def _ph(sql: str, dialect: str) -> str:
     return sql.replace("?", "%s") if dialect == "pgsql" else sql
 
 
+def _write_heartbeat() -> None:
+    """Write current ISO timestamp + PID to the heartbeat file. The Laravel
+    watchdog (`scraper:watchdog`) checks this file every 10 minutes — if it's
+    older than 15 minutes it considers the scraper stuck and kills the PID."""
+    try:
+        HEARTBEAT_PATH.parent.mkdir(parents=True, exist_ok=True)
+        HEARTBEAT_PATH.write_text(
+            f"{datetime.now(timezone.utc).isoformat(timespec='seconds')}|{os.getpid()}",
+            encoding="utf-8",
+        )
+    except Exception:
+        pass
+
+
+def _clear_heartbeat() -> None:
+    try:
+        if HEARTBEAT_PATH.exists():
+            HEARTBEAT_PATH.unlink()
+    except Exception:
+        pass
+
+
+# ── Anti-ban: User-Agent pool + block detection ───────────────────────────────
+USER_AGENTS = [
+    # Firefox 122-135 on Windows / Linux / macOS
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:135.0) Gecko/20100101 Firefox/135.0",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0",
+    "Mozilla/5.0 (X11; Linux x86_64; rv:130.0) Gecko/20100101 Firefox/130.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14.5; rv:127.0) Gecko/20100101 Firefox/127.0",
+    # Chrome 130-140 on Windows / macOS / Linux
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36",
+    # Safari 17-18 on macOS
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Safari/605.1.15",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Safari/605.1.15",
+    # Edge (Windows)
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36 Edg/137.0.0.0",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36 Edg/132.0.0.0",
+]
+
+# Patterns that suggest the IP is being blocked / captcha'd by 999.md.
+_BLOCK_PATTERNS = [
+    re.compile(r"\b(blocked|access denied|forbidden)\b", re.IGNORECASE),
+    re.compile(r"\b(captcha|recaptcha|hcaptcha)\b", re.IGNORECASE),
+    re.compile(r"\brate[\s-]?limit", re.IGNORECASE),
+    re.compile(r"\b403\b.*(?:forbidden|denied)", re.IGNORECASE),
+    re.compile(r"unusual\s+traffic", re.IGNORECASE),
+    re.compile(r"too\s+many\s+requests", re.IGNORECASE),
+]
+
+
+def _detect_block(page_source: str) -> str | None:
+    """Return the matching pattern's group when the page indicates blocking,
+    else None. Used to bail out with exit code 42 so the scheduler pauses runs."""
+    if not page_source:
+        return None
+    snippet = page_source[:50_000]
+    for pat in _BLOCK_PATTERNS:
+        m = pat.search(snippet)
+        if m:
+            return m.group(0)
+    return None
+
+
+class ScraperBlocked(Exception):
+    """Raised when 999.md returns a blocking / captcha page. The main loop
+    catches this and exits with code 42 so the Laravel scheduler can pause
+    further runs."""
+    pass
+
+
 def _bool_value(v, dialect: str):
     if v is None:
         return None
@@ -140,6 +213,12 @@ IMAGES_DIR = Path(__file__).resolve().parent.parent / "storage" / "app" / "publi
 _FAST_MODE = False
 _DOWNLOAD_IMAGES = False
 _TODAY_ONLY = False
+# Operating mode — one of "morning", "hourly", "manual". Affects delays + warmup + logging.
+_MODE = "manual"
+# Only keep ads published within last N hours (0 = no time filter).
+_SCOPE_HOURS = 0
+# Process ID heartbeat is written here every minute by the worker loop.
+HEARTBEAT_PATH = Path(__file__).resolve().parent.parent / "storage" / "app" / "scraper_heartbeat.txt"
 
 CATEGORIES = [
     {"slug": "apartments-and-rooms",   "type": "apartment",  "transaction_type": "sale", "label": "Apartamente"},
@@ -155,18 +234,38 @@ DEFAULT_AGENCY_ID = 1
 
 
 # ── Driver ────────────────────────────────────────────────────────────────────
-def make_driver(headless: bool = True) -> webdriver.Firefox:
+def make_driver(headless: bool = True, user_agent: str | None = None) -> webdriver.Firefox:
+    """Build a Firefox driver tuned to look as little like Selenium as we can:
+      - Random UA from `USER_AGENTS` (passed-in `user_agent` wins).
+      - `dom.webdriver.enabled = false` so `navigator.webdriver` doesn't betray us.
+      - `useAutomationExtension = false` (legacy Selenium hint).
+      - `media.peerconnection.enabled = false` so WebRTC cannot leak the
+        real IP behind a proxy.
+      - `intl.accept_languages` set to Moldovan defaults.
+      - Images disabled at browser level (we only need URLs from DOM).
+    """
     opts = FirefoxOptions()
     if headless:
         opts.add_argument("--headless")
-    # Skip image downloads to speed up — we only need URLs from DOM
+
+    ua = user_agent or random.choice(USER_AGENTS)
+
+    # Performance: skip image fetch — we extract URLs from DOM/JSON-LD anyway.
     opts.set_preference("permissions.default.image", 2)
     opts.set_preference("dom.popup_maximum", 0)
-    opts.set_preference(
-        "general.useragent.override",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-        "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 REALTIX-Scraper/1.0",
-    )
+
+    # Anti-fingerprint
+    opts.set_preference("general.useragent.override", ua)
+    opts.set_preference("dom.webdriver.enabled", False)
+    opts.set_preference("useAutomationExtension", False)
+    opts.set_preference("media.peerconnection.enabled", False)
+    opts.set_preference("intl.accept_languages", "ro-MD,ro;q=0.9,ru;q=0.8,en;q=0.7")
+    # Stop Firefox from announcing it's a headless build via the navigator
+    opts.set_preference("privacy.resistFingerprinting", False)
+    # Reduce WebGL fingerprint surface
+    opts.set_preference("webgl.disabled", True)
+
+    print(f"🦊 UA: {ua[:90]}{'…' if len(ua) > 90 else ''}")
 
     try:
         return webdriver.Firefox(options=opts)
@@ -174,6 +273,22 @@ def make_driver(headless: bool = True) -> webdriver.Firefox:
         print(f"[FATAL] Firefox failed to start: {e}", file=sys.stderr)
         print("  Asigură-te că Firefox + geckodriver sunt instalate și în PATH.", file=sys.stderr)
         raise
+
+
+def _session_warmup(driver) -> None:
+    """Visit homepage + real-estate listing root before scraping so we look
+    like a normal browser session (cookies + referer chain). Only worth it for
+    the morning sync — hourly runs are too short to amortize the warm-up cost."""
+    try:
+        print("🌐 warmup: GET 999.md homepage")
+        driver.get(f"{BASE_URL}/ro")
+        time.sleep(random.uniform(3.0, 6.0))
+
+        print("🌐 warmup: GET real-estate category root")
+        driver.get(f"{BASE_URL}/ro/list/real-estate")
+        time.sleep(random.uniform(3.0, 5.0))
+    except Exception as e:
+        print(f"    [warn] warmup failed: {e}")
 
 
 # ── Recent-cache: skip URLs updated in last N hours ──────────────────────────
@@ -230,7 +345,14 @@ def collect_ad_urls(driver, category_slug: str, max_pages: int | None = 2) -> li
             else:
                 time.sleep(random.uniform(2.0, 3.5))
 
-            soup = BeautifulSoup(driver.page_source, "html.parser")
+            page_source = driver.page_source
+
+            # Bail out if 999.md is serving a block / captcha page instead of listings.
+            block_hit = _detect_block(page_source)
+            if block_hit and not re.search(r'href="/ro/\d{6,}', page_source):
+                raise ScraperBlocked(f"List page block on {category_slug} page {page}: {block_hit!r}")
+
+            soup = BeautifulSoup(page_source, "html.parser")
             for a in soup.find_all("a", href=True):
                 href = a["href"]
                 m = re.match(r"^/ro/(\d{6,})(?:[/?].*)?$", href)
@@ -261,6 +383,8 @@ def collect_ad_urls(driver, category_slug: str, max_pages: int | None = 2) -> li
 
             page += 1
 
+        except ScraperBlocked:
+            raise
         except Exception as e:
             print(f"    [error] page {page}: {e}")
             break
@@ -1466,6 +1590,11 @@ def main() -> int:
                         help="Stop a category after 5 consecutive ads with published_at < today 00:00")
     parser.add_argument("--download-images", action="store_true",
                         help="Download each image locally (storage/app/public/scraped/{id}/) instead of storing CDN URLs")
+    parser.add_argument("--scope-hours", type=int, default=0,
+                        help="Only keep ads published within last N hours (0 = no time filter)")
+    parser.add_argument("--mode", type=str, default="manual",
+                        choices=["morning", "hourly", "manual"],
+                        help="Operating mode — affects logging, delays, warmup and early-exit behaviour")
     args = parser.parse_args()
 
     # Fast mode: tighter timing
@@ -1480,9 +1609,26 @@ def main() -> int:
             args.delay_max = 1.2
 
     # Activate global flags
-    global _DOWNLOAD_IMAGES, _TODAY_ONLY
+    global _DOWNLOAD_IMAGES, _TODAY_ONLY, _MODE, _SCOPE_HOURS
     _DOWNLOAD_IMAGES = args.download_images
     _TODAY_ONLY = args.today_only
+    _MODE = args.mode
+    _SCOPE_HOURS = max(0, int(args.scope_hours or 0))
+
+    # Mode-specific delay defaults — only override if the caller didn't tune them.
+    if args.mode == "morning":
+        print("🌅 Morning initial sync — scraping ALL recent listings (last 7h)")
+        if args.delay_min == 1.2: args.delay_min = 2.5
+        if args.delay_max == 2.5: args.delay_max = 5.0
+    elif args.mode == "hourly":
+        print("⏱  Hourly incremental — scraping only last hour")
+        if args.delay_min == 1.2: args.delay_min = 1.5
+        if args.delay_max == 2.5: args.delay_max = 3.0
+    else:
+        print("🛠  Manual mode — using provided args without restrictions")
+
+    if _SCOPE_HOURS > 0:
+        print(f"⏳ Scope filter: keeping only ads published in the last {_SCOPE_HOURS}h")
 
     # Parse --pages: int or "all"
     pages_arg: int | None
@@ -1518,6 +1664,10 @@ def main() -> int:
 
     driver = make_driver(headless=not args.no_headless)
 
+    # Session warmup — only worth the time for morning sync.
+    if _MODE == "morning":
+        _session_warmup(driver)
+
     repo_root = Path(__file__).resolve().parent.parent
     conn, dialect = open_db_connection(repo_root, sqlite_path_override=str(db_path) if str(db_path) != str(REALTIX_DB_DEFAULT) else None)
     print(f"🗄  DB driver: {dialect}")
@@ -1533,6 +1683,15 @@ def main() -> int:
     started = time.time()
 
     today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).replace(tzinfo=None)
+    scope_cutoff = (
+        datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=_SCOPE_HOURS)
+        if _SCOPE_HOURS > 0
+        else None
+    )
+
+    # Initial heartbeat — gives the watchdog something to read on slow first page loads.
+    _write_heartbeat()
+    last_heartbeat = time.time()
 
     try:
         for cat in cats:
@@ -1557,10 +1716,32 @@ def main() -> int:
                     stats["skipped"] += 1
                     continue
 
+                # Periodic heartbeat (every minute) so the watchdog can tell the worker is alive.
+                if time.time() - last_heartbeat > 60:
+                    _write_heartbeat()
+                    last_heartbeat = time.time()
+
                 try:
                     ad = extract_ad(driver, url)
                     if not ad:
                         continue
+
+                    # --scope-hours: skip ads published outside the time window.
+                    # For hourly mode, 5 consecutive out-of-scope ads end the category early.
+                    if scope_cutoff is not None:
+                        pub = ad.get("published_at")
+                        if pub is None:
+                            print(f"    [warn] no published_at for #{ad.get('external_id')} — processing anyway")
+                        else:
+                            pub_naive = pub.replace(tzinfo=None) if pub.tzinfo else pub
+                            if pub_naive < scope_cutoff:
+                                consecutive_old += 1
+                                if _MODE == "hourly" and consecutive_old >= 5:
+                                    print(f"  🛑 hourly early-exit: 5 consecutive ads older than {_SCOPE_HOURS}h cutoff")
+                                    break
+                                continue
+                            else:
+                                consecutive_old = 0
 
                     # --today-only: stop category if ad is older than today
                     if _TODAY_ONLY and ad.get("published_at"):
@@ -1604,9 +1785,19 @@ def main() -> int:
 
     except KeyboardInterrupt:
         print("\n[interrupted]")
+    except ScraperBlocked as e:
+        print(f"\n🚫 SCRAPER BLOCKED: {e}", file=sys.stderr)
+        return 42
     finally:
-        conn.close()
-        driver.quit()
+        try:
+            conn.close()
+        except Exception:
+            pass
+        try:
+            driver.quit()
+        except Exception:
+            pass
+        _clear_heartbeat()
 
     elapsed = time.time() - started
     print("=" * 70)

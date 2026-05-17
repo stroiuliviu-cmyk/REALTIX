@@ -67,7 +67,7 @@ return [
         'terms_link'          => 'Termenii și Condițiile',
         'and'                 => 'și',
         'privacy_link'        => 'Politica de Confidențialitate',
-        'trial_checkbox'      => 'Vreau trial 14 zile gratuit — fără obligații',
+        'trial_checkbox'      => 'Vreau trial 14 zile gratuit',
         'creating_account'    => 'Se creează contul...',
         'create_btn'          => 'Creează cont gratuit',
         'have_account'        => 'Ai deja cont?',
@@ -149,6 +149,9 @@ return [
         'agent_placeholder'=> 'agent@agency.md',
         'add_agent'       => '+ Adaugă alt agent',
         'send_invites'    => 'Trimite invitații →',
+        'agents_plan_limit'     => 'Planul :plan permite încă :remaining agenți (în afară de tine).',
+        'agents_plan_overage'   => 'Planul :plan include :included locuri; suplimentar se taxează ca overage.',
+        'agents_plan_unlimited' => 'Planul :plan permite agenți nelimitați.',
 
         'listing_title'    => 'Adaugă primul anunț',
         'listing_sub'      => 'Postează prima proprietate și testează platforma.',

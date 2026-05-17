@@ -115,7 +115,12 @@
       "Bash(grep -nE \"sk_live_|sk_test_|pk_live_|whsec_|sk-ant-|gsk_[A-Za-z0-9]{40,}|sk-[A-Za-z0-9]{40,}|AIza[A-Za-z0-9_-]{30,}|xkeysib-[a-f0-9]{60,}|ghp_[A-Za-z0-9]{30,}|Bearer [A-Za-z0-9]{20,}\")",
       "Bash(grep -nE \"gsk_[A-Za-z0-9]{30,}|sk-ant-[A-Za-z0-9_-]{30,}|sk-[A-Za-z0-9]{40,}|AIza[A-Za-z0-9_-]{30,}|xkeysib-[a-f0-9]{60,}|whsec_[A-Za-z0-9]{20,}|sk_\\(live|test\\)_[A-Za-z0-9]{20,}|Bearer [A-Za-z0-9_-]{30,}\" .claude/settings.local.json)",
       "Bash(git commit *)",
-      "Bash(grep -nE \"gsk_[A-Za-z0-9]{30,}|sk-ant-|AIza|whsec_|sk_\\(live|test\\)_\")"
+      "Bash(grep -nE \"gsk_[A-Za-z0-9]{30,}|sk-ant-|AIza|whsec_|sk_\\(live|test\\)_\")",
+      "Bash(php -l app/Http/Controllers/StripeWebhookController.php)",
+      "Bash(php -l app/Http/Controllers/SubscriptionController.php)",
+      "Bash(php -l app/Providers/AppServiceProvider.php)",
+      "Bash(php -l config/realtix.php)",
+      "Bash(php -l config/cashier.php)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Hacker\\.claude\\projects\\c--Users-Hacker-Desktop-REALTIX\\memory"

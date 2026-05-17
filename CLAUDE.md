@@ -1,6 +1,6 @@
 # REALTIX
 
-Moldovan real-estate SaaS CRM — Laravel 12 + Inertia.js + React (JSX). SQLite dev DB. Locale-uri: `ro` (default), `ru`, `en`.
+Moldovan real-estate SaaS CRM — Laravel 12 + Inertia.js + React (JSX). PostgreSQL 17 dev DB. Locale-uri: `ro` (default), `ru`, `en`.
 
 ## Self-improvement protocol
 
@@ -18,6 +18,9 @@ Moldovan real-estate SaaS CRM — Laravel 12 + Inertia.js + React (JSX). SQLite 
 - После успешного фикса предложи правило в Self-improvement protocol про класс этой ошибки.
 - Если фикс получился плохой и я попросил переделать, не патчь поверх — откати и реализуй заново с учётом нового понимания.
 - Если воспроизводимость бага неполная, сначала добавь тест, который его ловит, потом фикси.
+- Перед написанием `selectRaw`/`whereRaw`/`DB::table()` запросов на таблицу, к которой раньше не обращался, выполни `information_schema.columns` или `\Schema::hasColumn` для проверки имён колонок; не предполагай схему по имени поля в модели или по логичной догадке.
+- В Route::… с implicit model binding имя сегмента (`{agent}`) обязано совпадать с именем переменной в сигнатуре контроллера (`User $agent`); при рассинхроне Laravel инжектит пустую модель, `abort_unless` срабатывает на null, и фронт получает тихий 403, который Inertia заглатывает — кнопка визуально не работает.
+- При массовом `update()`/`firstWhere()` фильтруй по уникальному полю (`name`, `slug`, `id`), а не по полю с возможными дубликатами (`type`, `status`, `role`) — иначе обновишь не ту запись и заметишь только при визуальной проверке.
 
 ## File hygiene
 
@@ -29,6 +32,7 @@ Moldovan real-estate SaaS CRM — Laravel 12 + Inertia.js + React (JSX). SQLite 
 
 - Laravel app живёт в подпапке `REALTIX/`, не в корне репозитория.
 - Многоарендность по `agency_id` через trait `BelongsToAgency`; не запрашивай данные другой агенции из контроллера.
+- Применяй `BelongsToAgency` только к моделям, чьи строки принадлежат конкретной агенции (клиенты, листинги, контракты). Публичные/общие данные (скрейпленные внешние объявления, справочники, конфиги платформы) держи без global scope — иначе новый пользователь без собственных данных ничего не увидит.
 - Роли через Spatie Permission: `super_admin` (платформа), `admin` (агенция), `realtor` (агент); первый зарегистрированный пользователь получает `admin` автоматически.
 
 ## Style
@@ -36,9 +40,20 @@ Moldovan real-estate SaaS CRM — Laravel 12 + Inertia.js + React (JSX). SQLite 
 - Communication по умолчанию на румынском, как у пользователя; технические термины оставляй на английском.
 - Inertia-страницы в `resources/js/Pages/<Domain>/<Action>.jsx`; React-компоненты определяй в module scope, никогда внутри render-функции.
 - Контроллеры возвращают `Inertia::render` или `RedirectResponse` с `flash()`; ни в коем случае не оба.
+- Не дублируй на одном элементе Tailwind-классы, задающие одно и то же CSS-свойство (text-color, border, padding и т.п.).
+- В segmented control / toggle-pill компонентах ширину анимированной подсветки выражай через `items.length` (`calc(100% / ${items.length})`), а не хардкодом — иначе после удаления/добавления пункта подсветка перестаёт совпадать с активной кнопкой.
+- При интеграции растровых ассетов проверяй прозрачность фона и плотность обрезки до правок кода; непрозрачный фон или большие поля вокруг контента дают дефект на чужой поверхности.
 
 ## Project-specific
 
 - API ключ 999.md Partners хранится в `agency->settings['portal_999md_api_key']`; никогда не хардкодь его в коде.
 - Шаблоны контрактов добавляй через `App\Services\DefaultContractTemplates`, а не правкой сидера напрямую.
 - Очереди работают через `QUEUE_CONNECTION=database`; диспатченные джобы не выполнятся, пока не запущен `php artisan queue:work`.
+- На Postgres не используй `DB::table()->truncate()` в циклах по таблицам с FK — Laravel генерирует `TRUNCATE ... CASCADE` и сносит уже залитые зависимые данные; используй `migrate:fresh` один раз или `DELETE FROM`.
+- При включённом `Cashier::calculateTaxes()` в опциях Stripe Checkout всегда передавай `billing_address_collection='required'` и `customer_update[address]='auto'` — без этого первая сессия customer-а без адреса упадёт ещё до открытия страницы оплаты.
+- Для редиректа из Inertia POST-а на внешний URL (Stripe Checkout, OAuth) используй `Inertia::location($url)`, а не `redirect($url)` — обычный 302 ловится axios-ом и падает на CORS, потому что клиент пытается XHR-ом прочитать чужой домен.
+- В `selectRaw`/`whereRaw` не используй функции, специфичные для одного движка БД (`strftime` — SQLite-only, `MONTH()` — MySQL-only). Используй `EXTRACT(... FROM ...)` (универсально для Postgres) или группируй на стороне PHP.
+- При scraping/HTML-extract сначала ищи в узком CSS-селекторе нужного блока, и только потом — общий regex по `get_text()` всей страницы; иначе при отсутствии целевого узла регекс ловит мусор из header/footer и одинаково «отравляет» массу записей. Дополнительно держи blacklist известных service-телефонов/URL-ов площадки.
+- Ответы LLM, содержащие и числовые данные, и производный label (например `min`, `max`, `regional_avg` + `valuation: cheap/average/expensive`), пересчитывай детерминированно в коде: вычисляй label и пояснительный текст из чисел, не доверяя метке от модели — LLM регулярно сам себе противоречит.
+- Перед использованием не-default PHP-расширений (`zip`, `gd`, `imagick`, `intl`) проверяй `class_exists()` и показывай явную ошибку в UI; `shell_exec`-fallback на CLI-бинарь молча ломается, если его нет в PATH серверного процесса.
+- В DomPDF не используй core PDF-шрифты (`Times-Roman`, `Helvetica`, `Courier`) — они Latin-1-only и ломают диакритику (`ă/î/ș/ț`, кириллицу) в `?`. Ставь `defaultFont` на `DejaVu Serif/Sans/Mono` (есть в комплекте) или embed-ни кастомный TTF с полным Unicode-покрытием.

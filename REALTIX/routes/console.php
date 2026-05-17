@@ -2,6 +2,10 @@
 
 use App\Jobs\Sync999AdvertsJob;
 use App\Models\Agency;
+use App\Models\CalendarEvent;
+use App\Notifications\CalendarEventReminder;
+use App\Notifications\SubscriptionExpiringSoon;
+use App\Notifications\TrialExpiringSoon;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -106,20 +110,105 @@ Schedule::call(function () {
         });
 })->cron('0 */5 * * *')->name('999md-sync')->withoutOverlapping();
 
-// Public 999.md TODAY-ONLY incremental scraping every 30 minutes.
-// Walks page 1 of each category, stops as soon as 5 ads in a row are older than 00:00 today.
-// Downloads all images locally to storage/app/public/scraped/{id}/ and skips ads updated <1h.
-Schedule::command('portal:999:scrape --pages=2 --skip-recent=1 --today-only --download-images')
-    ->cron('*/30 * * * *')
+// 999.md scraper — daily cap configurable via SCRAPER_999_DAILY_CAP (default 200).
+// Spread as 4 runs × ~50 ads at 00/06/12/18 + a top-up at 22:00. Each run is
+// skipped if today's insert count already hit the cap (circuit breaker,
+// evaluated via `->when()` at dispatch time, so the cron-tick stays cheap).
+$dailyCapHit = function () {
+    $cap = (int) env('SCRAPER_999_DAILY_CAP', 200);
+    return \Illuminate\Support\Facades\DB::table('scraped_listings')
+        ->where('source', '999md')
+        ->whereDate('created_at', today())
+        ->count() >= $cap;
+};
+
+// Four scheduled runs (every 6 hours) → max ~200 ads/day even before dedup.
+Schedule::command('portal:999:scrape --pages=2 --skip-recent=1 --today-only --download-images --max-ads=50')
+    ->cron('0 */6 * * *')
+    ->when(fn () => ! $dailyCapHit())
     ->name('999md-today-scrape')
-    ->withoutOverlapping(40)
+    ->withoutOverlapping(55)
     ->runInBackground();
 
-// AI valuation refresh — 5 min after scrape (cron offset)
+// Daily wrap-up at 22:00 — top up to 200 if earlier runs returned fewer.
+// Same cap guard prevents overshoot when the day was already busy.
+Schedule::command('portal:999:scrape --pages=5 --skip-recent=0 --today-only --download-images --max-ads=50')
+    ->dailyAt('22:00')
+    ->when(fn () => ! $dailyCapHit())
+    ->name('999md-daily-wrap')
+    ->withoutOverlapping(120)
+    ->runInBackground();
+
+// AI valuation refresh — 10 min after each hourly scrape.
 Schedule::command('ai:valuate-scraped')
-    ->cron('5,35 * * * *')
+    ->cron('10 * * * *')
     ->name('ai-valuation')
     ->withoutOverlapping();
+
+// Calendar event reminders — fires 30 min before event starts.
+// Runs every 5 minutes and notifies once via the `reminder_sent_at` flag in event meta.
+Schedule::call(function () {
+    $now = now();
+    CalendarEvent::query()
+        ->whereBetween('starts_at', [$now->copy()->addMinutes(25), $now->copy()->addMinutes(35)])
+        ->whereNull('reminder_sent_at')
+        ->with('user')
+        ->lazy(100)
+        ->each(function ($event) {
+            if ($event->user) {
+                $event->user->notify(new CalendarEventReminder($event));
+                $event->update(['reminder_sent_at' => now()]);
+            }
+        });
+})->everyFiveMinutes()->name('calendar-reminders')->withoutOverlapping();
+
+// Trial expiring soon — runs daily at 10:00.
+// Notifies admins of agencies whose trial_ends_at falls in the next 3 days
+// and that haven't yet subscribed (no Stripe customer). Deduplicated by checking
+// the notifications table for the last 23 hours.
+Schedule::call(function () {
+    Agency::query()
+        ->whereNotNull('trial_ends_at')
+        ->whereBetween('trial_ends_at', [now(), now()->addDays(3)])
+        ->whereNull('stripe_id')
+        ->with('users')
+        ->lazy(50)
+        ->each(function ($agency) {
+            $alreadyNotified = \DB::table('notifications')
+                ->where('type', TrialExpiringSoon::class)
+                ->whereJsonContains('data->agency_id', $agency->id)
+                ->where('created_at', '>=', now()->subHours(23))
+                ->exists();
+            if ($alreadyNotified) {
+                return;
+            }
+
+            $daysLeft = (int) ceil(now()->diffInHours($agency->trial_ends_at, false) / 24);
+            $agency->users->each(function ($user) use ($agency, $daysLeft) {
+                if ($user->isAdmin()) {
+                    $user->notify(new TrialExpiringSoon($agency, max(1, $daysLeft)));
+                }
+            });
+        });
+})->dailyAt('10:00')->name('trial-expiring-warn')->withoutOverlapping();
+
+// Subscription expiring soon — checks every morning at 09:00.
+// Notifies all admins of agencies whose subscription_ends_at falls in the 7-day window.
+Schedule::call(function () {
+    Agency::query()
+        ->whereNotNull('subscription_ends_at')
+        ->whereBetween('subscription_ends_at', [now(), now()->addDays(7)])
+        ->with('users')
+        ->lazy(50)
+        ->each(function ($agency) {
+            $daysLeft = (int) ceil(now()->diffInHours($agency->subscription_ends_at, false) / 24);
+            $agency->users->each(function ($user) use ($agency, $daysLeft) {
+                if ($user->isAdmin()) {
+                    $user->notify(new SubscriptionExpiringSoon($agency, max(1, $daysLeft)));
+                }
+            });
+        });
+})->dailyAt('09:00')->name('subscription-expiring-warn')->withoutOverlapping();
 
 // Compute AI valuation (cheap/average/expensive) per scraped listing.
 // Compares each ad's price/m² to the median of similar ads (same type, transaction_type, city).

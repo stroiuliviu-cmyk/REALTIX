@@ -1,14 +1,18 @@
 <?php
 
+use App\Jobs\BatchMatchingJob;
 use App\Jobs\Sync999AdvertsJob;
 use App\Models\Agency;
 use App\Models\CalendarEvent;
 use App\Notifications\CalendarEventReminder;
 use App\Notifications\SubscriptionExpiringSoon;
 use App\Notifications\TrialExpiringSoon;
+use App\Services\ScraperHealthService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schedule;
+use Symfony\Component\Process\Process;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -95,6 +99,119 @@ Artisan::command('portal:999:scrape:full {--agency=1}', function () {
     return $process->getExitCode() === 0 ? self::SUCCESS : self::FAILURE;
 })->purpose('FULL initial bulk — scrape ALL real-estate ads until end of results (1-3 hours)');
 
+/*
+|--------------------------------------------------------------------------
+| Morning initial sync (06:00 Europe/Chisinau)
+|--------------------------------------------------------------------------
+| Scrapes ALL listings published during the 23:00-06:00 night window.
+| Multi-page, no quantity cap, ~30-75 min runtime. Slow + thorough; the
+| nightly catch-up backbone.
+*/
+Artisan::command('portal:999:scrape:morning {--agency=1}', function () {
+    $this->info('═══ Morning initial sync — ' . now()->toDateTimeString() . ' ═══');
+    $this->info('Scope: all listings published in the last 7 hours');
+
+    $script = base_path('python_scraper/scraper_999.py');
+    if (! file_exists($script)) {
+        $this->error("Script not found at {$script}");
+        return self::FAILURE;
+    }
+
+    $python = env('PYTHON_BIN', 'python');
+    $args = [
+        '--pages=all',
+        '--agency=' . $this->option('agency'),
+        '--skip-recent-hours=0',
+        '--scope-hours=7',
+        '--download-images',
+        '--mode=morning',
+    ];
+
+    $cmd = $python . ' ' . escapeshellarg($script) . ' ' . implode(' ', $args);
+    $this->info("Running: {$cmd}");
+    $this->newLine();
+
+    $process = Process::fromShellCommandline($cmd);
+    $process->setTimeout(75 * 60); // 75-minute hard timeout
+    $process->run(function ($type, $buffer) {
+        echo $buffer;
+    });
+
+    $exit = $process->getExitCode();
+
+    if ($exit === 0) {
+        app(ScraperHealthService::class)->markSuccessfulRun();
+        $this->info('Morning sync OK');
+        return self::SUCCESS;
+    }
+
+    if ($exit === 42) {
+        $this->warn('SCRAPER BLOCKED by 999.md — pausing schedule for 4 hours');
+        Cache::put('scraper_blocked', true, now()->addHours(4));
+        return self::FAILURE;
+    }
+
+    $failures = (int) Cache::get('scraper_recent_failures', 0);
+    Cache::put('scraper_recent_failures', $failures + 1, now()->addHour());
+    $this->error("Morning sync failed with exit code: {$exit}");
+    return self::FAILURE;
+})->purpose('Morning initial sync — scrape all listings from the night window (06:00)');
+
+/*
+|--------------------------------------------------------------------------
+| Hourly incremental (07:00-22:00 Europe/Chisinau)
+|--------------------------------------------------------------------------
+| Picks only listings published in the last hour. Fast (≤ 5 min typical),
+| 1 page per category with early-exit. Runs at minute 0 of every hour.
+*/
+Artisan::command('portal:999:scrape:hourly {--agency=1}', function () {
+    $this->info('═══ Hourly incremental — ' . now()->toDateTimeString() . ' ═══');
+
+    $script = base_path('python_scraper/scraper_999.py');
+    if (! file_exists($script)) {
+        $this->error("Script not found at {$script}");
+        return self::FAILURE;
+    }
+
+    $python = env('PYTHON_BIN', 'python');
+    $args = [
+        '--pages=1',
+        '--agency=' . $this->option('agency'),
+        '--skip-recent-hours=0',
+        '--scope-hours=1',
+        '--max-ads=50',
+        '--download-images',
+        '--mode=hourly',
+    ];
+
+    $cmd = $python . ' ' . escapeshellarg($script) . ' ' . implode(' ', $args);
+    $this->info("Running: {$cmd}");
+    $this->newLine();
+
+    $process = Process::fromShellCommandline($cmd);
+    $process->setTimeout(15 * 60); // 15-minute hard timeout
+    $process->run(function ($type, $buffer) {
+        echo $buffer;
+    });
+
+    $exit = $process->getExitCode();
+
+    if ($exit === 0) {
+        app(ScraperHealthService::class)->markSuccessfulRun();
+        return self::SUCCESS;
+    }
+
+    if ($exit === 42) {
+        $this->warn('SCRAPER BLOCKED by 999.md — pausing schedule for 2 hours');
+        Cache::put('scraper_blocked', true, now()->addHours(2));
+        return self::FAILURE;
+    }
+
+    $failures = (int) Cache::get('scraper_recent_failures', 0);
+    Cache::put('scraper_recent_failures', $failures + 1, now()->addHour());
+    return self::FAILURE;
+})->purpose('Hourly incremental — scrape listings from the last hour (07:00-22:00)');
+
 // Auto-sync every 5 hours for every agency that has a 999.md API key configured
 // (or relies on the platform-wide PORTAL_999MD_API_KEY in .env).
 Schedule::call(function () {
@@ -110,34 +227,48 @@ Schedule::call(function () {
         });
 })->cron('0 */5 * * *')->name('999md-sync')->withoutOverlapping();
 
-// 999.md scraper — daily cap configurable via SCRAPER_999_DAILY_CAP (default 200).
-// Spread as 4 runs × ~50 ads at 00/06/12/18 + a top-up at 22:00. Each run is
-// skipped if today's insert count already hit the cap (circuit breaker,
-// evaluated via `->when()` at dispatch time, so the cron-tick stays cheap).
-$dailyCapHit = function () {
-    $cap = (int) env('SCRAPER_999_DAILY_CAP', 200);
-    return \Illuminate\Support\Facades\DB::table('scraped_listings')
-        ->where('source', '999md')
-        ->whereDate('created_at', today())
-        ->count() >= $cap;
-};
+// ═════════════════════════════════════════════════════════════════════
+// 999.md scraping strategy (Europe/Chisinau)
+// ─────────────────────────────────────────────────────────────────────
+//   06:00         → INITIAL SYNC — all listings published during the
+//                   23:00-06:00 night window (--pages=all, 7h scope)
+//   07:00..22:00  → INCREMENTAL — listings published in the last hour
+//   23:00..05:59  → PAUSE (no scraper runs at all)
+// ─────────────────────────────────────────────────────────────────────
+$canRunScraper = fn () => ! app(ScraperHealthService::class)->isBlocked();
 
-// Four scheduled runs (every 6 hours) → max ~200 ads/day even before dedup.
-Schedule::command('portal:999:scrape --pages=2 --skip-recent=1 --today-only --download-images --max-ads=50')
-    ->cron('0 */6 * * *')
-    ->when(fn () => ! $dailyCapHit())
-    ->name('999md-today-scrape')
-    ->withoutOverlapping(55)
+Schedule::command('portal:999:scrape:morning')
+    ->cron('0 6 * * *')
+    ->timezone('Europe/Chisinau')
+    ->when($canRunScraper)
+    ->name('999md-morning-initial-sync')
+    ->withoutOverlapping(75)
+    ->onOneServer()
+    ->runInBackground()
+    ->emailOutputOnFailure(env('MAIL_FROM_ADDRESS'));
+
+Schedule::command('portal:999:scrape:hourly')
+    ->cron('0 7-22 * * *')
+    ->timezone('Europe/Chisinau')
+    ->when($canRunScraper)
+    ->name('999md-hourly-incremental')
+    ->withoutOverlapping(15)
+    ->onOneServer()
     ->runInBackground();
 
-// Daily wrap-up at 22:00 — top up to 200 if earlier runs returned fewer.
-// Same cap guard prevents overshoot when the day was already busy.
-Schedule::command('portal:999:scrape --pages=5 --skip-recent=0 --today-only --download-images --max-ads=50')
-    ->dailyAt('22:00')
-    ->when(fn () => ! $dailyCapHit())
-    ->name('999md-daily-wrap')
-    ->withoutOverlapping(120)
-    ->runInBackground();
+// Watchdog — kills stale scraper processes (heartbeat older than 15 min)
+Schedule::command('scraper:watchdog')
+    ->everyTenMinutes()
+    ->name('scraper-watchdog');
+
+// Batch matching — runs at 06:30, 07:30, ..., 22:30 Chisinau time.
+// Picks up fresh scraped_listings (matched_at IS NULL) and dispatches
+// per-user notifications for any saved searches that match.
+Schedule::job(new BatchMatchingJob())
+    ->cron('30 6-22 * * *')
+    ->timezone('Europe/Chisinau')
+    ->name('batch-matching')
+    ->onOneServer();
 
 // AI valuation refresh — 10 min after each hourly scrape.
 Schedule::command('ai:valuate-scraped')

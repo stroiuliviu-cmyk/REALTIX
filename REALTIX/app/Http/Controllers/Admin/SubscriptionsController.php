@@ -4,44 +4,70 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Agency;
+use App\Models\SubscriptionPlan;
+use App\Services\SuperAdmin\AuditLogger;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class SubscriptionsController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(): Response
     {
-        $now = now();
-
-        $query = Agency::query()
-            ->withCount('users')
-            ->when($request->search, fn ($q, $s) => $q->where('name', 'like', "%{$s}%"))
-            ->when($request->plan, fn ($q, $p) => $q->where('subscription_plan', $p))
-            ->when($request->status === 'trial', fn ($q) => $q->whereNotNull('trial_ends_at')->where('trial_ends_at', '>', $now))
-            ->when($request->status === 'active', fn ($q) => $q->where(function ($q) use ($now) {
-                $q->whereNotNull('subscription_ends_at')->where('subscription_ends_at', '>', $now);
-            }))
-            ->when($request->status === 'expired', fn ($q) => $q->whereNotNull('subscription_ends_at')->where('subscription_ends_at', '<=', $now));
-
-        $agencies = $query->latest()->paginate(25)->withQueryString();
-
-        // Aggregate stats
-        $stats = [
-            'total_agencies'      => Agency::count(),
-            'paying_agencies'     => Agency::whereNotIn('subscription_plan', ['starter'])->count(),
-            'trialing'            => Agency::whereNotNull('trial_ends_at')->where('trial_ends_at', '>', $now)->count(),
-            'expired'             => Agency::whereNotNull('subscription_ends_at')->where('subscription_ends_at', '<=', $now)->count(),
-            'plan_breakdown'      => Agency::selectRaw('subscription_plan, COUNT(*) as total')
-                                        ->groupBy('subscription_plan')
-                                        ->pluck('total', 'subscription_plan')
-                                        ->all(),
-        ];
+        $plans = SubscriptionPlan::orderBy('price_monthly')->get()
+            ->map(function ($p) {
+                $p->agencies_count = Agency::where('subscription_plan', $p->slug)->count();
+                return $p;
+            });
 
         return Inertia::render('Admin/Subscriptions', [
-            'agencies' => $agencies,
-            'filters'  => $request->only(['search', 'plan', 'status']),
-            'stats'    => $stats,
+            'plans' => $plans,
         ]);
+    }
+
+    public function store(Request $request, AuditLogger $audit): RedirectResponse
+    {
+        $data = $request->validate([
+            'name'                 => 'required|string|max:100',
+            'slug'                 => 'required|string|max:50|unique:subscription_plans,slug|regex:/^[a-z0-9_-]+$/',
+            'price_monthly'        => 'required|numeric|min:0',
+            'max_listings'         => 'required|integer',
+            'max_realtors'         => 'required|integer',
+            'seats_included'       => 'required|integer|min:1',
+            'price_per_extra_seat' => 'nullable|numeric|min:0',
+            'stripe_price_id'      => 'nullable|string|max:100',
+        ]);
+        $plan = SubscriptionPlan::create($data);
+        $audit->record('plan.create', $plan, "Plan {$plan->slug} creat");
+        return back()->with('success', "Plan „{$plan->name}\" creat.");
+    }
+
+    public function update(Request $request, SubscriptionPlan $plan, AuditLogger $audit): RedirectResponse
+    {
+        $data = $request->validate([
+            'name'                 => 'sometimes|string|max:100',
+            'price_monthly'        => 'sometimes|numeric|min:0',
+            'max_listings'         => 'sometimes|integer',
+            'max_realtors'         => 'sometimes|integer',
+            'seats_included'       => 'sometimes|integer|min:1',
+            'price_per_extra_seat' => 'sometimes|nullable|numeric|min:0',
+            'stripe_price_id'      => 'sometimes|nullable|string|max:100',
+        ]);
+        $plan->update($data);
+        $audit->record('plan.update', $plan, "Plan {$plan->slug} actualizat", $data);
+        return back()->with('success', "Plan „{$plan->name}\" actualizat.");
+    }
+
+    public function destroy(SubscriptionPlan $plan, AuditLogger $audit): RedirectResponse
+    {
+        $agenciesCount = Agency::where('subscription_plan', $plan->slug)->count();
+        if ($agenciesCount > 0) {
+            return back()->with('error', "Nu poți șterge — {$agenciesCount} agenții sunt pe acest plan.");
+        }
+        $name = $plan->name;
+        $audit->record('plan.delete', null, "Plan {$name} șters");
+        $plan->delete();
+        return back()->with('success', "Plan „{$name}\" șters.");
     }
 }

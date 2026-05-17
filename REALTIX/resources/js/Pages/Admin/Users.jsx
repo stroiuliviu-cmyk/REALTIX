@@ -1,4 +1,4 @@
-import AppLayout from '@/Layouts/AppLayout';
+import SuperAdminLayout from '@/Layouts/SuperAdminLayout';
 import { Head, router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
 
@@ -34,7 +34,7 @@ export default function Users({ users, filters = {}, agencies = [] }) {
     };
 
     return (
-        <AppLayout title="Admin · Utilizatori">
+        <SuperAdminLayout title="Admin · Utilizatori">
             <Head title="Admin · Utilizatori" />
 
             <div className="space-y-4">
@@ -99,7 +99,11 @@ export default function Users({ users, filters = {}, agencies = [] }) {
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {users.data.map(u => {
-                                const role = u.roles?.[0]?.name;
+                                // Pick the highest-privilege role (super_admin > admin > realtor)
+                                // so the badge reflects the user's actual authority, not whichever
+                                // row Spatie happened to load first.
+                                const role = ['super_admin', 'admin', 'realtor']
+                                    .find(r => u.roles?.some(x => x.name === r));
                                 return (
                                     <tr key={u.id} className="hover:bg-slate-50 transition-colors">
                                         <td className="px-5 py-3">
@@ -108,11 +112,24 @@ export default function Users({ users, filters = {}, agencies = [] }) {
                                         </td>
                                         <td className="px-5 py-3 text-slate-700">{u.agency?.name ?? <span className="text-slate-300">—</span>}</td>
                                         <td className="px-5 py-3">
-                                            {role ? (
-                                                <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${ROLE_COLORS[role] ?? 'bg-slate-100 text-slate-600'}`}>
-                                                    {ROLE_LABELS[role] ?? role}
-                                                </span>
-                                            ) : <span className="text-slate-300 text-xs">fără rol</span>}
+                                            <select
+                                                value={role ?? ''}
+                                                onChange={e => {
+                                                    const next = e.target.value;
+                                                    const label = next ? (ROLE_LABELS[next] ?? next) : 'fără rol';
+                                                    if (!confirm(`Schimbi rolul pentru ${u.email} în „${label}"?`)) return;
+                                                    router.patch(route('super-admin.users.set-role', u.id), { role: next || null }, { preserveScroll: true });
+                                                }}
+                                                className={`text-xs font-bold px-2.5 py-1 rounded-full border-0 focus:ring-2 focus:ring-blue-300 cursor-pointer appearance-none ${
+                                                    role ? (ROLE_COLORS[role] ?? 'bg-slate-100 text-slate-600') : 'bg-slate-100 text-slate-400'
+                                                }`}
+                                                title="Schimbă rolul"
+                                            >
+                                                <option value="">fără rol</option>
+                                                <option value="realtor">Agent</option>
+                                                <option value="admin">Admin</option>
+                                                <option value="super_admin">Super Admin</option>
+                                            </select>
                                         </td>
                                         <td className="px-5 py-3">
                                             <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${u.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
@@ -121,6 +138,32 @@ export default function Users({ users, filters = {}, agencies = [] }) {
                                         </td>
                                         <td className="px-5 py-3 text-xs text-slate-500">{fmtDate(u.created_at)}</td>
                                         <td className="px-5 py-3 text-right whitespace-nowrap">
+                                            {role !== 'super_admin' && (
+                                                <button
+                                                    onClick={() => {
+                                                        const reason = prompt(`Imitate user ${u.name}? Motiv (pentru audit):`);
+                                                        if (reason === null) return;
+                                                        router.post(route('super-admin.users.impersonate', u.id), { reason });
+                                                    }}
+                                                    className="text-xs font-semibold text-rose-600 hover:text-rose-800 px-2"
+                                                    title="Impersonate"
+                                                >🎭</button>
+                                            )}
+                                            <button
+                                                onClick={() => {
+                                                    if (!confirm(`Resetează parola pentru ${u.email}? Va apărea noua parolă în mesaj.`)) return;
+                                                    router.post(route('super-admin.users.reset-password', u.id), {}, { preserveScroll: true });
+                                                }}
+                                                className="text-xs font-semibold text-amber-600 hover:text-amber-800 px-2"
+                                                title="Reset password"
+                                            >🔑</button>
+                                            {!u.email_verified_at && (
+                                                <button
+                                                    onClick={() => router.post(route('super-admin.users.force-verify', u.id), {}, { preserveScroll: true })}
+                                                    className="text-xs font-semibold text-emerald-600 hover:text-emerald-800 px-2"
+                                                    title="Force verify email"
+                                                >✉✓</button>
+                                            )}
                                             <button
                                                 onClick={() => toggleActive(u)}
                                                 className="text-xs font-semibold text-slate-600 hover:text-blue-700 px-2"
@@ -169,6 +212,6 @@ export default function Users({ users, filters = {}, agencies = [] }) {
                     </div>
                 )}
             </div>
-        </AppLayout>
+        </SuperAdminLayout>
     );
 }

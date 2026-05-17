@@ -1,4 +1,4 @@
-import AppLayout from '@/Layouts/AppLayout';
+import SuperAdminLayout from '@/Layouts/SuperAdminLayout';
 import { Head, Link } from '@inertiajs/react';
 
 const PLAN_LABELS = { starter: 'Starter', medium: 'Medium', pro: 'Pro' };
@@ -55,7 +55,7 @@ function fmtDate(d) {
 
 export default function Dashboard({ stats, planBreakdown = {}, userTrend = [], recentUsers = [], recentAgencies = [] }) {
     return (
-        <AppLayout title="Admin · Panou de control">
+        <SuperAdminLayout title="Admin · Panou de control">
             <Head title="Admin · Dashboard" />
 
             <div className="space-y-6">
@@ -155,6 +155,6 @@ export default function Dashboard({ stats, planBreakdown = {}, userTrend = [], r
                     </div>
                 </div>
             </div>
-        </AppLayout>
+        </SuperAdminLayout>
     );
 }

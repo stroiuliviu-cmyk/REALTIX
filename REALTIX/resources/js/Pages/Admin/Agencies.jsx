@@ -1,5 +1,5 @@
-import AppLayout from '@/Layouts/AppLayout';
-import { Head, router } from '@inertiajs/react';
+import SuperAdminLayout from '@/Layouts/SuperAdminLayout';
+import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 
 const PLAN_LABELS = { starter: 'Starter', medium: 'Medium', pro: 'Pro' };
@@ -29,7 +29,7 @@ export default function Agencies({ agencies, filters = {} }) {
     };
 
     return (
-        <AppLayout title="Admin · Agenții">
+        <SuperAdminLayout title="Admin · Agenții">
             <Head title="Admin · Agenții" />
 
             <div className="space-y-4">
@@ -94,13 +94,15 @@ export default function Agencies({ agencies, filters = {} }) {
                                     <td className="px-5 py-3 text-center text-slate-700">{a.deals_count}</td>
                                     <td className="px-5 py-3 text-xs text-slate-500">{fmtDate(a.trial_ends_at)}</td>
                                     <td className="px-5 py-3 text-xs text-slate-500">{fmtDate(a.created_at)}</td>
-                                    <td className="px-5 py-3 text-right">
+                                    <td className="px-5 py-3 text-right whitespace-nowrap">
+                                        <Link
+                                            href={route('super-admin.agencies.show', a.id)}
+                                            className="text-xs font-semibold text-blue-600 hover:text-blue-800 px-2"
+                                        >Detalii</Link>
                                         <button
                                             onClick={() => remove(a)}
                                             className="text-xs font-semibold text-red-600 hover:text-red-700 px-2"
-                                        >
-                                            Șterge
-                                        </button>
+                                        >Șterge</button>
                                     </td>
                                 </tr>
                             ))}
@@ -136,6 +138,6 @@ export default function Agencies({ agencies, filters = {} }) {
                     </div>
                 )}
             </div>
-        </AppLayout>
+        </SuperAdminLayout>
     );
 }

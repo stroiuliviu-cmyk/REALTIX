@@ -38,8 +38,12 @@ return [
     ],
 
     'plan_features' => [
-        'starter' => ['crm', 'properties', 'calendar'],
-        'medium'  => ['crm', 'properties', 'calendar', 'ai_tools', 'scraper', 'pdf_contracts', 'autoposting', 'team'],
+        // All features are available on every plan. The only differentiators
+        // are seats (Solo=1 / Team=5 / Growth=5+8€/seat) and max listings
+        // (Solo=10 / Team=100 / Growth=∞). The `team` feature still gates
+        // multi-agent invitations to Team/Growth because Solo has 1 seat.
+        'starter' => ['crm', 'properties', 'calendar', 'ai_tools', 'scraper', 'pdf_contracts', 'autoposting', 'analytics', 'export', 'white_label', 'api'],
+        'medium'  => ['crm', 'properties', 'calendar', 'ai_tools', 'scraper', 'pdf_contracts', 'autoposting', 'team', 'analytics', 'export', 'white_label', 'api'],
         'pro'     => ['crm', 'properties', 'calendar', 'ai_tools', 'scraper', 'pdf_contracts', 'autoposting', 'team', 'analytics', 'export', 'white_label', 'api'],
     ],
 
@@ -56,20 +60,25 @@ return [
         'api'           => 'API public',
     ],
 
-    // Minimum plan needed for each feature (used by UpgradeLock)
+    // Minimum plan needed for each feature (used by UpgradeLock).
+    // Only `team` is gated — every other feature is available on every plan.
     'feature_min_plan' => [
-        'ai_tools'      => 'medium',
-        'scraper'       => 'medium',
-        'pdf_contracts' => 'medium',
-        'autoposting'   => 'medium',
-        'team'          => 'medium',
-        'analytics'     => 'pro',
-        'export'        => 'pro',
-        'white_label'   => 'pro',
-        'api'           => 'pro',
+        'team' => 'medium',
     ],
 
     // Plans that allow inviting agents and showing multi-agency switcher.
-    // Starter is single-user only.
+    // Solo is single-user only.
     'team_plans' => ['medium', 'pro'],
+
+    // Stripe Price IDs per plan slug (overridden per-agency by SubscriptionPlan.stripe_price_id when set)
+    'stripe_prices' => [
+        'starter' => env('STRIPE_PRICE_STARTER'),
+        'medium'  => env('STRIPE_PRICE_MEDIUM'),
+        'pro'     => env('STRIPE_PRICE_PRO'),
+    ],
+
+    // Per-seat overage Price ID (only Pro). 8€ per agent above the 5 included.
+    'stripe_extra_seat_prices' => [
+        'pro' => env('STRIPE_PRICE_PRO_EXTRA_SEAT'),
+    ],
 ];

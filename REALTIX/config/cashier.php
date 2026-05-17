@@ -63,7 +63,9 @@ return [
     |
     */
 
-    'currency' => env('CASHIER_CURRENCY', 'usd'),
+    'currency' => env('CASHIER_CURRENCY', 'eur'),
+
+    'model' => env('CASHIER_MODEL', \App\Models\Agency::class),
 
     /*
     |--------------------------------------------------------------------------
@@ -76,7 +78,7 @@ return [
     |
     */
 
-    'currency_locale' => env('CASHIER_CURRENCY_LOCALE', 'en'),
+    'currency_locale' => env('CASHIER_CURRENCY_LOCALE', 'ro_MD'),
 
     /*
     |--------------------------------------------------------------------------

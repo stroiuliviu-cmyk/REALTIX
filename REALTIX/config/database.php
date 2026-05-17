@@ -44,6 +44,16 @@ return [
             'transaction_mode' => 'DEFERRED',
         ],
 
+        // Read-only pointer to the original SQLite file. Used during the
+        // SQLite → Postgres data migration so we can SELECT from the legacy
+        // store without changing the default connection.
+        'sqlite_legacy' => [
+            'driver' => 'sqlite',
+            'database' => database_path('database.sqlite'),
+            'prefix' => '',
+            'foreign_key_constraints' => false,
+        ],
+
         'mysql' => [
             'driver' => 'mysql',
             'url' => env('DB_URL'),

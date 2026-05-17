@@ -14,7 +14,7 @@ const TYPES = [
 const TRANSACTIONS = [
     { v: 'sale',      l: 'Vânzare' },
     { v: 'rent',      l: 'Chirie' },
-    { v: 'rent_short',l: 'Chirie scurtă' },
+    { v: 'inchiriere_zilnica', l: 'Închiriere zilnică' },
     { v: 'new_build', l: 'Construcție nouă' },
 ];
 const CONDITIONS = [
@@ -30,7 +30,7 @@ const FEATURES = [
     { k: 'ac',        l: 'Aer condiționat' },
     { k: 'elevator',  l: 'Lift' },
 ];
-const LOCALES = [{ v: 'ro', l: 'RO — Română' }, { v: 'ru', l: 'RU — Rusă' }, { v: 'en', l: 'EN — Engleză' }];
+const LOCALES = [{ v: 'ro', l: 'RO — Română' }, { v: 'ru', l: 'RU — Rusă' }];
 const STYLES  = [
     { v: 'short',    l: '⚡ Scurt',    desc: '80-100 cuvinte' },
     { v: 'detailed', l: '📋 Detaliat', desc: '150-200 cuvinte' },
@@ -203,7 +203,7 @@ export default function AiToolsIndex() {
 
                     {/* ── LEFT: Property data form ── */}
                     <div className="xl:col-span-2 bg-white rounded-3xl border border-slate-100 shadow-sm p-6 space-y-5">
-                        <h2 className="font-bold text-slate-800 text-sm uppercase tracking-wide text-slate-400">Date proprietate</h2>
+                        <h2 className="font-bold text-slate-400 text-sm uppercase tracking-wide">Date proprietate</h2>
 
                         {/* Type */}
                         <Field label="Tip proprietate">
@@ -445,7 +445,7 @@ export default function AiToolsIndex() {
                                         </button>
 
                                         {priceResult && valCfg && (
-                                            <div className="rounded-2xl border border-slate-100 bg-slate-50 p-5 space-y-4 border-t border-slate-100 pt-5">
+                                            <div className="rounded-2xl border border-slate-100 bg-slate-50 p-5 space-y-4 pt-5">
                                                 {/* Price range + badge */}
                                                 <div className="flex items-end justify-between gap-3">
                                                     <div>

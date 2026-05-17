@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Head, router, Link } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
+import Combobox from '@/Components/Combobox';
+import { MOLDOVA_LOCALITIES, CHISINAU_DISTRICTS } from '@/Constants/moldova';
 
 // ── styles ─────────────────────────────────────────────────────────────────
 const inputCls =
@@ -15,10 +17,9 @@ const TYPES = [
     { value: 'land',      label: 'Teren',      icon: '🌿' },
 ];
 const TRANSACTIONS = [
-    { value: 'sale',      label: 'Vânzare' },
-    { value: 'rent',      label: 'Chirie' },
-    { value: 'rent_short',label: 'Posut.' },
-    { value: 'new_build', label: 'Construcție nouă' },
+    { value: 'sale',               label: 'Vânzare' },
+    { value: 'rent',               label: 'Chirie' },
+    { value: 'inchiriere_zilnica', label: 'Zilnică' },
 ];
 const CONDITIONS = [
     { value: '',                label: '— Nedefinit —' },
@@ -36,7 +37,7 @@ const FEATURES = [
 ];
 const TRACKED = ['title', 'type', 'transaction_type', 'city', 'price', 'area_total', 'rooms', 'address', 'district', 'description_ro'];
 
-const AI_LOCALES = [{ v: 'ro', l: 'RO' }, { v: 'ru', l: 'RU' }, { v: 'en', l: 'EN' }];
+const AI_LOCALES = [{ v: 'ro', l: 'RO' }, { v: 'ru', l: 'RU' }];
 const AI_STYLES  = [
     { v: 'short',    l: 'Scurt' },
     { v: 'detailed', l: 'Detaliat' },
@@ -122,6 +123,28 @@ function completion(data, photoCount) {
     return { filled, total, pct: Math.round((filled / total) * 100) };
 }
 
+function youtubeId(url) {
+    if (!url) return null;
+    const m = String(url).match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{11})/);
+    return m ? m[1] : null;
+}
+
+function YoutubeEmbed({ url }) {
+    const id = youtubeId(url);
+    if (!id) return null;
+    return (
+        <div className="mt-3 aspect-video rounded-xl overflow-hidden bg-black">
+            <iframe
+                src={`https://www.youtube.com/embed/${id}`}
+                title="YouTube preview"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="w-full h-full"
+            />
+        </div>
+    );
+}
+
 // ── main component ───────────────────────────────────────────────────────────
 export default function Create({ authUser = {} }) {
     const [data, setDataRaw] = useState({
@@ -179,11 +202,33 @@ export default function Create({ authUser = {} }) {
     }, []);
 
     // ── photo helpers ─────────────────────────────────────────────────────────
+    const ALLOWED_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+    const MAX_PHOTO_BYTES     = 5 * 1024 * 1024;
+    const [photoError, setPhotoError] = useState('');
+
     const addPhotos = useCallback((fileList) => {
-        const allowed = 15 - photoFiles.length;
-        const newFiles = [...fileList].slice(0, allowed);
+        const rejected = [];
+        const accepted = [];
+        for (const f of fileList) {
+            if (!ALLOWED_PHOTO_TYPES.includes(f.type)) {
+                rejected.push(`${f.name}: tip nepermis (doar JPG, PNG, WebP)`);
+                continue;
+            }
+            if (f.size > MAX_PHOTO_BYTES) {
+                rejected.push(`${f.name}: depășește 5 MB`);
+                continue;
+            }
+            accepted.push(f);
+        }
+        const allowed   = 15 - photoFiles.length;
+        const newFiles  = accepted.slice(0, allowed);
+        const overflow  = accepted.length - newFiles.length;
         setPhotoFiles(prev => [...prev, ...newFiles]);
         setPhotoPreviews(prev => [...prev, ...newFiles.map(f => URL.createObjectURL(f))]);
+
+        const errs = [...rejected];
+        if (overflow > 0) errs.push(`${overflow} foto peste limita de 15`);
+        setPhotoError(errs.length ? errs.join(' · ') : '');
     }, [photoFiles.length]);
 
     const removePhoto = useCallback((idx) => {
@@ -226,10 +271,13 @@ export default function Create({ authUser = {} }) {
 
     const aiPropertyData = {
         type: data.type, transaction_type: data.transaction_type,
-        city: data.city, district: data.district,
-        area_total: data.area_total, rooms: data.rooms,
+        title: data.title,
+        city: data.city, district: data.district, address: data.address,
+        area_total: data.area_total, area_living: data.area_living, rooms: data.rooms,
         floor: data.floor, floors_total: data.floors_total,
         price: data.price, currency: data.currency,
+        description_ro: data.description_ro,
+        description_ru: data.description_ru,
         meta: data.meta,
     };
 
@@ -256,7 +304,7 @@ export default function Create({ authUser = {} }) {
         } finally {
             setAiDescLoading(false);
         }
-    }, [data.city, data.type, data.transaction_type, data.district, data.area_total, data.rooms, data.price, data.currency, data.meta, aiLocale, aiStyle]);
+    }, [data.city, data.type, data.transaction_type, data.district, data.area_total, data.rooms, data.price, data.currency, data.description_ro, data.description_ru, data.meta, aiLocale, aiStyle]);
 
     const handleAiPrice = useCallback(async () => {
         if (!data.city) { setAiError('Completați cel puțin orașul pentru estimare.'); return; }
@@ -279,53 +327,27 @@ export default function Create({ authUser = {} }) {
         } finally {
             setAiPriceLoading(false);
         }
-    }, [data.city, data.type, data.transaction_type, data.district, data.area_total, data.rooms, data.price, data.currency, data.meta]);
+    }, [data.city, data.type, data.transaction_type, data.district, data.area_total, data.rooms, data.price, data.currency, data.description_ro, data.description_ru, data.meta]);
 
     const { filled, total, pct } = completion(data, photoFiles.length);
     const typeLabel = TYPES.find(t => t.value === data.type)?.label ?? '';
     const txLabel   = TRANSACTIONS.find(t => t.value === data.transaction_type)?.label ?? '';
-    const isRent    = data.transaction_type === 'rent' || data.transaction_type === 'rent_short';
+    const isRent    = data.transaction_type === 'rent' || data.transaction_type === 'inchiriere_zilnica';
 
     return (
         <AppLayout title="Proprietate nouă">
             <Head title="Proprietate nouă" />
 
-            {/* ── top action bar ─────────────────────────────────────────── */}
-            <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
-                <div>
-                    <h1 className="text-xl font-bold text-slate-900">Adaugă proprietate nouă</h1>
-                    <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-2">
-                        <span>
-                            <span className={`font-semibold ${pct === 100 ? 'text-green-600' : 'text-blue-600'}`}>{filled}</span>
-                            /{total} câmpuri completate
-                        </span>
-                        {autoSaved && <span className="text-slate-400">· Salvat local {autoSaved}</span>}
-                    </p>
-                </div>
-                <div className="flex gap-2 flex-wrap">
-                    <button
-                        type="button"
-                        onClick={() => submit('active')}
-                        disabled={processing}
-                        className="rounded-xl bg-green-600 hover:bg-green-700 text-white px-5 py-2 text-sm font-semibold shadow transition-colors disabled:opacity-50"
-                    >
-                        {processing ? 'Se salvează…' : '✓ Salvează activ'}
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => submit('draft')}
-                        disabled={processing}
-                        className="rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 px-5 py-2 text-sm font-semibold transition-colors disabled:opacity-40"
-                    >
-                        Salvează schiță
-                    </button>
-                    <Link
-                        href={route('properties.index')}
-                        className="rounded-xl border border-slate-200 px-5 py-2 text-sm text-slate-500 hover:bg-slate-50 transition-colors"
-                    >
-                        Anulează
-                    </Link>
-                </div>
+            {/* ── header (action buttons live at the bottom) ──────────────── */}
+            <div className="mb-6">
+                <h1 className="text-xl font-bold text-slate-900">Adaugă proprietate nouă</h1>
+                <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-2">
+                    <span>
+                        <span className={`font-semibold ${pct === 100 ? 'text-green-600' : 'text-blue-600'}`}>{filled}</span>
+                        /{total} câmpuri completate
+                    </span>
+                    {autoSaved && <span className="text-slate-400">· Salvat local {autoSaved}</span>}
+                </p>
             </div>
 
             {/* ── two-column layout ──────────────────────────────────────── */}
@@ -361,23 +383,6 @@ export default function Create({ authUser = {} }) {
                             </div>
                         </div>
 
-                        {/* Rental purpose */}
-                        {isRent && (
-                            <div>
-                                <label className="block text-xs font-semibold text-slate-500 mb-2">Destinație închiriere</label>
-                                <div className="flex gap-2">
-                                    {[
-                                        { value: 'long_term',  label: 'Termen lung' },
-                                        { value: 'short_term', label: 'Termen scurt' },
-                                    ].map(o => (
-                                        <PillBtn key={o.value} active={data.meta.rental_purpose === o.value} onClick={() => setMeta('rental_purpose', o.value)}>
-                                            {o.label}
-                                        </PillBtn>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
                         {/* Title */}
                         <Field label="Titlu anunț" required error={errors.title}>
                             <input
@@ -388,13 +393,29 @@ export default function Create({ authUser = {} }) {
                             />
                         </Field>
 
-                        {/* City / District */}
+                        {/* City / District — autocomplete combobox like Web Offers */}
                         <div className="grid grid-cols-2 gap-3">
                             <Field label="Oraș" required error={errors.city}>
-                                <input value={data.city} onChange={e => setData('city', e.target.value)} className={inputCls} />
+                                <Combobox
+                                    value={data.city}
+                                    onChange={v => setData('city', v)}
+                                    options={MOLDOVA_LOCALITIES}
+                                    placeholder="Ex: Chișinău"
+                                />
                             </Field>
                             <Field label="Sector / District" error={errors.district}>
-                                <input value={data.district} onChange={e => setData('district', e.target.value)} className={inputCls} placeholder="ex: Buiucani" />
+                                {(() => {
+                                    const isChisinau = (data.city ?? '').trim().toLowerCase().startsWith('chișinău')
+                                                    || (data.city ?? '').trim().toLowerCase().startsWith('chisinau');
+                                    return (
+                                        <Combobox
+                                            value={data.district}
+                                            onChange={v => setData('district', v)}
+                                            options={isChisinau ? CHISINAU_DISTRICTS : []}
+                                            placeholder={isChisinau ? 'Ex: Botanica' : 'Ex: Centru'}
+                                        />
+                                    );
+                                })()}
                             </Field>
                         </div>
 
@@ -693,8 +714,12 @@ export default function Create({ authUser = {} }) {
                                 <p className="text-xs text-slate-400 mt-1">
                                     Mai poți adăuga {15 - photoFiles.length} foto · max 5 MB/foto · JPG, PNG, WebP
                                 </p>
-                                <input id="photo-input" type="file" accept="image/*" multiple className="hidden" onChange={e => addPhotos(e.target.files)} />
+                                <input id="photo-input" type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden" onChange={e => addPhotos(e.target.files)} />
                             </div>
+                        )}
+
+                        {photoError && (
+                            <p className="text-xs text-rose-600 mt-2">{photoError}</p>
                         )}
 
                         {photoPreviews.length > 0 && (
@@ -735,6 +760,7 @@ export default function Create({ authUser = {} }) {
                                 className={inputCls}
                                 placeholder="https://youtube.com/watch?v=..."
                             />
+                            <YoutubeEmbed url={data.meta.video_url} />
                         </Field>
                     </SectionCard>
 

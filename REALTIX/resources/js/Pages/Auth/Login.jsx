@@ -123,12 +123,6 @@ function MarketChart() {
    LEFT PANEL
 ═══════════════════════════════════════════════════════════════════ */
 function LeftPanel({ t }) {
-    const stats = [
-        { value: '2,400+', label: t('auth.stat_agents'),       delay: 'stat-card' },
-        { value: '€120M',  label: t('auth.stat_transactions'), delay: 'stat-card-2' },
-        { value: '98%',    label: t('auth.stat_satisfaction'), delay: 'stat-card-3' },
-    ];
-
     const trust = [
         { icon: '🔒', text: 'SSL 256-bit' },
         { icon: '🛡️', text: 'GDPR Compliant' },
@@ -165,34 +159,20 @@ function LeftPanel({ t }) {
                     <div className="mb-2">
                         <span className="text-xs font-semibold tracking-[0.3em] uppercase"
                             style={{ color: '#3b82f6' }}>
-                            Real Estate Platform
+                            Platformă imobiliară
                         </span>
                     </div>
 
                     <h1 className="text-5xl font-black text-white leading-tight mb-6">
-                        Find. Value.<br />
+                        Găsește. Evaluează.<br />
                         <span style={{ background: 'linear-gradient(90deg, #3b82f6, #10b981)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                            Sell. Faster.
+                            Vinde mai rapid.
                         </span>
                     </h1>
 
-                    <p className="text-base leading-relaxed mb-10" style={{ color: '#94a3b8', maxWidth: '420px' }}>
+                    <p className="text-base leading-relaxed" style={{ color: '#94a3b8', maxWidth: '420px' }}>
                         {t('auth.platform_sub')}
                     </p>
-
-                    <div className="flex gap-4">
-                        {stats.map(({ value, label, delay }) => (
-                            <div key={label} className={`${delay} rounded-2xl px-5 py-4`}
-                                style={{
-                                    background: 'rgba(255,255,255,0.04)',
-                                    border: '1px solid rgba(255,255,255,0.08)',
-                                    backdropFilter: 'blur(12px)',
-                                }}>
-                                <div className="text-2xl font-black text-white mb-0.5">{value}</div>
-                                <div className="text-xs font-medium" style={{ color: '#64748b' }}>{label}</div>
-                            </div>
-                        ))}
-                    </div>
                 </div>
 
                 <div className="flex items-center gap-6 pt-8 border-t" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
@@ -244,19 +224,6 @@ function LoadingOverlay({ t }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   SOCIAL BUTTON
-═══════════════════════════════════════════════════════════════════ */
-function SocialBtn({ href, logo, label }) {
-    return (
-        <a href={href}
-            className="social-btn flex items-center justify-center gap-2.5 rounded-xl bg-white px-4 py-2.5 text-sm font-medium text-slate-700">
-            {logo}
-            <span>{label}</span>
-        </a>
-    );
-}
-
-/* ═══════════════════════════════════════════════════════════════════
    MAIN COMPONENT
 ═══════════════════════════════════════════════════════════════════ */
 export default function Login({ status, canResetPassword }) {
@@ -295,12 +262,12 @@ export default function Login({ status, canResetPassword }) {
             <LeftPanel t={t} />
 
             {/* ── RIGHT ── */}
-            <div className="flex-1 flex items-center justify-center p-6 sm:p-10"
+            <div className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-10"
                 style={{ background: '#f1f5f9' }}>
 
                 <div className="form-enter w-full" style={{ maxWidth: '420px' }}>
 
-                    <div className="rounded-3xl bg-white p-8"
+                    <div className="rounded-3xl bg-white p-5 sm:p-8"
                         style={{ boxShadow: '0 20px 60px rgba(0,0,0,0.08), 0 4px 20px rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.04)' }}>
 
                         {/* Header */}
@@ -443,54 +410,6 @@ export default function Login({ status, canResetPassword }) {
                             </button>
                         </form>
 
-                        {/* Divider */}
-                        <div className="relative my-5">
-                            <div className="absolute inset-0 flex items-center">
-                                <div className="w-full border-t" style={{ borderColor: '#f1f5f9' }} />
-                            </div>
-                            <div className="relative flex justify-center">
-                                <span className="bg-white px-3 text-xs font-medium" style={{ color: '#94a3b8' }}>
-                                    {t('auth.or_with')}
-                                </span>
-                            </div>
-                        </div>
-
-                        {/* Social */}
-                        <div className="grid grid-cols-3 gap-2.5">
-                            <SocialBtn
-                                href={route('social.redirect', 'google')}
-                                label="Google"
-                                logo={
-                                    <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-                                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                                    </svg>
-                                }
-                            />
-                            <SocialBtn
-                                href={route('social.redirect', 'apple')}
-                                label="Apple"
-                                logo={
-                                    <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                                        <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
-                                    </svg>
-                                }
-                            />
-                            <SocialBtn
-                                href={route('social.redirect', 'microsoft')}
-                                label="Microsoft"
-                                logo={
-                                    <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-                                        <path fill="#f25022" d="M1 1h10v10H1z"/>
-                                        <path fill="#00a4ef" d="M13 1h10v10H13z"/>
-                                        <path fill="#7fba00" d="M1 13h10v10H1z"/>
-                                        <path fill="#ffb900" d="M13 13h10v10H13z"/>
-                                    </svg>
-                                }
-                            />
-                        </div>
                     </div>
 
                     {/* Footer */}

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import UpgradeLock from '@/Components/UpgradeLock';
@@ -8,7 +8,6 @@ import { useFeature } from '@/Hooks/useFeature';
 const PLATFORM_META = {
     '999md':         { label: '999.md',        icon: '🏠', color: 'bg-orange-100 text-orange-700 border-orange-200' },
     'facebook':      { label: 'Facebook',       icon: '📘', color: 'bg-blue-100 text-blue-700 border-blue-200' },
-    'olx':           { label: 'OLX',            icon: '🛒', color: 'bg-teal-100 text-teal-700 border-teal-200' },
     'imobiliare_md': { label: 'Imobiliare.md',  icon: '🏡', color: 'bg-green-100 text-green-700 border-green-200' },
 };
 
@@ -42,9 +41,9 @@ function PlatformChip({ platform }) {
 }
 
 // ── New request modal ─────────────────────────────────────────────────────────
-function NewRequestModal({ properties, platforms, onClose }) {
-    const [propertyId, setPropertyId] = useState('');
-    const [selected,   setSelected]   = useState(['999md']);
+function NewRequestModal({ properties, platforms, onClose, initialPropertyId = '' }) {
+    const [propertyId, setPropertyId] = useState(initialPropertyId ? String(initialPropertyId) : '');
+    const [selected,   setSelected]   = useState(platforms.slice(0, 1));
     const [watermark,  setWatermark]  = useState(true);
     const [processing, setProcessing] = useState(false);
     const { errors } = usePage().props;
@@ -267,6 +266,7 @@ function ApproveModal({ req, allPlatforms, onClose }) {
 function RequestCard({ req, isAdmin, platforms, onApprove, onReject }) {
     const [cancelling, setCancelling] = useState(false);
     const [removing,   setRemoving]   = useState(false);
+    const [publishing, setPublishing] = useState(false);
 
     const cancel = () => {
         if (!confirm('Anulezi această cerere?')) return;
@@ -278,6 +278,12 @@ function RequestCard({ req, isAdmin, platforms, onApprove, onReject }) {
         if (!confirm('Retragi anunțul de pe toate platformele?')) return;
         setRemoving(true);
         router.post(`/autopost/${req.id}/remove`, {}, { onFinish: () => setRemoving(false) });
+    };
+
+    const publishNow = () => {
+        if (!confirm('Publici acum (anulează programarea)?')) return;
+        setPublishing(true);
+        router.post(`/autopost/${req.id}/publish-now`, {}, { onFinish: () => setPublishing(false) });
     };
 
     return (
@@ -350,7 +356,7 @@ function RequestCard({ req, isAdmin, platforms, onApprove, onReject }) {
             </p>
 
             {/* Actions */}
-            {(isAdmin && (req.status === 'pending' || req.status === 'posted')) || (!isAdmin && req.status === 'pending') ? (
+            {(isAdmin && ['pending', 'posted', 'scheduled'].includes(req.status)) || (!isAdmin && req.status === 'pending') ? (
                 <div className="flex flex-wrap gap-2 pt-1 border-t border-slate-100">
                     {isAdmin && req.status === 'pending' && (
                         <>
@@ -363,6 +369,12 @@ function RequestCard({ req, isAdmin, platforms, onApprove, onReject }) {
                                 ✕ Respinge
                             </button>
                         </>
+                    )}
+                    {isAdmin && req.status === 'scheduled' && (
+                        <button onClick={publishNow} disabled={publishing}
+                            className="flex items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 text-xs font-semibold transition-colors disabled:opacity-50">
+                            🚀 {publishing ? 'Se publică…' : 'Publică acum'}
+                        </button>
                     )}
                     {isAdmin && req.status === 'posted' && (
                         <button onClick={removeAll} disabled={removing}
@@ -389,6 +401,19 @@ export default function AutoPostIndex({ requests = [], properties = [], isAdmin 
     const [rejectId,     setRejectId]  = useState(null);
     const [approveReq,   setApprove]   = useState(null);
     const [statusFilter, setFilter]    = useState('all');
+    const [initialPropertyId, setInitialPropertyId] = useState('');
+
+    // Auto-open the new-request modal pre-filled with the property when the user
+    // lands here from /properties/{id} via "Autopostare" button.
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const pid    = parseInt(params.get('property_id') ?? '', 10);
+        if (pid && properties.some(p => p.id === pid)) {
+            setInitialPropertyId(pid);
+            setShowForm(true);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const statusCounts = requests.reduce((acc, r) => ({ ...acc, [r.status]: (acc[r.status] ?? 0) + 1 }), {});
     const pending      = requests.filter(r => r.status === 'pending');
@@ -399,17 +424,11 @@ export default function AutoPostIndex({ requests = [], properties = [], isAdmin 
         <AppLayout title="Autopostare">
             <Head title="Autopostare" />
 
-            {flash?.success && (
-                <div className="mb-5 rounded-2xl bg-emerald-50 border border-emerald-200 px-5 py-3 text-sm text-emerald-800">
-                    ✓ {flash.success}
-                </div>
-            )}
-
             {!autopostAllowed && (
                 <UpgradeLock feature="autoposting" mode="banner" className="mb-5" />
             )}
 
-            {showForm   && <NewRequestModal properties={properties} platforms={platforms} onClose={() => setShowForm(false)} />}
+            {showForm   && <NewRequestModal properties={properties} platforms={platforms} initialPropertyId={initialPropertyId} onClose={() => { setShowForm(false); setInitialPropertyId(''); }} />}
             {rejectId   && <RejectModal requestId={rejectId} onClose={() => setRejectId(null)} />}
             {approveReq && <ApproveModal req={approveReq} allPlatforms={platforms} onClose={() => setApprove(null)} />}
 

@@ -91,6 +91,28 @@ function ProfileTab({ user }) {
 
     const submit = (e) => { e.preventDefault(); patch(route('settings.profile')); };
 
+    const avatarInputRef = useRef(null);
+    const [avatarUploading, setAvatarUploading] = useState(false);
+
+    const handleAvatarChange = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setAvatarUploading(true);
+        router.post(route('settings.profile.avatar'), { avatar: file }, {
+            forceFormData: true,
+            preserveScroll: true,
+            onFinish: () => {
+                setAvatarUploading(false);
+                if (avatarInputRef.current) avatarInputRef.current.value = '';
+            },
+        });
+    };
+
+    const handleAvatarRemove = () => {
+        if (!confirm('Ștergi fotografia de profil?')) return;
+        router.delete(route('settings.profile.avatar.remove'), { preserveScroll: true });
+    };
+
     const contactFields = [
         { key: 'phone',    label: 'Telefon',   icon: '📞', type: 'tel' },
         { key: 'whatsapp', label: 'WhatsApp',  icon: '💬', type: 'tel' },
@@ -102,15 +124,46 @@ function ProfileTab({ user }) {
         <form onSubmit={submit} className="space-y-6 max-w-lg">
             {/* Avatar */}
             <div className="flex items-center gap-5">
-                <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center text-3xl font-black text-blue-700 shrink-0">
-                    {user.name?.[0]?.toUpperCase() ?? '?'}
-                </div>
+                {user.avatar_path ? (
+                    <img
+                        src={`/storage/${user.avatar_path}`}
+                        alt={user.name}
+                        className="w-20 h-20 rounded-full object-cover shrink-0"
+                    />
+                ) : (
+                    <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center text-3xl font-black text-blue-700 shrink-0">
+                        {user.name?.[0]?.toUpperCase() ?? '?'}
+                    </div>
+                )}
                 <div>
                     <div className="font-bold text-slate-900">{user.name}</div>
                     <div className="text-sm text-slate-500">{user.email}</div>
-                    <button type="button" className="text-xs text-blue-700 hover:underline mt-1">
-                        Schimbă fotografia
-                    </button>
+                    <input
+                        ref={avatarInputRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        onChange={handleAvatarChange}
+                        className="hidden"
+                    />
+                    <div className="flex items-center gap-3 mt-1">
+                        <button
+                            type="button"
+                            onClick={() => avatarInputRef.current?.click()}
+                            disabled={avatarUploading}
+                            className="text-xs text-blue-700 hover:underline disabled:opacity-60"
+                        >
+                            {avatarUploading ? 'Se încarcă...' : 'Schimbă fotografia'}
+                        </button>
+                        {user.avatar_path && (
+                            <button
+                                type="button"
+                                onClick={handleAvatarRemove}
+                                className="text-xs text-red-600 hover:underline"
+                            >
+                                Șterge
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -342,8 +395,75 @@ function AgencyTab({ agency }) {
 
 // ─── Users Tab ────────────────────────────────────────────────────────────────
 
-function UsersTab({ agents, invitations = [], currentUserId, canInvite = true, agencyPlan = 'starter' }) {
+function LoginHistoryModal({ agent, onClose }) {
+    const [logs, setLogs] = useState(null);
+
+    useEffect(() => {
+        fetch(route('settings.users.login-history', agent.id))
+            .then(r => r.json())
+            .then(d => setLogs(d.logs ?? []))
+            .catch(() => setLogs([]));
+    }, [agent.id]);
+
+    return (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+            <div onClick={e => e.stopPropagation()} className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col">
+                <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                    <h3 className="text-base font-bold text-slate-900">Istoric login — {agent.name}</h3>
+                    <button onClick={onClose} className="text-slate-400 hover:text-slate-700 text-lg">✕</button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto">
+                    {logs === null ? (
+                        <p className="p-8 text-center text-sm text-slate-400">Se încarcă…</p>
+                    ) : logs.length === 0 ? (
+                        <p className="p-8 text-center text-sm text-slate-400">Niciun log de autentificare.</p>
+                    ) : (
+                        <table className="w-full text-sm">
+                            <thead className="bg-slate-50 text-xs font-bold text-slate-500 uppercase tracking-wider sticky top-0">
+                                <tr>
+                                    <th className="text-left px-4 py-2">Time</th>
+                                    <th className="text-left px-4 py-2">Action</th>
+                                    <th className="text-left px-4 py-2">IP</th>
+                                    <th className="text-left px-4 py-2">Device</th>
+                                    <th className="text-left px-4 py-2">Browser</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {logs.map(l => (
+                                    <tr key={l.id} className="hover:bg-slate-50/50">
+                                        <td className="px-4 py-2 text-xs text-slate-500 font-mono whitespace-nowrap">
+                                            {new Date(l.created_at).toLocaleString('ro-RO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                        </td>
+                                        <td className="px-4 py-2">
+                                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${l.action === 'auth.failed' ? 'bg-rose-100 text-rose-700' : l.action === 'auth.login' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                                                {l.action.replace('auth.', '')}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-2 font-mono text-xs text-slate-600">{l.ip ?? '—'}</td>
+                                        <td className="px-4 py-2 text-xs text-slate-700">{l.device}</td>
+                                        <td className="px-4 py-2 text-xs text-slate-700">{l.browser}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function UsersTab({ agents, invitations = [], currentUserId, canInvite = true, canInviteMore = true, seatsUsed = 0, seatsLimit = null, agencyPlan = 'starter' }) {
     const [showInvite, setShowInvite] = useState(false);
+    const [historyAgent, setHistoryAgent] = useState(null);
+
+    const planLabels = { starter: 'Solo', medium: 'Team', pro: 'Growth' };
+    const planLabel = planLabels[agencyPlan] ?? agencyPlan;
+    const seatLabel = seatsLimit === null
+        ? `${seatsUsed} agenți (nelimitat)`
+        : `${seatsUsed} / ${seatsLimit} agenți`;
+    const nearLimit = seatsLimit !== null && seatsUsed >= seatsLimit - 1;
 
     const invite = useForm({ email: '', role: 'realtor' });
     const submitInvite = (e) => {
@@ -382,41 +502,69 @@ function UsersTab({ agents, invitations = [], currentUserId, canInvite = true, a
 
     return (
         <div className="space-y-5">
-            {/* Plan-gated banner */}
+            {/* Plan-gated banner: Solo can't invite at all */}
             {!canInvite && (
                 <div className="rounded-2xl bg-amber-50 border border-amber-200 p-4 flex items-start gap-3">
                     <span className="text-2xl shrink-0">🔒</span>
                     <div className="flex-1">
                         <p className="text-sm font-bold text-amber-900">
-                            Pachetul {agencyPlan === 'starter' ? 'Starter' : agencyPlan} nu permite invitarea agenților
+                            Pachetul {planLabel} nu permite invitarea agenților
                         </p>
                         <p className="text-xs text-amber-800 mt-1">
-                            Pachetul <strong>Starter</strong> e single-user. Pentru a adăuga colegi în echipă și pentru funcționalitatea de schimb context între agenții, fă upgrade la <strong>Medium</strong> sau <strong>Pro</strong>.
+                            Pachetul <strong>Solo</strong> e single-user. Pentru a adăuga colegi, fă upgrade la <strong>Team</strong> (5 agenți incluși) sau <strong>Growth</strong> (5 + nelimitat la 8€/agent extra).
                         </p>
-                        <Link
-                            href="/subscription"
-                            className="inline-block mt-2 text-xs font-bold text-amber-900 hover:underline"
-                        >
+                        <Link href="/subscription" className="inline-block mt-2 text-xs font-bold text-amber-900 hover:underline">
                             Vezi pachete →
                         </Link>
                     </div>
                 </div>
             )}
 
+            {/* Seat-limit banner: Team plan reached cap */}
+            {canInvite && !canInviteMore && (
+                <div className="rounded-2xl bg-rose-50 border border-rose-200 p-4 flex items-start gap-3">
+                    <span className="text-2xl shrink-0">⛔</span>
+                    <div className="flex-1">
+                        <p className="text-sm font-bold text-rose-900">
+                            Ai atins limita de {seatsLimit} agenți a planului {planLabel}
+                        </p>
+                        <p className="text-xs text-rose-800 mt-1">
+                            Pentru a adăuga mai mulți agenți, fă upgrade la <strong>Growth</strong> — primii 5 sunt incluși și fiecare suplimentar costă <strong>8€/lună</strong>.
+                        </p>
+                        <Link href="/subscription" className="inline-block mt-2 text-xs font-bold text-rose-900 hover:underline">
+                            Upgrade la Growth →
+                        </Link>
+                    </div>
+                </div>
+            )}
+
             {/* Header */}
-            <div className="flex items-center justify-between">
-                <div className="text-sm text-slate-500">{agents.length} cont{agents.length !== 1 ? 'uri' : ''} înregistrate</div>
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div className="flex items-center gap-3 text-sm">
+                    <span className="text-slate-500">{agents.length} cont{agents.length !== 1 ? 'uri' : ''} active</span>
+                    {canInvite && (
+                        <span className={`text-xs font-bold px-3 py-1 rounded-full ${
+                            !canInviteMore ? 'bg-rose-100 text-rose-700'
+                                : nearLimit ? 'bg-amber-100 text-amber-700'
+                                : 'bg-emerald-100 text-emerald-700'
+                        }`}>
+                            {seatLabel}
+                        </span>
+                    )}
+                </div>
                 <button
-                    onClick={() => canInvite && setShowInvite(!showInvite)}
-                    disabled={!canInvite}
-                    title={canInvite ? '' : 'Disponibil cu pachetul Medium sau Pro'}
+                    onClick={() => canInviteMore && setShowInvite(!showInvite)}
+                    disabled={!canInviteMore}
+                    title={!canInvite ? 'Disponibil cu Team sau Growth' : !canInviteMore ? `Ai atins limita planului ${planLabel}` : ''}
                     className={`rounded-2xl px-5 py-2 text-sm font-bold transition-colors ${
-                        canInvite
+                        canInviteMore
                             ? 'bg-slate-900 text-white hover:bg-slate-700'
                             : 'bg-slate-200 text-slate-400 cursor-not-allowed'
                     }`}
                 >
-                    {canInvite ? '+ Invită agent' : '🔒 Invită agent (Medium/Pro)'}
+                    {!canInvite ? '🔒 Invită agent (Team/Growth)'
+                        : !canInviteMore ? `⛔ Limită atinsă (${planLabel})`
+                        : '+ Invită agent'}
                 </button>
             </div>
 
@@ -501,13 +649,21 @@ function UsersTab({ agents, invitations = [], currentUserId, canInvite = true, a
                 </div>
             )}
 
+            {historyAgent && <LoginHistoryModal agent={historyAgent} onClose={() => setHistoryAgent(null)} />}
+
             {/* Agent list */}
             <div className="space-y-3">
                 {agents.map(agent => (
                     <div key={agent.id} className="rounded-2xl border border-slate-100 bg-white p-4 flex items-center gap-4 hover:shadow-md transition-shadow">
-                        {/* Avatar */}
-                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm shrink-0">
-                            {agent.name[0].toUpperCase()}
+                        {/* Avatar with online dot */}
+                        <div className="relative shrink-0">
+                            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm">
+                                {agent.name[0].toUpperCase()}
+                            </div>
+                            <span
+                                className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${agent.is_online ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                                title={agent.is_online ? 'Online' : 'Offline'}
+                            />
                         </div>
 
                         {/* Info */}
@@ -518,12 +674,30 @@ function UsersTab({ agents, invitations = [], currentUserId, canInvite = true, a
                                 <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${agent.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-600'}`}>
                                     {agent.is_active ? 'Activ' : 'Suspendat'}
                                 </span>
+                                {agent.is_online && (
+                                    <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">● online</span>
+                                )}
                             </div>
                             <div className="text-xs text-slate-500 mt-0.5">{agent.email} {agent.position ? `· ${agent.position}` : ''}</div>
+
+                            {/* Last login info */}
+                            {agent.last_login_at && (
+                                <div className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-2 flex-wrap">
+                                    <span title="Ultimul login">🕐 {new Date(agent.last_login_at).toLocaleString('ro-RO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                                    {agent.last_login_ip && <span className="font-mono">· {agent.last_login_ip}</span>}
+                                    {agent.last_login_device && agent.last_login_device !== '—' && <span>· {agent.last_login_device}</span>}
+                                    {agent.last_login_browser && agent.last_login_browser !== '—' && <span>· {agent.last_login_browser}</span>}
+                                </div>
+                            )}
+
                             <div className="flex gap-3 mt-1.5 text-xs text-slate-400">
                                 <span>🏠 {agent.properties_count}</span>
                                 <span>👥 {agent.contacts_count}</span>
                                 <span>🤝 {agent.deals_count}</span>
+                                <button
+                                    onClick={() => setHistoryAgent(agent)}
+                                    className="text-blue-600 hover:text-blue-800 hover:underline font-semibold"
+                                >📜 Istoric</button>
                             </div>
                         </div>
 
@@ -628,7 +802,30 @@ function NotificationsTab({ user }) {
 
 // ─── Security Tab ─────────────────────────────────────────────────────────────
 
-function SecurityTab({ sessions }) {
+const ACTIVITY_ICON = {
+    'auth.login':              '🔓',
+    'auth.logout':             '🔒',
+    'auth.failed':             '⛔',
+    'profile.updated':         '👤',
+    'profile.password_changed':'🔑',
+    'profile.avatar_updated':  '🖼',
+    'profile.avatar_removed':  '🗑',
+    'property.created':        '🏠',
+    'property.updated':        '✏️',
+    'property.deleted':        '🗑',
+    'contact.created':         '👥',
+    'contact.updated':         '✏️',
+    'contact.deleted':         '🗑',
+    'deal.created':            '💼',
+    'deal.updated':            '✏️',
+    'deal.deleted':            '🗑',
+    'calendar.created':        '📅',
+    'calendar.deleted':        '🗑',
+    'subscription.checkout_started': '💳',
+    'subscription.cancelled':  '❌',
+};
+
+function SecurityTab({ sessions, activityLog = [] }) {
     const pw = useForm({ current_password: '', password: '', password_confirmation: '' });
     const logoutOthers = useForm({ password: '' });
     const [showLogoutForm, setShowLogoutForm] = useState(false);
@@ -734,12 +931,32 @@ function SecurityTab({ sessions }) {
                 </div>
             </div>
 
-            {/* Activity log placeholder */}
+            {/* Activity log */}
             <div>
                 <SectionTitle>Jurnal activitate</SectionTitle>
-                <div className="rounded-2xl bg-slate-50 border border-slate-100 p-4 text-sm text-slate-400 text-center">
-                    Istoricul acțiunilor — disponibil în versiunea viitoare.
-                </div>
+                {activityLog.length === 0 ? (
+                    <div className="rounded-2xl bg-slate-50 border border-slate-100 p-4 text-sm text-slate-400 text-center">
+                        Nicio activitate înregistrată încă.
+                    </div>
+                ) : (
+                    <div className="rounded-2xl border border-slate-100 divide-y divide-slate-100 max-h-96 overflow-y-auto">
+                        {activityLog.map(a => (
+                            <div key={a.id} className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50">
+                                <div className="text-xl shrink-0 mt-0.5">{ACTIVITY_ICON[a.action] ?? '•'}</div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="text-sm font-semibold text-slate-700">{a.description ?? a.action}</div>
+                                    <div className="text-xs text-slate-400 mt-0.5 flex items-center gap-2 flex-wrap">
+                                        <span>{a.created_at}</span>
+                                        {a.ip && <span className="text-slate-300">·</span>}
+                                        {a.ip && <span className="font-mono">{a.ip}</span>}
+                                        <span className="text-slate-300">·</span>
+                                        <code className="text-[10px] text-slate-400">{a.action}</code>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -1064,7 +1281,7 @@ const TABS = [
     { key: 'portals',       label: 'Portaluri',     icon: '🌐', adminOnly: true  },
 ];
 
-export default function Index({ user, agency, isAdmin, sessions = [], agents = [], invitations = [], canInviteAgents = false, flash }) {
+export default function Index({ user, agency, isAdmin, sessions = [], agents = [], invitations = [], canInviteAgents = false, canInviteMoreAgents = false, seatsUsed = 0, seatsLimit = null, activityLog = [], flash }) {
     const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
     const [activeTab, setActiveTab] = useState(urlParams.get('tab') ?? 'profile');
     const [toast, setToast] = useState(flash ?? null);
@@ -1078,27 +1295,29 @@ export default function Index({ user, agency, isAdmin, sessions = [], agents = [
             <Head title="Setări" />
             <Toast message={toast} onClose={() => setToast(null)} />
 
-            <div className="flex gap-6 items-start">
-                {/* Sidebar */}
-                <div className="w-52 shrink-0 rounded-4xl bg-white border border-slate-100 shadow-xl p-3 sticky top-28 self-start">
-                    {visibleTabs.map(tab => (
-                        <button
-                            key={tab.key}
-                            onClick={() => setActiveTab(tab.key)}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold transition-colors text-left ${
-                                activeTab === tab.key
-                                    ? 'bg-slate-900 text-white'
-                                    : 'text-slate-600 hover:bg-slate-100'
-                            }`}
-                        >
-                            <span className="text-base">{tab.icon}</span>
-                            <span>{tab.label}</span>
-                        </button>
-                    ))}
+            <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 items-start">
+                {/* Sidebar — horizontal scroll on mobile, vertical on desktop */}
+                <div className="w-full lg:w-52 lg:shrink-0 rounded-3xl lg:rounded-4xl bg-white border border-slate-100 shadow-xl p-2 lg:p-3 lg:sticky lg:top-28 lg:self-start overflow-x-auto">
+                    <div className="flex lg:flex-col gap-1 lg:gap-0 min-w-max lg:min-w-0">
+                        {visibleTabs.map(tab => (
+                            <button
+                                key={tab.key}
+                                onClick={() => setActiveTab(tab.key)}
+                                className={`shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-3 lg:px-4 py-2 lg:py-3 rounded-xl lg:rounded-2xl text-sm font-semibold transition-colors text-left whitespace-nowrap ${
+                                    activeTab === tab.key
+                                        ? 'bg-slate-900 text-white'
+                                        : 'text-slate-600 hover:bg-slate-100'
+                                }`}
+                            >
+                                <span className="text-base">{tab.icon}</span>
+                                <span>{tab.label}</span>
+                            </button>
+                        ))}
+                    </div>
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 rounded-4xl bg-white border border-slate-100 shadow-xl p-8">
+                <div className="w-full flex-1 rounded-3xl lg:rounded-4xl bg-white border border-slate-100 shadow-xl p-5 sm:p-8">
                     <h2 className="text-xl font-bold text-slate-900 mb-6">
                         {visibleTabs.find(t => t.key === activeTab)?.icon}{' '}
                         {visibleTabs.find(t => t.key === activeTab)?.label}
@@ -1106,9 +1325,9 @@ export default function Index({ user, agency, isAdmin, sessions = [], agents = [
 
                     {activeTab === 'profile'       && <ProfileTab user={user} />}
                     {activeTab === 'agency'        && <AgencyTab agency={agency} />}
-                    {activeTab === 'users'         && <UsersTab agents={agents} invitations={invitations} currentUserId={user.id} canInvite={canInviteAgents} agencyPlan={agency?.subscription_plan ?? 'starter'} />}
+                    {activeTab === 'users'         && <UsersTab agents={agents} invitations={invitations} currentUserId={user.id} canInvite={canInviteAgents} canInviteMore={canInviteMoreAgents} seatsUsed={seatsUsed} seatsLimit={seatsLimit} agencyPlan={agency?.subscription_plan ?? 'starter'} />}
                     {activeTab === 'notifications' && <NotificationsTab user={user} />}
-                    {activeTab === 'security'      && <SecurityTab sessions={sessions} />}
+                    {activeTab === 'security'      && <SecurityTab sessions={sessions} activityLog={activityLog} />}
                     {activeTab === 'integrations'  && <IntegrationsTab agency={agency} user={user} />}
                     {activeTab === 'portals'       && <PortalsTab agency={agency} />}
                 </div>

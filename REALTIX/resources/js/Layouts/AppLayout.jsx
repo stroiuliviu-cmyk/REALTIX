@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, usePage, router } from '@inertiajs/react';
 import { useTranslation } from '@/Hooks/useTranslation';
+import NotificationsBell from '@/Components/NotificationsBell';
 
 function ProfileDropdown({ user }) {
     const { t } = useTranslation();
@@ -106,12 +107,21 @@ export default function AppLayout({ children, title }) {
     const { t } = useTranslation();
     const user = auth?.user;
     const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+    // Close drawer on route change
+    useEffect(() => { setMobileMenuOpen(false); }, [currentPath]);
+    // Lock scroll while drawer is open
+    useEffect(() => {
+        if (typeof document === 'undefined') return;
+        document.body.style.overflow = mobileMenuOpen ? 'hidden' : '';
+        return () => { document.body.style.overflow = ''; };
+    }, [mobileMenuOpen]);
 
     const sidebarItems = [
         { key: 'properties',  label: t('nav.my_listings'),  href: '/properties',        icon: '🏠' },
         { key: 'web-offers',  label: t('nav.web_offers'),   href: '/web-offers',        icon: '🌐' },
         { key: 'create',      label: t('nav.add_listing'),  href: '/properties/create', icon: '➕' },
-        { key: 'ai',          label: t('nav.ai_tools'),     href: '/ai',                icon: '✨' },
         { key: 'autopost',    label: t('nav.autopost'),     href: '/autopost',          icon: '📤' },
         { key: 'contracts',   label: t('nav.contracts'),    href: '/contracts',         icon: '📄' },
         { key: 'calendar',    label: t('nav.calendar'),     href: '/calendar',          icon: '📅' },
@@ -138,17 +148,68 @@ export default function AppLayout({ children, title }) {
     };
 
     const planLabel = user?.agency?.subscription_plan
-        ? { starter: 'Starter', medium: 'Medium', pro: 'Pro' }[user.agency.subscription_plan] ?? user.agency.subscription_plan
+        ? { starter: 'Solo', medium: 'Team', pro: 'Growth' }[user.agency.subscription_plan] ?? user.agency.subscription_plan
         : '—';
+
+    const subStatus = user?.agency?.subscription_status;
+    const isPastDue = subStatus === 'past_due' || subStatus === 'unpaid';
+
+    const { impersonation } = usePage().props;
 
     return (
         <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-blue-50 text-slate-900 font-[Inter,sans-serif]">
+            {impersonation && (
+                <div className="bg-rose-600 text-white text-xs sm:text-sm font-semibold px-4 py-2.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4 shadow-md">
+                    <div className="flex items-start sm:items-center gap-2">
+                        <span className="text-base shrink-0">🎭</span>
+                        <span>
+                            Imitate user — autentificat ca <strong>{user?.name}</strong> (admin original: <strong>{impersonation.admin_name}</strong>)
+                        </span>
+                    </div>
+                    <button
+                        onClick={() => router.post(route('super-admin.users.stop-impersonate'))}
+                        className="shrink-0 bg-white/15 hover:bg-white/25 transition-colors rounded-lg px-3 py-1 text-xs font-bold uppercase tracking-wider self-end sm:self-auto"
+                    >
+                        ⏹ Stop impersonate
+                    </button>
+                </div>
+            )}
+            {isPastDue && (
+                <div className="bg-red-600 text-white text-xs sm:text-sm font-semibold px-4 py-2.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4 shadow-md">
+                    <div className="flex items-start sm:items-center gap-2">
+                        <span className="text-base shrink-0">⚠</span>
+                        <span>
+                            Plata abonamentului a eșuat. Accesul la unele funcții poate fi restricționat. Actualizează metoda de plată.
+                        </span>
+                    </div>
+                    {user?.is_admin && (
+                        <Link
+                            href={route('subscription.portal')}
+                            className="shrink-0 bg-white/15 hover:bg-white/25 transition-colors rounded-lg px-3 py-1 text-xs font-bold uppercase tracking-wider self-end sm:self-auto"
+                        >
+                            Actualizează plata
+                        </Link>
+                    )}
+                </div>
+            )}
             {/* Header */}
             <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
-                <div className="mx-auto flex max-w-screen-2xl items-center justify-between px-6 py-3">
+                <div className="mx-auto flex max-w-screen-2xl items-center justify-between px-4 sm:px-6 py-3 gap-3">
+                    {/* Hamburger (mobile only) */}
+                    <button
+                        type="button"
+                        onClick={() => setMobileMenuOpen(true)}
+                        className="lg:hidden p-2 -ml-2 rounded-xl text-slate-600 hover:bg-slate-100"
+                        aria-label="Open menu"
+                    >
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                    </button>
+
                     {/* Logo */}
                     <Link href="/dashboard" className="flex items-center gap-3 shrink-0">
-                        <div className="text-2xl font-black tracking-widest text-blue-900" style={{ fontFamily: 'Montserrat, sans-serif' }}>
+                        <div className="text-lg sm:text-2xl font-black tracking-wider sm:tracking-widest text-blue-900" style={{ fontFamily: 'Montserrat, sans-serif' }}>
                             REALTIX
                         </div>
                         {user?.agency && (
@@ -204,20 +265,21 @@ export default function AppLayout({ children, title }) {
                     </nav>
 
                     {/* Right side */}
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 sm:gap-3">
                         {/* Language switcher */}
                         {(() => {
-                            const langs = ['ro', 'ru', 'en'];
+                            const langs = ['ro', 'ru'];
                             const activeIndex = langs.indexOf(locale);
                             return (
                                 <div className="hidden sm:flex relative text-xs font-bold bg-slate-100 rounded-xl p-1">
                                     <span
                                         className="absolute top-1 bottom-1 rounded-lg bg-white shadow-sm"
                                         style={{
-                                            width: 'calc((100% - 8px) / 3)',
+                                            width: `calc((100% - 8px) / ${langs.length})`,
                                             left: '4px',
                                             transform: `translateX(calc(${activeIndex} * 100%))`,
-                                            transition: 'transform 0.2s ease',
+                                            transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                                            opacity: activeIndex < 0 ? 0 : 1,
                                         }}
                                     />
                                     {langs.map(lang => (
@@ -240,6 +302,8 @@ export default function AppLayout({ children, title }) {
                         >
                             <span className="text-base">+</span> {t('nav.new_listing')}
                         </Link>
+
+                        <NotificationsBell unreadCount={user?.unread_notifications_count ?? 0} />
 
                         <ProfileDropdown user={user} />
                     </div>
@@ -267,10 +331,113 @@ export default function AppLayout({ children, title }) {
                 </div>
             )}
 
+            {/* Mobile drawer */}
+            {mobileMenuOpen && (
+                <>
+                    <div
+                        className="lg:hidden fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+                        onClick={() => setMobileMenuOpen(false)}
+                    />
+                    <aside className="lg:hidden fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] bg-white shadow-2xl overflow-y-auto">
+                        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+                            <div className="text-xl font-black tracking-widest text-blue-900" style={{ fontFamily: 'Montserrat, sans-serif' }}>REALTIX</div>
+                            <button
+                                onClick={() => setMobileMenuOpen(false)}
+                                className="p-2 -mr-2 rounded-xl text-slate-500 hover:bg-slate-100"
+                                aria-label="Close menu"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        {user?.agency && (
+                            <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-3">
+                                {user.agency.logo_path ? (
+                                    <img src={`/storage/${user.agency.logo_path}`} alt={user.agency.name} className="w-10 h-10 rounded-lg object-cover border border-slate-200" />
+                                ) : (
+                                    <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center text-blue-700 font-bold">{user.agency.name?.[0] ?? '?'}</div>
+                                )}
+                                <div className="leading-tight">
+                                    <div className="text-sm font-bold text-slate-800">{user.agency.name}</div>
+                                    <div className="text-xs text-slate-400">{planLabel}</div>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="p-3 space-y-1">
+                            <div className="px-3 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">{t('nav.navigate')}</div>
+                            {headerNavItems.map(item => (
+                                <Link
+                                    key={item.href}
+                                    href={item.href}
+                                    className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold ${
+                                        currentPath.startsWith(item.href)
+                                            ? 'bg-slate-900 text-white'
+                                            : item.highlight
+                                                ? 'bg-rose-100 text-rose-700'
+                                                : 'text-slate-700 hover:bg-slate-100'
+                                    }`}
+                                >
+                                    {item.highlight && <span>🛡</span>}
+                                    <span>{item.label}</span>
+                                </Link>
+                            ))}
+
+                            <div className="border-t border-slate-100 my-2" />
+
+                            {sidebarItems.map(item => {
+                                const isActive = item.href === '/properties/create'
+                                    ? currentPath === item.href
+                                    : currentPath.startsWith(item.href);
+                                return (
+                                    <Link
+                                        key={item.key}
+                                        href={item.href}
+                                        className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold ${
+                                            isActive ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100'
+                                        }`}
+                                    >
+                                        <span className="text-base">{item.icon}</span>
+                                        <span>{item.label}</span>
+                                    </Link>
+                                );
+                            })}
+
+                            <div className="border-t border-slate-100 my-2" />
+
+                            <Link
+                                href="/settings"
+                                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold ${
+                                    currentPath.startsWith('/settings') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100'
+                                }`}
+                            >
+                                <span className="text-base">⚙️</span> <span>{t('nav.settings')}</span>
+                            </Link>
+                        </div>
+
+                        <div className="px-3 pb-4 mt-2">
+                            <div className="rounded-xl bg-slate-100 p-1 flex">
+                                {['ro', 'ru'].map(lang => (
+                                    <button
+                                        key={lang}
+                                        onClick={() => switchLanguage(lang)}
+                                        className={`flex-1 py-1.5 text-xs font-bold uppercase rounded-lg transition-colors ${locale === lang ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400'}`}
+                                    >
+                                        {lang}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </aside>
+                </>
+            )}
+
             {/* Main layout */}
-            <div className="mx-auto max-w-screen-2xl flex gap-0 p-4 sm:p-6 items-start">
-                {/* Sidebar */}
-                <aside className="w-14 lg:w-56 shrink-0 rounded-4xl bg-white/90 p-3 shadow-xl border border-slate-100/80 backdrop-blur-xl sticky top-24 self-start mr-5">
+            <div className="mx-auto max-w-screen-2xl flex gap-0 p-3 sm:p-6 items-start">
+                {/* Sidebar (desktop only) */}
+                <aside className="hidden lg:block w-56 shrink-0 rounded-4xl bg-white/90 p-3 shadow-xl border border-slate-100/80 backdrop-blur-xl sticky top-24 self-start mr-5">
                     <div className="hidden lg:block mb-3 text-xs font-bold uppercase tracking-wider text-slate-400 px-3">
                         {t('nav.navigate')}
                     </div>
@@ -314,7 +481,7 @@ export default function AppLayout({ children, title }) {
                 {/* Content */}
                 <main className="flex-1 min-w-0 min-h-150">
                     {title && (
-                        <h1 className="text-2xl font-bold text-slate-900 mb-5">{title}</h1>
+                        <h1 className="text-xl sm:text-2xl font-bold text-slate-900 mb-4 sm:mb-5">{title}</h1>
                     )}
 
                     {/* Admin sub-nav (visible only on /admin/*) */}

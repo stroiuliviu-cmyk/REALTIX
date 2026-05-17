@@ -3,10 +3,38 @@ import { Head, Link, router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
 
 const statusColors = {
-    lead: 'bg-amber-100 text-amber-700',
-    active: 'bg-blue-100 text-blue-700',
-    closed: 'bg-slate-100 text-slate-500',
+    lead:   'bg-amber-100 text-amber-700 hover:bg-amber-200',
+    active: 'bg-blue-100 text-blue-700 hover:bg-blue-200',
+    closed: 'bg-slate-100 text-slate-500 hover:bg-slate-200',
 };
+
+const statusLabels = { lead: 'Lead', active: 'Activ', closed: 'Închis' };
+
+function StatusDropdown({ contact }) {
+    const handleChange = (e) => {
+        const next = e.target.value;
+        if (next === contact.status) return;
+        router.patch(route('contacts.status', contact.id), { status: next }, {
+            preserveScroll: true,
+            preserveState: true,
+        });
+    };
+
+    const cls = statusColors[contact.status] ?? 'bg-slate-100 text-slate-500';
+
+    return (
+        <select
+            value={contact.status}
+            onChange={handleChange}
+            onClick={e => e.stopPropagation()}
+            className={`rounded-full px-3 py-1 text-xs font-semibold border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-colors ${cls}`}
+        >
+            {Object.entries(statusLabels).map(([v, l]) => (
+                <option key={v} value={v}>{l}</option>
+            ))}
+        </select>
+    );
+}
 
 const typeLabels = {
     buyer: 'Cumpărător',
@@ -148,7 +176,7 @@ export default function Index({ contacts, filters }) {
 
             <div className="space-y-6">
                 {/* Kanban header row */}
-                <div className="rounded-[2rem] bg-white p-6 shadow-2xl border border-slate-100">
+                <div className="rounded-3xl sm:rounded-4xl bg-white p-4 sm:p-6 shadow-2xl border border-slate-100">
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                         <div>
                             <h2 className="text-xl font-bold text-slate-900">Bază de date Clienți</h2>
@@ -163,44 +191,46 @@ export default function Index({ contacts, filters }) {
                     </div>
 
                     {/* Search + filters */}
-                    <form onSubmit={handleSearch} className="flex gap-3">
+                    <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-2 sm:gap-3 flex-wrap">
                         <input
                             value={search}
                             onChange={e => setSearch(e.target.value)}
                             placeholder="Caută după nume sau telefon..."
-                            className="flex-1 rounded-2xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:border-blue-700"
+                            className="flex-1 min-w-0 sm:min-w-48 rounded-2xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:border-blue-700"
                         />
-                        <select
-                            value={filters?.status ?? ''}
-                            onChange={e => router.get('/contacts', { ...filters, search, status: e.target.value }, { preserveState: true })}
-                            className="rounded-2xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:border-blue-700"
-                        >
-                            <option value="">Toate statusurile</option>
-                            <option value="lead">Lead</option>
-                            <option value="active">Activ</option>
-                            <option value="closed">Închis</option>
-                        </select>
-                        <button
-                            type="button"
-                            onClick={() => router.get('/contacts', { ...filters, search, forgotten: filters?.forgotten ? '' : '1' }, { preserveState: true })}
-                            className={`rounded-2xl px-4 py-2.5 text-sm font-semibold transition-colors ${
-                                filters?.forgotten
-                                    ? 'bg-amber-500 text-white hover:bg-amber-600'
-                                    : 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'
-                            }`}
-                            title="Doar contacte fără activitate de >30 zile"
-                        >
-                            ⏰ Uitate
-                        </button>
-                        <button type="submit" className="rounded-2xl bg-slate-900 px-5 py-2.5 text-white text-sm font-semibold">
-                            Caută
-                        </button>
+                        <div className="flex gap-2 sm:gap-3 flex-wrap">
+                            <select
+                                value={filters?.status ?? ''}
+                                onChange={e => router.get('/contacts', { ...filters, search, status: e.target.value }, { preserveState: true })}
+                                className="flex-1 sm:flex-initial rounded-2xl border border-slate-200 px-3 sm:px-4 py-2.5 text-sm focus:outline-none focus:border-blue-700"
+                            >
+                                <option value="">Toate statusurile</option>
+                                <option value="lead">Lead</option>
+                                <option value="active">Activ</option>
+                                <option value="closed">Închis</option>
+                            </select>
+                            <button
+                                type="button"
+                                onClick={() => router.get('/contacts', { ...filters, search, forgotten: filters?.forgotten ? '' : '1' }, { preserveState: true })}
+                                className={`rounded-2xl px-3 sm:px-4 py-2.5 text-sm font-semibold transition-colors ${
+                                    filters?.forgotten
+                                        ? 'bg-amber-500 text-white hover:bg-amber-600'
+                                        : 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'
+                                }`}
+                                title="Doar contacte fără activitate de >30 zile"
+                            >
+                                ⏰ <span className="hidden sm:inline">Uitate</span>
+                            </button>
+                            <button type="submit" className="rounded-2xl bg-slate-900 px-4 sm:px-5 py-2.5 text-white text-sm font-semibold">
+                                Caută
+                            </button>
+                        </div>
                     </form>
                 </div>
 
                 {/* Table */}
-                <div className="rounded-[2rem] bg-white p-6 shadow-2xl border border-slate-100">
-                    <div className="overflow-x-auto">
+                <div className="rounded-3xl sm:rounded-4xl bg-white p-3 sm:p-6 shadow-2xl border border-slate-100">
+                    <div className="overflow-x-auto -mx-3 sm:mx-0">
                         <table className="w-full text-sm text-left text-slate-600">
                             <thead className="text-xs text-slate-500 uppercase bg-slate-50">
                                 <tr>
@@ -239,9 +269,7 @@ export default function Index({ contacts, filters }) {
                                         <td className="px-4 py-4">{contact.phone ?? '—'}</td>
                                         <td className="px-4 py-4">{typeLabels[contact.type] ?? contact.type}</td>
                                         <td className="px-4 py-4">
-                                            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusColors[contact.status] ?? 'bg-slate-100'}`}>
-                                                {contact.status}
-                                            </span>
+                                            <StatusDropdown contact={contact} />
                                         </td>
                                         <td className="px-4 py-4 text-slate-400">{contact.source ?? '—'}</td>
                                         <td className="px-4 py-4">

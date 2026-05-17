@@ -52,8 +52,24 @@ const LABEL_CLS = 'block text-xs font-bold text-slate-500 uppercase tracking-wid
 
 function localNow() {
     const d = new Date();
-    return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    // Snap to next 15-min slot so it aligns with TIME_SLOTS
+    const m = Math.round(d.getMinutes() / 15) * 15;
+    const h = (d.getHours() + Math.floor(m / 60)) % 24;
+    return `${String(h).padStart(2,'0')}:${String(m % 60).padStart(2,'0')}`;
 }
+
+// Build 15-min slots from 07:00 to 21:45 — covers normal working day for
+// viewings/calls. Using a <select> avoids the native time input's AM/PM
+// behavior which forces manual typing.
+const TIME_SLOTS = (() => {
+    const out = [];
+    for (let h = 7; h < 22; h++) {
+        for (let m of [0, 15, 30, 45]) {
+            out.push(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`);
+        }
+    }
+    return out;
+})();
 
 function toDateStr(d) {
     if (!d) return '';
@@ -237,11 +253,24 @@ function EventFormModal({ event, contacts, properties, allEvents, prefillDate, o
                             <>
                                 <div>
                                     <label className={LABEL_CLS}>Start</label>
-                                    <input type="time" value={startTime} onChange={e => setStart(e.target.value)} className={INPUT_CLS} />
+                                    <select value={startTime} onChange={e => setStart(e.target.value)} className={INPUT_CLS}>
+                                        {/* If the current value isn't a standard slot (e.g. an existing odd-minute event),
+                                            surface it as the first option so the form doesn't silently overwrite it. */}
+                                        {startTime && !TIME_SLOTS.includes(startTime) && (
+                                            <option value={startTime}>{startTime}</option>
+                                        )}
+                                        {TIME_SLOTS.map(t => <option key={t} value={t}>{t}</option>)}
+                                    </select>
                                 </div>
                                 <div>
                                     <label className={LABEL_CLS}>Sfârșit</label>
-                                    <input type="time" value={endTime} onChange={e => setEnd(e.target.value)} className={INPUT_CLS} />
+                                    <select value={endTime} onChange={e => setEnd(e.target.value)} className={INPUT_CLS}>
+                                        <option value="">— (auto +1h)</option>
+                                        {endTime && !TIME_SLOTS.includes(endTime) && (
+                                            <option value={endTime}>{endTime}</option>
+                                        )}
+                                        {TIME_SLOTS.map(t => <option key={t} value={t}>{t}</option>)}
+                                    </select>
                                 </div>
                             </>
                         )}
@@ -651,6 +680,30 @@ export default function Index({ events = [], month, year, googleConnected = fals
     const [prefillDate, setPrefill]   = useState('');
     const [syncing, setSyncing]       = useState(false);
 
+    // When landed from /properties/{id} via "Adaugă în calendar", auto-open the
+    // create-event modal pre-filled with that property + a sensible default title.
+    useEffect(() => {
+        const params  = new URLSearchParams(window.location.search);
+        const propId  = parseInt(params.get('property_id') ?? '', 10);
+        const type    = params.get('type') ?? 'viewing';
+        if (!propId) return;
+
+        const prop = properties.find(p => p.id === propId);
+        const titleParts = [
+            type === 'viewing' ? 'Vizionare' : 'Eveniment',
+            prop?.title,
+        ].filter(Boolean);
+
+        setFormEvent({
+            property_id: propId,
+            title:       titleParts.join(' — '),
+            type,
+        });
+        setPrefill(new Date().toISOString().slice(0, 10));
+        // Run only on first mount.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     const navigate = (dir) => {
         let m = month + dir;
         let y = year;
@@ -716,13 +769,6 @@ export default function Index({ events = [], month, year, googleConnected = fals
             )}
 
             <div className="space-y-4">
-                {/* Flash */}
-                {flash?.success && (
-                    <div className="rounded-2xl bg-emerald-50 border border-emerald-200 px-5 py-3 text-sm text-emerald-800">
-                        {flash.success}
-                    </div>
-                )}
-
                 {/* Google banner */}
                 <GoogleSyncBanner connected={googleConnected} syncing={syncing} onSync={handleSync} />
 

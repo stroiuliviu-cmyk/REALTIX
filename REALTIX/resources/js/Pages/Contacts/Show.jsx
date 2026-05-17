@@ -1,4 +1,5 @@
 import AppLayout from '@/Layouts/AppLayout';
+import TransferOwnershipModal from '@/Components/TransferOwnershipModal';
 import { Head, useForm, router } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
 
@@ -10,16 +11,109 @@ const interactionIcons = {
     note: '📝', call: '📞', email: '✉️', viewing: '🏠', contract: '📄',
 };
 
-function InteractionItem({ interaction }) {
+function InteractionItem({ interaction, contactId }) {
+    const [editing, setEditing] = useState(false);
+    const [type, setType] = useState(interaction.type);
+    const [body, setBody] = useState(interaction.body ?? '');
+    // ISO → `YYYY-MM-DDTHH:mm` (drop seconds + tz suffix) so DateTimeField parses correctly.
+    const toLocalInput = (iso) => iso ? iso.slice(0, 16) : '';
+    const [scheduledAt, setScheduledAt] = useState(toLocalInput(interaction.scheduled_at));
+    const [busy, setBusy] = useState(false);
+
+    const save = () => {
+        if (! body.trim()) return;
+        setBusy(true);
+        router.patch(
+            route('contacts.interactions.update', [contactId, interaction.id]),
+            { type, body, scheduled_at: scheduledAt || null },
+            { preserveScroll: true, onFinish: () => { setBusy(false); setEditing(false); } },
+        );
+    };
+
+    const remove = () => {
+        if (! confirm('Ștergi această interacțiune?')) return;
+        setBusy(true);
+        router.delete(
+            route('contacts.interactions.destroy', [contactId, interaction.id]),
+            { preserveScroll: true, onFinish: () => setBusy(false) },
+        );
+    };
+
+    const cancel = () => {
+        setType(interaction.type);
+        setBody(interaction.body ?? '');
+        setScheduledAt(toLocalInput(interaction.scheduled_at));
+        setEditing(false);
+    };
+
+    if (editing) {
+        return (
+            <div className="p-4 rounded-2xl bg-white border border-blue-200 shadow-sm">
+                <div className="flex gap-2 mb-2">
+                    <select
+                        value={type}
+                        onChange={e => setType(e.target.value)}
+                        className="rounded-2xl border border-slate-200 px-3 py-1.5 text-xs font-semibold uppercase"
+                    >
+                        <option value="note">📝 Notă</option>
+                        <option value="call">📞 Apel</option>
+                        <option value="email">✉️ Email</option>
+                        <option value="viewing">🏠 Vizionare</option>
+                        <option value="contract">📄 Contract</option>
+                    </select>
+                </div>
+                <textarea
+                    value={body}
+                    onChange={e => setBody(e.target.value)}
+                    rows={3}
+                    className="w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:border-blue-700 mb-2"
+                />
+                <DateTimeField value={scheduledAt} onChange={setScheduledAt} />
+                <div className="flex gap-2 mt-3">
+                    <button
+                        type="button"
+                        onClick={cancel}
+                        disabled={busy}
+                        className="rounded-2xl border border-slate-200 px-4 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+                    >
+                        Anulează
+                    </button>
+                    <button
+                        type="button"
+                        onClick={save}
+                        disabled={busy || ! body.trim()}
+                        className="rounded-2xl bg-blue-700 px-4 py-1.5 text-xs font-semibold text-white hover:bg-blue-800 disabled:opacity-60"
+                    >
+                        {busy ? 'Salvez…' : 'Salvează'}
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     return (
-        <div className="flex gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-100">
+        <div className="group flex gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-100">
             <div className="text-2xl">{interactionIcons[interaction.type] ?? '💬'}</div>
             <div className="flex-1">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                     <span className="text-xs font-semibold text-slate-500 uppercase">{interaction.type}</span>
-                    <span className="text-xs text-slate-400">{new Date(interaction.created_at).toLocaleDateString('ro')}</span>
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-400">{new Date(interaction.created_at).toLocaleDateString('ro')}</span>
+                        <button
+                            type="button"
+                            onClick={() => setEditing(true)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity text-xs font-semibold text-blue-700 hover:text-blue-900 px-1.5"
+                            title="Editează"
+                        >✏</button>
+                        <button
+                            type="button"
+                            onClick={remove}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity text-xs font-semibold text-rose-600 hover:text-rose-800 px-1.5"
+                            title="Șterge"
+                        >🗑</button>
+                    </div>
                 </div>
-                <p className="mt-1 text-sm text-slate-700">{interaction.body}</p>
+                <p className="mt-1 text-sm text-slate-700 whitespace-pre-wrap">{interaction.body}</p>
                 {interaction.scheduled_at && (
                     <p className="mt-1 text-xs text-blue-600">
                         Programat: {new Date(interaction.scheduled_at).toLocaleString('ro')}
@@ -229,12 +323,13 @@ function LinkedProperties({ contact, availableProperties = [] }) {
     );
 }
 
-export default function Show({ contact, contracts = [], meetings = [], availableProperties = [] }) {
+export default function Show({ contact, contracts = [], meetings = [], availableProperties = [], isAdmin = false, agencyAgents = [] }) {
     const { data, setData, post, processing, reset } = useForm({
         type: 'note',
         body: '',
         scheduled_at: '',
     });
+    const [showTransfer, setShowTransfer] = useState(false);
 
     const submitInteraction = (e) => {
         e.preventDefault();
@@ -246,6 +341,28 @@ export default function Show({ contact, contracts = [], meetings = [], available
     return (
         <AppLayout title={`${contact.first_name} ${contact.last_name ?? ''}`}>
             <Head title={`${contact.first_name} ${contact.last_name ?? ''}`} />
+
+            {showTransfer && (
+                <TransferOwnershipModal
+                    subject="clientul"
+                    currentOwner={contact.user?.name ?? `User #${contact.user_id}`}
+                    agents={agencyAgents}
+                    routeName="contacts.transfer"
+                    routeId={contact.id}
+                    onClose={() => setShowTransfer(false)}
+                />
+            )}
+
+            {isAdmin && (
+                <div className="flex justify-end mb-3">
+                    <button
+                        onClick={() => setShowTransfer(true)}
+                        className="rounded-xl bg-violet-50 border border-violet-200 text-violet-700 px-3 py-1.5 text-xs font-bold hover:bg-violet-100"
+                    >
+                        🔁 Transferă altui agent
+                    </button>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Left: Contact info */}
@@ -365,7 +482,7 @@ export default function Show({ contact, contracts = [], meetings = [], available
                         ) : (
                             <div className="space-y-3">
                                 {contact.interactions.map(interaction => (
-                                    <InteractionItem key={interaction.id} interaction={interaction} />
+                                    <InteractionItem key={interaction.id} interaction={interaction} contactId={contact.id} />
                                 ))}
                             </div>
                         )}
@@ -448,16 +565,12 @@ export default function Show({ contact, contracts = [], meetings = [], available
                                                 {new Date(c.created_at).toLocaleDateString('ro')}
                                             </p>
                                         </div>
-                                        {c.pdf_path && (
-                                            <a
-                                                href={`/storage/${c.pdf_path}`}
-                                                target="_blank"
-                                                rel="noopener"
-                                                className="text-xs font-semibold text-blue-700 hover:underline shrink-0 ml-4"
-                                            >
-                                                ↓ PDF
-                                            </a>
-                                        )}
+                                        <a
+                                            href={`/contracts/generated/${c.id}/docx`}
+                                            className="text-xs font-semibold text-blue-700 hover:underline shrink-0 ml-4"
+                                        >
+                                            ↓ DOCX
+                                        </a>
                                     </div>
                                 ))}
                             </div>

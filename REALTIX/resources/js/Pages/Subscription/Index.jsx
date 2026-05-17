@@ -27,15 +27,34 @@ const planMeta = {
     },
 };
 
+const COMMON_FEATURES = ['Sistem CRM', 'Catalog Anunțuri', 'Asistent AI', 'Contracte PDF', 'Statistici + export'];
+
 const planFeatures = {
-    starter: ['CRM de bază', '1 agent', '50 anunțuri', 'Calendar', 'Contracte PDF', 'Suport email'],
-    medium:  ['CRM avansat', '5 agenți', '500 anunțuri', 'Instrumente AI', 'Scraper web', 'Statistici', 'Suport prioritar'],
-    pro:     ['CRM + Analytics', 'Agenți nelimitați', 'Anunțuri nelimitate', 'AI prioritar', 'Autopostare social', 'Acces API', 'Manager dedicat'],
+    starter: ['1 agent (doar tu)', ...COMMON_FEATURES],
+    medium:  ['Până la 5 agenți', ...COMMON_FEATURES],
+    pro:     ['5 agenți incluși + 8€/agent extra', ...COMMON_FEATURES],
 };
 
 function fmt(dateStr) {
     if (!dateStr) return null;
     return new Date(dateStr).toLocaleDateString('ro', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function daysUntil(dateStr) {
+    if (!dateStr) return null;
+    const end = new Date(dateStr);
+    const now = new Date();
+    const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+    const nowDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const diff = Math.round((endDay - nowDay) / 86_400_000);
+    return diff < 0 ? 0 : diff;
+}
+
+function daysLabel(n) {
+    if (n === null) return null;
+    if (n === 0) return 'expiră azi';
+    if (n === 1) return 'expiră peste 1 zi';
+    return `expiră peste ${n} zile`;
 }
 
 /* ─── Payment History Modal ───────────────────────────────────────────── */
@@ -117,10 +136,18 @@ export default function Index({ agency, plans, activeSubscription, invoices, str
     const currentSlug  = agency.subscription_plan ?? 'starter';
     const currentPlan  = plans.find(p => p.slug === currentSlug);
     const meta         = planMeta[currentSlug] ?? planMeta.starter;
-    const planEndsAt   = fmt(agency.subscription_ends_at);
-    const trialEndsAt  = fmt(agency.trial_ends_at);
-    const isOnTrial    = !activeSubscription && !!agency.trial_ends_at;
+
+    const isTrialing   = activeSubscription?.stripe_status === 'trialing'
+                         || (!activeSubscription && !!agency.trial_ends_at);
     const isActive     = activeSubscription?.stripe_status === 'active';
+
+    const trialEndsRaw = activeSubscription?.trial_ends_at ?? agency.trial_ends_at;
+    const planEndsRaw  = agency.subscription_ends_at;
+
+    const trialEndsAt   = fmt(trialEndsRaw);
+    const planEndsAt    = fmt(planEndsRaw);
+    const trialDaysLeft = daysUntil(trialEndsRaw);
+    const planDaysLeft  = daysUntil(planEndsRaw);
 
     const handleSubscribe = (slug) => {
         setLoading(slug);
@@ -136,17 +163,6 @@ export default function Index({ agency, plans, activeSubscription, invoices, str
 
             <div className="space-y-8 max-w-4xl mx-auto">
 
-                {/* Flash */}
-                {flash?.success && (
-                    <div className="rounded-2xl bg-emerald-50 border border-emerald-200 px-5 py-3.5 text-sm text-emerald-800 font-semibold">
-                        ✓ {flash.success}
-                    </div>
-                )}
-                {flash?.error && (
-                    <div className="rounded-2xl bg-red-50 border border-red-200 px-5 py-3.5 text-sm text-red-700 font-semibold">
-                        ✕ {flash.error}
-                    </div>
-                )}
 
                 {/* ─── Current plan card ──────────────────────────────── */}
                 <div className="rounded-4xl bg-white border border-slate-100 shadow-xl p-8">
@@ -166,7 +182,7 @@ export default function Index({ agency, plans, activeSubscription, invoices, str
                                         Activ
                                     </span>
                                 )}
-                                {isOnTrial && (
+                                {isTrialing && (
                                     <span className="bg-amber-100 text-amber-700 text-xs font-bold px-2.5 py-1 rounded-full">
                                         Trial
                                     </span>
@@ -177,19 +193,40 @@ export default function Index({ agency, plans, activeSubscription, invoices, str
                                 <div>
                                     Preț:{' '}
                                     <strong className="text-slate-900">
-                                        {currentPlan ? `${currentPlan.price_monthly} €/lună` : '—'}
+                                        {currentPlan ? `${parseFloat(currentPlan.price_monthly).toFixed(0)} €/lună` : '—'}
                                     </strong>
+                                    {currentPlan && parseFloat(currentPlan.price_per_extra_seat) > 0 && (
+                                        <span className="text-slate-500 text-xs ml-1">
+                                            (+ {parseFloat(currentPlan.price_per_extra_seat).toFixed(0)} €/agent peste {currentPlan.seats_included})
+                                        </span>
+                                    )}
                                 </div>
-                                {planEndsAt && (
-                                    <div>
-                                        Activ până la:{' '}
-                                        <strong className="text-slate-900">{planEndsAt}</strong>
-                                    </div>
-                                )}
-                                {isOnTrial && trialEndsAt && (
+                                {isTrialing && trialEndsAt && (
                                     <div>
                                         Trial expiră:{' '}
                                         <strong className="text-amber-700">{trialEndsAt}</strong>
+                                        {trialDaysLeft !== null && (
+                                            <span className={`ml-2 inline-flex items-center text-xs font-bold px-2 py-0.5 rounded-full ${
+                                                trialDaysLeft <= 3 ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'
+                                            }`}>
+                                                {daysLabel(trialDaysLeft)}
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
+                                {!isTrialing && planEndsAt && (
+                                    <div>
+                                        Activ până la:{' '}
+                                        <strong className="text-slate-900">{planEndsAt}</strong>
+                                        {planDaysLeft !== null && (
+                                            <span className={`ml-2 inline-flex items-center text-xs font-bold px-2 py-0.5 rounded-full ${
+                                                planDaysLeft <= 3 ? 'bg-rose-100 text-rose-700'
+                                                : planDaysLeft <= 7 ? 'bg-amber-100 text-amber-700'
+                                                : 'bg-emerald-100 text-emerald-700'
+                                            }`}>
+                                                {daysLabel(planDaysLeft)}
+                                            </span>
+                                        )}
                                     </div>
                                 )}
                                 {!isAdmin && (
@@ -203,22 +240,6 @@ export default function Index({ agency, plans, activeSubscription, invoices, str
                         {/* Action buttons — admin only */}
                         {isAdmin && (
                             <div className="flex flex-wrap gap-3 shrink-0">
-                                {activeSubscription && (
-                                    <button
-                                        onClick={() => router.get(route('subscription.portal'))}
-                                        className="rounded-2xl bg-slate-900 px-5 py-2.5 text-white text-sm font-semibold hover:bg-slate-700 transition-colors"
-                                    >
-                                        Prelungire
-                                    </button>
-                                )}
-                                {activeSubscription && (
-                                    <button
-                                        onClick={() => router.get(route('subscription.portal'))}
-                                        className="rounded-2xl border border-slate-200 px-5 py-2.5 text-slate-700 text-sm font-semibold hover:bg-slate-50 transition-colors"
-                                    >
-                                        Actualizare plan
-                                    </button>
-                                )}
                                 <button
                                     onClick={() => setShowHistory(true)}
                                     className="rounded-2xl border border-slate-200 px-5 py-2.5 text-slate-700 text-sm font-semibold hover:bg-slate-50 transition-colors"
@@ -240,7 +261,7 @@ export default function Index({ agency, plans, activeSubscription, invoices, str
                     </div>
 
                     {/* Trial banner */}
-                    {isOnTrial && (
+                    {isTrialing && (
                         <div className="mt-6 rounded-2xl bg-amber-50 border border-amber-200 px-5 py-4 flex items-start gap-3">
                             <span className="text-xl mt-0.5">⏰</span>
                             <div>
@@ -292,6 +313,11 @@ export default function Index({ agency, plans, activeSubscription, invoices, str
                                             {parseFloat(plan.price_monthly).toFixed(0)} €
                                         </span>
                                         <span className="text-slate-400 text-sm"> / lună</span>
+                                        {parseFloat(plan.price_per_extra_seat) > 0 && (
+                                            <div className="text-xs text-slate-500 font-medium mt-0.5">
+                                                + {parseFloat(plan.price_per_extra_seat).toFixed(0)} €/agent peste {plan.seats_included}
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div className="text-xs text-slate-500 mb-5 font-medium">

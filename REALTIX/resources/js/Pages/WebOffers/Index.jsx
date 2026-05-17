@@ -1,7 +1,11 @@
 import AppLayout from '@/Layouts/AppLayout';
 import UpgradeLock from '@/Components/UpgradeLock';
-import { Head, router, usePage } from '@inertiajs/react';
-import { useState } from 'react';
+import PhoneInteractionModal from '@/Components/PhoneInteractionModal';
+import LastInteractionHint from '@/Components/LastInteractionHint';
+import { Head, router } from '@inertiajs/react';
+import { useEffect, useState } from 'react';
+import { MOLDOVA_LOCALITIES, CHISINAU_DISTRICTS } from '@/Constants/moldova';
+import Combobox from '@/Components/Combobox';
 
 /* ─── Constants ─────────────────────────────────────────────────────────── */
 const AI_COLORS = {
@@ -22,21 +26,8 @@ const SOURCE_COLORS = {
 };
 
 const TYPE_LABELS  = { apartment: 'Apartament', house: 'Casă', commercial: 'Comercial', land: 'Teren' };
-const TRANS_LABELS = { sale: 'Vânzare', rent: 'Chirie' };
+const TRANS_LABELS = { sale: 'Vânzare', rent: 'Chirie', inchiriere_zilnica: 'Zilnică', new_build: 'Constr. nouă' };
 
-// Raioanele Chișinău (sectoare oficiale + cele mai des întâlnite)
-const CHISINAU_DISTRICTS = [
-    'Botanica', 'Buiucani', 'Centru', 'Ciocana', 'Râșcani',
-    'Telecentru', 'Poșta Veche', 'Durlești', 'Codru', 'Cricova',
-    'Vadul lui Vodă', 'Sîngera', 'Bubuieci',
-];
-
-// Orașe principale în Moldova
-const TOP_CITIES = [
-    'Chișinău', 'Bălți', 'Cahul', 'Orhei', 'Ungheni',
-    'Soroca', 'Hîncești', 'Comrat', 'Edineț', 'Strășeni',
-    'Anenii Noi', 'Ialoveni', 'Căușeni', 'Rezina', 'Drochia',
-];
 
 /* ─── Sidebar helpers ───────────────────────────────────────────────────── */
 function SideLabel({ children }) {
@@ -107,7 +98,7 @@ function resolveImg(path) {
     return `/storage/${path}`;
 }
 
-function ListingRow({ l, isFavorite, isImported, onFav, onImport }) {
+function ListingRow({ l, isFavorite, isImported, onFav, onImport, onShowContact, lastHint }) {
     const img  = resolveImg(l.images?.[0]);
     const ai   = AI_COLORS[l.ai_valuation];
     const srcLabel = SOURCE_LABELS[l.source] ?? l.source;
@@ -171,7 +162,16 @@ function ListingRow({ l, isFavorite, isImported, onFav, onImport }) {
                     )}
                     {l.rooms    && <span className="text-xs text-slate-400">{l.rooms} cam.</span>}
                     {l.area     && <span className="text-xs text-slate-400">{l.area} m²</span>}
-                    {l.phone    && <span className="text-xs text-slate-400">📞 {l.phone}</span>}
+                </div>
+
+                <div className="mt-1.5 flex items-center gap-2 flex-wrap">
+                    <button
+                        onClick={() => onShowContact(l.id)}
+                        className="inline-flex items-center gap-1 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold px-3 py-1 transition-colors"
+                    >
+                        📞 Arată contact
+                    </button>
+                    <LastInteractionHint hint={lastHint} />
                 </div>
             </div>
 
@@ -183,6 +183,17 @@ function ListingRow({ l, isFavorite, isImported, onFav, onImport }) {
                         : '—'
                     }
                 </div>
+                {(() => {
+                    // Prefer scraped €/m²; fall back to deterministic price/area
+                    // when missing (e.g. older rows from before the column existed).
+                    const ppm2 = l.price_per_m2
+                        ?? (l.price && l.area > 0 ? l.price / l.area : null);
+                    return ppm2 ? (
+                        <div className="text-[11px] text-slate-400 mt-0.5">
+                            {Number(ppm2).toLocaleString('ro', { maximumFractionDigits: 0 })} €/m²
+                        </div>
+                    ) : null;
+                })()}
                 {ai && (
                     <span className={`inline-block text-xs font-bold px-2 py-0.5 rounded-full border mt-1 ${ai.badge}`}>
                         {ai.label}
@@ -228,11 +239,10 @@ const EMPTY = {
     search: '', sources: [], owner_types: [], types: [], transaction_type: '',
     city: '', district: '',
     price_min: '', price_max: '', area_min: '', area_max: '',
-    ai_valuation: '', date_filter: '', favorite: false, sort: '',
+    ai_valuation: '', date_from: '', date_to: '', favorite: false, sort: '',
 };
 
 export default function Index({ listings, filters = {}, favoriteIds = [], importedIds = [], counts = {}, districts = [], cities = [] }) {
-    const { flash } = usePage().props;
 
     const [f, setF] = useState({
         ...EMPTY,
@@ -246,6 +256,23 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
     const [localFavs,     setLocalFavs]     = useState(new Set(favoriteIds));
     const [localImported, setLocalImported] = useState(new Set(importedIds));
     const [syncing,       setSyncing]       = useState(false);
+    const [filterOpen,    setFilterOpen]    = useState(false);
+    const [activePhone,   setActivePhone]   = useState(null);
+    const [hintMap,       setHintMap]       = useState({});
+
+    useEffect(() => {
+        const ids = listings.data.map(l => l.id);
+        if (ids.length === 0) return;
+        window.axios.get(route('phone-interactions.last-batch'), {
+            params: { subject_type: 'scraped_listing', ids },
+        }).then(res => setHintMap(res.data ?? {})).catch(() => {});
+    }, [listings.data.map(l => l.id).join(',')]);
+
+    const refreshHint = (id) => {
+        window.axios.get(route('phone-interactions.last-batch'), {
+            params: { subject_type: 'scraped_listing', ids: [id] },
+        }).then(res => setHintMap(prev => ({ ...prev, ...res.data })));
+    };
 
     const push = (updated) => {
         const params = {};
@@ -273,17 +300,25 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
         f.sources.length, f.owner_types.length, f.types.length,
         f.transaction_type, f.city, f.district,
         f.price_min, f.price_max, f.area_min, f.area_max,
-        f.ai_valuation, f.date_filter, f.favorite,
+        f.ai_valuation, f.date_from || f.date_to, f.favorite,
     ].filter(Boolean).length + (f.search ? 1 : 0);
 
     return (
         <AppLayout title="Web Oferte">
             <Head title="Web Oferte" />
+            {filterOpen && (
+                <div className="lg:hidden fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={() => setFilterOpen(false)} />
+            )}
             <div className="flex gap-6">
 
                 {/* ─── SIDEBAR ──────────────────────────────────────────── */}
-                <aside className="hidden lg:flex flex-col w-72 shrink-0">
-                    <div className="rounded-4xl bg-white border border-slate-100 shadow-xl p-5 space-y-5 sticky top-6 overflow-y-auto max-h-[calc(100vh-5rem)]">
+                <aside className={`${filterOpen ? 'fixed inset-y-0 left-0 z-50 w-80 max-w-[90vw] bg-white shadow-2xl overflow-y-auto p-3' : 'hidden'} lg:flex lg:static lg:z-auto lg:w-72 lg:bg-transparent lg:shadow-none lg:p-0 lg:overflow-visible flex-col shrink-0`}>
+                    <div className="rounded-4xl lg:bg-white border lg:border-slate-100 lg:shadow-xl p-5 space-y-5 lg:sticky lg:top-6 lg:overflow-y-auto lg:max-h-[calc(100vh-5rem)]">
+                        {filterOpen && (
+                            <button onClick={() => setFilterOpen(false)} className="lg:hidden ml-auto block p-1.5 rounded-lg hover:bg-slate-100" aria-label="Close filters">
+                                <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        )}
                         <div className="flex items-center justify-between">
                             <span className="font-bold text-slate-900 text-sm">
                                 Filtre
@@ -336,11 +371,12 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
                         {/* Transaction type */}
                         <div>
                             <SideLabel>Tip tranzacție</SideLabel>
-                            <div className="flex gap-1.5">
+                            <div className="grid grid-cols-2 gap-1.5">
                                 {[
-                                    ['',     'Toate', counts.total],
-                                    ['sale', 'Vânzare', counts.by_transaction?.sale],
-                                    ['rent', 'Chirie',  counts.by_transaction?.rent],
+                                    ['',                   'Toate',           counts.total],
+                                    ['sale',               'Vânzare',         counts.by_transaction?.sale],
+                                    ['rent',               'Chirie',          counts.by_transaction?.rent],
+                                    ['inchiriere_zilnica', 'Chirie zilnică',  counts.by_transaction?.inchiriere_zilnica],
                                 ].map(([v, l, n]) => (
                                     <button
                                         key={v}
@@ -360,69 +396,39 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
                             </div>
                         </div>
 
-                        {/* City + District */}
+                        {/* Raion + Sector */}
                         <div className="space-y-2">
                             <div>
-                                <SideLabel>Localitate</SideLabel>
-                                <input
-                                    list="city-list"
+                                <SideLabel>Raion</SideLabel>
+                                <Combobox
                                     value={f.city}
-                                    onChange={e => setF(s => ({ ...s, city: e.target.value }))}
-                                    onBlur={() => push(f)} onKeyDown={e => e.key === 'Enter' && push(f)}
+                                    onChange={v => setF(s => ({ ...s, city: v }))}
+                                    onCommit={() => push({ ...f })}
+                                    options={MOLDOVA_LOCALITIES}
                                     placeholder="Ex: Chișinău"
-                                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
                                 />
-                                <datalist id="city-list">
-                                    {(cities.length > 0 ? cities.map(c => c.city) : TOP_CITIES).map(c => (
-                                        <option key={c} value={c} />
-                                    ))}
-                                </datalist>
                             </div>
 
-                            {/* District: dropdown when city is Chișinău, otherwise free input */}
                             {(() => {
                                 const isChisinau = f.city.trim().toLowerCase().startsWith('chișinău')
                                                 || f.city.trim().toLowerCase().startsWith('chisinau');
-                                if (isChisinau) {
-                                    // Combine real DB districts with Chișinău canonical list
-                                    const dbDistricts = new Set(districts.map(d => d.district));
-                                    const merged = [
-                                        ...CHISINAU_DISTRICTS.filter(d => dbDistricts.has(d) || true),
+                                const source = isChisinau
+                                    ? [
+                                        ...CHISINAU_DISTRICTS,
                                         ...districts.map(d => d.district).filter(d => !CHISINAU_DISTRICTS.includes(d)),
-                                    ];
-                                    const countsMap = Object.fromEntries(districts.map(d => [d.district, d.cnt]));
-                                    return (
-                                        <div>
-                                            <SideLabel>Raionul Chișinău</SideLabel>
-                                            <select
-                                                value={f.district}
-                                                onChange={e => set('district', e.target.value)}
-                                                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 bg-white"
-                                            >
-                                                <option value="">— Toate raioanele —</option>
-                                                {merged.map(d => (
-                                                    <option key={d} value={d}>
-                                                        {d}{countsMap[d] ? ` (${countsMap[d]})` : ''}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    );
-                                }
+                                      ]
+                                    : districts.map(d => d.district);
+
                                 return (
                                     <div>
-                                        <SideLabel>Sector / Raion</SideLabel>
-                                        <input
-                                            list="district-list"
+                                        <SideLabel>Sector</SideLabel>
+                                        <Combobox
                                             value={f.district}
-                                            onChange={e => setF(s => ({ ...s, district: e.target.value }))}
-                                            onBlur={() => push(f)} onKeyDown={e => e.key === 'Enter' && push(f)}
-                                            placeholder="Ex: Centru"
-                                            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                                            onChange={v => setF(s => ({ ...s, district: v }))}
+                                            onCommit={() => push({ ...f })}
+                                            options={source}
+                                            placeholder={isChisinau ? 'Ex: Botanica' : 'Ex: Centru'}
                                         />
-                                        <datalist id="district-list">
-                                            {districts.map(d => <option key={d.district} value={d.district} />)}
-                                        </datalist>
                                     </div>
                                 );
                             })()}
@@ -444,25 +450,30 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
                             onApply={() => push(f)}
                         />
 
-                        {/* Date filter */}
+                        {/* Date filter — range picker */}
                         <div>
                             <SideLabel>Dată publicare</SideLabel>
-                            <div className="grid grid-cols-3 gap-1.5">
-                                {[
-                                    ['',      'Toate'],
-                                    ['today', 'Astăzi'],
-                                    ['week',  'Săptămâna'],
-                                    ['month', 'Luna'],
-                                    ['year',  'Anul'],
-                                ].map(([v, l]) => (
+                            <div className="space-y-1.5">
+                                <input
+                                    type="date"
+                                    value={f.date_from}
+                                    max={f.date_to || undefined}
+                                    onChange={e => set('date_from', e.target.value)}
+                                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:outline-none focus:border-blue-500"
+                                />
+                                <input
+                                    type="date"
+                                    value={f.date_to}
+                                    min={f.date_from || undefined}
+                                    onChange={e => set('date_to', e.target.value)}
+                                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:outline-none focus:border-blue-500"
+                                />
+                                {(f.date_from || f.date_to) && (
                                     <button
-                                        key={v}
-                                        onClick={() => set('date_filter', f.date_filter === v ? '' : v)}
-                                        className={`text-xs font-semibold py-1.5 rounded-xl transition-colors ${
-                                            f.date_filter === v ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                        }`}
-                                    >{l}</button>
-                                ))}
+                                        onClick={() => { setF(s => ({ ...s, date_from: '', date_to: '' })); push({ ...f, date_from: '', date_to: '' }); }}
+                                        className="text-[11px] text-slate-400 hover:text-slate-600 underline"
+                                    >Șterge intervalul</button>
+                                )}
                             </div>
                         </div>
 
@@ -505,17 +516,22 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
                 {/* ─── MAIN ──────────────────────────────────────────────── */}
                 <div className="flex-1 min-w-0 space-y-3">
 
-                    {/* Flash */}
-                    {flash?.success && (
-                        <div className="rounded-2xl bg-emerald-50 border border-emerald-200 px-5 py-3 text-sm text-emerald-800 font-semibold">
-                            ✓ {flash.success}
-                        </div>
-                    )}
-
                     {/* Top bar */}
-                    <div className="flex items-center justify-between gap-3 flex-wrap bg-white rounded-4xl border border-slate-100 shadow-xl px-6 py-4">
-                        <div>
-                            <h2 className="text-lg font-bold text-slate-900">Web Oferte</h2>
+                    <div className="flex items-center justify-between gap-3 flex-wrap bg-white rounded-3xl sm:rounded-4xl border border-slate-100 shadow-xl px-4 sm:px-6 py-3 sm:py-4">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <button
+                                type="button"
+                                onClick={() => setFilterOpen(true)}
+                                className="lg:hidden shrink-0 rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors px-3 py-2 text-sm font-bold text-slate-700 flex items-center gap-1.5"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
+                                Filtre
+                                {activeCount > 0 && (
+                                    <span className="bg-blue-600 text-white text-[10px] px-1.5 rounded-full">{activeCount}</span>
+                                )}
+                            </button>
+                        <div className="min-w-0">
+                            <h2 className="text-base sm:text-lg font-bold text-slate-900">Web Oferte</h2>
                             <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-2 flex-wrap">
                                 <span>
                                     <strong className="text-slate-700">{listings.total.toLocaleString('ro')}</strong> rezultate filtrate
@@ -533,6 +549,7 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
                                 )}
                             </p>
                         </div>
+                        </div>
                         <div className="flex items-center gap-2 flex-wrap">
                             <UpgradeLock feature="scraper" mode="disable">
                                 <button
@@ -548,7 +565,7 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
                                     title="Preia anunțurile tale de pe 999.md prin Partners API"
                                 >
                                     <span className={syncing ? 'animate-spin inline-block' : ''}>🔄</span>
-                                    {syncing ? 'Se sincronizează…' : 'Sincronizează 999.md'}
+                                    {syncing ? 'Se sincronizează…' : 'Sincronizează anunțurile'}
                                 </button>
                             </UpgradeLock>
                             <select
@@ -568,10 +585,10 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
                     {listings.data.length === 0 ? (
                         <div className="rounded-4xl bg-white border border-slate-100 shadow-xl p-16 text-center">
                             <div className="text-5xl mb-4">🌐</div>
-                            <h3 className="text-xl font-bold text-slate-900 mb-2">Nicio ofertă web</h3>
+                            <h3 className="text-xl font-bold text-slate-900 mb-2">Nicio ofertă web disponibilă</h3>
                             <p className="text-slate-500 text-sm max-w-sm mx-auto">
-                                Scraper-ul REALTIX va colecta automat anunțuri din surse externe.
-                                Configurează-l din <strong>Setări → Integrări</strong>.
+                                Platforma REALTIX poate importa automat anunțuri din surse externe conectate.
+                                Configurează integrarea din <strong>Setări → Integrări</strong>.
                             </p>
                         </div>
                     ) : (
@@ -584,6 +601,8 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
                                     isImported={localImported.has(l.id)}
                                     onFav={toggleFav}
                                     onImport={importListing}
+                                    onShowContact={setActivePhone}
+                                    lastHint={hintMap[l.id]}
                                 />
                             ))}
                         </div>
@@ -611,6 +630,17 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
                     )}
                 </div>
             </div>
+
+            {activePhone !== null && (
+                <PhoneInteractionModal
+                    subjectType="scraped_listing"
+                    subjectId={activePhone}
+                    mode="modal"
+                    mandatory
+                    onClose={() => setActivePhone(null)}
+                    onLogged={() => refreshHint(activePhone)}
+                />
+            )}
         </AppLayout>
     );
 }

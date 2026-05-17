@@ -70,9 +70,15 @@
         };
     @endphp
 
+    @php
+        $sections = $sections ?? null;
+        $wants = fn (string $key) => $sections === null || in_array($key, $sections, true);
+    @endphp
+
     @if($isAdmin)
         {{-- ============ ADMIN ============ --}}
 
+        @if($wants('summary'))
         <h2>📊 Sumar agenție</h2>
         <div class="grid">
             <div class="stat">
@@ -118,7 +124,9 @@
                 <div class="val">{{ $avgDaysToClose }}</div>
             </div>
         </div>
+        @endif
 
+        @if($wants('by_type'))
         <h2>🏢 Proprietăți pe tip</h2>
         <table class="t">
             <thead>
@@ -133,7 +141,9 @@
                 @endif
             </tbody>
         </table>
+        @endif
 
+        @if($wants('agents'))
         <h2>👥 Performanță agenți</h2>
         <table class="t">
             <thead>
@@ -166,7 +176,9 @@
                 @endif
             </tbody>
         </table>
+        @endif
 
+        @if($wants('revenue_monthly'))
         <h2>💰 Venit pe luni (an curent)</h2>
         <table class="t">
             <thead>
@@ -184,7 +196,9 @@
                 @endif
             </tbody>
         </table>
+        @endif
 
+        @if($wants('top_districts'))
         <h2>📍 Top districte (anunțuri săptămâna asta)</h2>
         <table class="t">
             <thead>
@@ -199,8 +213,10 @@
                 @endif
             </tbody>
         </table>
+        @endif
 
-        <h2>💵 Preț mediu pe district</h2>
+        @if($wants('avg_price'))
+        <h2>💵 Preț mediu €/m² pe district</h2>
         <table class="t">
             <thead>
                 <tr><th>District</th><th class="num">Preț mediu (€)</th><th class="num">Anunțuri</th></tr>
@@ -218,10 +234,46 @@
                 @endif
             </tbody>
         </table>
+        @endif
+
+        @if($wants('ai_insights') && !empty($aiInsights))
+            <h2>🤖 AI Insights</h2>
+            @if(!empty($aiInsights['trends']))
+                <h3 style="font-size:11pt;color:#475569;margin:8px 0 4px;">Predicții tendințe</h3>
+                <ul style="padding-left:18px;margin:4px 0;">
+                    @foreach($aiInsights['trends'] as $t)
+                        <li style="margin-bottom:4px;"><strong>{{ $t['badge'] ?? '' }}:</strong> {{ $t['text'] ?? '' }}</li>
+                    @endforeach
+                </ul>
+            @endif
+            @if(!empty($aiInsights['priceRecommendations']))
+                <h3 style="font-size:11pt;color:#475569;margin:10px 0 4px;">Recomandări prețuri</h3>
+                <table class="t">
+                    <thead><tr><th>Agent</th><th>Recomandare</th></tr></thead>
+                    <tbody>
+                        @foreach($aiInsights['priceRecommendations'] as $r)
+                            <tr><td><strong>{{ $r['name'] ?? '' }}</strong></td><td>{{ $r['text'] ?? '' }}</td></tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            @endif
+            @if(!empty($aiInsights['forecast']))
+                <h3 style="font-size:11pt;color:#475569;margin:10px 0 4px;">Prognoză venit</h3>
+                <table class="t">
+                    <thead><tr><th>Orizont</th><th class="num">Variație</th><th class="num">Estimare €</th></tr></thead>
+                    <tbody>
+                        <tr><td>Luna viitoare</td><td class="num">{{ ($aiInsights['forecast']['next_month']['pct'] ?? 0) >= 0 ? '+' : '' }}{{ $aiInsights['forecast']['next_month']['pct'] ?? 0 }}%</td><td class="num">{{ $money($aiInsights['forecast']['next_month']['amount'] ?? 0) }}</td></tr>
+                        <tr><td>Trimestrul viitor</td><td class="num">{{ ($aiInsights['forecast']['next_quarter']['pct'] ?? 0) >= 0 ? '+' : '' }}{{ $aiInsights['forecast']['next_quarter']['pct'] ?? 0 }}%</td><td class="num">{{ $money($aiInsights['forecast']['next_quarter']['amount'] ?? 0) }}</td></tr>
+                        <tr><td>Sfârșitul anului</td><td class="num">{{ ($aiInsights['forecast']['next_year']['pct'] ?? 0) >= 0 ? '+' : '' }}{{ $aiInsights['forecast']['next_year']['pct'] ?? 0 }}%</td><td class="num">{{ $money($aiInsights['forecast']['next_year']['amount'] ?? 0) }}</td></tr>
+                    </tbody>
+                </table>
+            @endif
+        @endif
 
     @else
         {{-- ============ REALTOR ============ --}}
 
+        @if($wants('summary'))
         <h2>📊 Sumar personal</h2>
         <div class="grid">
             <div class="stat">
@@ -263,7 +315,9 @@
                 <div class="val">{{ $money($revenueTotal) }} €</div>
             </div>
         </div>
+        @endif
 
+        @if($wants('top_properties'))
         <h2>🏆 Top 3 proprietăți (după vizualizări)</h2>
         <table class="t">
             <thead>
@@ -284,7 +338,9 @@
                 @endif
             </tbody>
         </table>
+        @endif
 
+        @if($wants('revenue_monthly'))
         <h2>💰 Venit pe luni (an curent)</h2>
         <table class="t">
             <thead>
@@ -302,6 +358,7 @@
                 @endif
             </tbody>
         </table>
+        @endif
     @endif
 
 </div>

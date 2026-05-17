@@ -1,5 +1,13 @@
 import { useState } from 'react';
-import { Head, router, Link } from '@inertiajs/react';
+import { Head, router, Link, usePage } from '@inertiajs/react';
+
+const COMMON_FEATURES = [
+    { ok: true, label: 'Sistem CRM' },
+    { ok: true, label: 'Catalog Anunțuri' },
+    { ok: true, label: 'Asistent AI' },
+    { ok: true, label: 'Contracte PDF' },
+    { ok: true, label: 'Statistici + export' },
+];
 
 const PLAN_META = {
     starter: {
@@ -7,42 +15,24 @@ const PLAN_META = {
         accent: 'border-slate-300 ring-slate-300',
         button: 'bg-slate-900 hover:bg-slate-700',
         tag: null,
-        features: [
-            { ok: true,  label: 'Până la 50 anunțuri active' },
-            { ok: true,  label: '1 cont (doar tu)' },
-            { ok: false, label: 'Instrumente AI (descriere + estimare)' },
-            { ok: false, label: 'Web Offers (scraping piață)' },
-            { ok: false, label: 'Contracte PDF' },
-            { ok: false, label: 'Statistici avansate' },
-        ],
+        seats: '1 agent (doar tu)',
+        features: COMMON_FEATURES,
     },
     medium: {
         gradient: 'from-blue-50 to-indigo-100',
         accent: 'border-blue-500 ring-blue-500',
         button: 'bg-blue-600 hover:bg-blue-700',
         tag: 'Cel mai popular',
-        features: [
-            { ok: true, label: 'Până la 500 anunțuri active' },
-            { ok: true, label: 'Până la 5 agenți' },
-            { ok: true, label: 'Instrumente AI nelimitate' },
-            { ok: true, label: 'Web Offers + scraper 999.md' },
-            { ok: true, label: 'Contracte PDF (13+ șabloane)' },
-            { ok: false, label: 'Statistici avansate' },
-        ],
+        seats: 'Până la 5 agenți',
+        features: COMMON_FEATURES,
     },
     pro: {
         gradient: 'from-purple-50 to-fuchsia-100',
         accent: 'border-purple-500 ring-purple-500',
         button: 'bg-purple-600 hover:bg-purple-700',
-        tag: 'Toate funcțiile',
-        features: [
-            { ok: true, label: 'Anunțuri nelimitate' },
-            { ok: true, label: 'Agenți nelimitați' },
-            { ok: true, label: 'Instrumente AI nelimitate' },
-            { ok: true, label: 'Web Offers + scraper 999.md' },
-            { ok: true, label: 'Contracte PDF + DOCX' },
-            { ok: true, label: 'Statistici avansate + AI insights' },
-        ],
+        tag: 'Pentru agenții mari',
+        seats: '5 agenți incluși + 8€/agent suplimentar',
+        features: COMMON_FEATURES,
     },
 };
 
@@ -52,7 +42,7 @@ function PlanCard({ plan, meta, selected, onSelect, submitting }) {
             type="button"
             onClick={() => onSelect(plan.slug)}
             disabled={submitting}
-            className={`relative text-left rounded-3xl border-2 bg-gradient-to-br ${meta.gradient} p-7 transition-all hover:scale-[1.015] hover:shadow-2xl disabled:opacity-60 ${
+            className={`relative text-left rounded-3xl border-2 bg-linear-to-br ${meta.gradient} p-7 transition-all hover:scale-[1.015] hover:shadow-2xl disabled:opacity-60 ${
                 selected ? `${meta.accent} ring-4 ring-offset-2 shadow-2xl` : 'border-slate-200'
             }`}
         >
@@ -67,10 +57,16 @@ function PlanCard({ plan, meta, selected, onSelect, submitting }) {
                 {selected && <span className="text-emerald-600 text-2xl">✓</span>}
             </div>
 
-            <div className="mb-2">
+            <div className="mb-1">
                 <span className="text-4xl font-black text-slate-900">€{Number(plan.price_monthly).toFixed(0)}</span>
                 <span className="text-sm text-slate-500 font-medium ml-1">/lună</span>
+                {Number(plan.price_per_extra_seat) > 0 && (
+                    <span className="text-xs text-slate-500 font-medium ml-1">
+                        + €{Number(plan.price_per_extra_seat).toFixed(0)}/agent extra
+                    </span>
+                )}
             </div>
+            <div className="text-xs text-slate-600 font-semibold mb-1">{meta.seats}</div>
             <div className="text-xs font-semibold text-emerald-700 mb-5">14 zile trial gratis</div>
 
             <ul className="space-y-2 text-sm">
@@ -83,18 +79,19 @@ function PlanCard({ plan, meta, selected, onSelect, submitting }) {
             </ul>
 
             <div className={`mt-6 w-full rounded-xl py-2.5 text-center text-sm font-bold text-white transition-colors ${meta.button}`}>
-                {submitting && selected ? 'Se activează...' : selected ? 'Selectat' : 'Începe trial'}
+                {submitting && selected ? 'Se redirecționează...' : selected ? 'Selectat' : 'Continuă spre plată'}
             </div>
         </button>
     );
 }
 
-export default function OnboardingPlan({ plans }) {
+export default function OnboardingPlan({ plans, stripe_configured }) {
     const [selected, setSelected] = useState(null);
     const [submitting, setSubmitting] = useState(false);
+    const { flash } = usePage().props;
 
     const handleSelect = (slug) => {
-        if (submitting) return;
+        if (submitting || !stripe_configured) return;
         setSelected(slug);
         setSubmitting(true);
         router.post(route('onboarding.plan.select'), { plan: slug }, {
@@ -105,23 +102,47 @@ export default function OnboardingPlan({ plans }) {
         });
     };
 
+    const handleLogout = () => {
+        router.post(route('logout'));
+    };
+
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-100 via-white to-blue-50 py-12 px-4">
+        <div className="min-h-screen bg-linear-to-br from-slate-100 via-white to-blue-50 py-12 px-4">
             <Head title="Alege planul tău" />
+
+            {/* Discreet logout in corner */}
+            <button
+                onClick={handleLogout}
+                className="absolute top-4 right-4 text-xs text-slate-400 hover:text-slate-700 font-medium"
+            >
+                Deconectare
+            </button>
 
             <div className="max-w-6xl mx-auto">
                 <div className="text-center mb-12">
                     <div className="inline-flex items-center gap-2 bg-blue-100 text-blue-700 text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full mb-4">
                         <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-                        Pasul 1 din 1
+                        Activare cont — pasul final
                     </div>
                     <h1 className="text-4xl md:text-5xl font-black text-slate-900 mb-3" style={{ fontFamily: 'Montserrat, sans-serif' }}>
                         Alege planul potrivit
                     </h1>
                     <p className="text-slate-600 text-lg max-w-2xl mx-auto">
-                        Toate planurile încep cu <strong>14 zile trial gratis</strong>. Nu ai nevoie de card bancar acum — îl adaugi doar dacă vrei să continui după trial.
+                        Toate planurile includ o perioadă de <strong>trial gratuit de 14 zile</strong>. Adaugi cardul acum, dar nu vei fi taxat pe durata celor 14 zile. Poți anula oricând, fără costuri sau obligații.
                     </p>
                 </div>
+
+                {flash?.error && (
+                    <div className="max-w-2xl mx-auto mb-8 rounded-2xl bg-red-50 border border-red-200 px-5 py-3.5 text-sm text-red-700 font-semibold">
+                        ✕ {flash.error}
+                    </div>
+                )}
+
+                {!stripe_configured && (
+                    <div className="max-w-2xl mx-auto mb-8 rounded-2xl bg-amber-50 border border-amber-200 px-5 py-3.5 text-sm text-amber-800 font-semibold">
+                        ⚠ Stripe nu este configurat. Contactează administratorul platformei.
+                    </div>
+                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {plans.map((plan) => (
@@ -136,9 +157,9 @@ export default function OnboardingPlan({ plans }) {
                     ))}
                 </div>
 
-                <div className="mt-10 text-center text-xs text-slate-400">
-                    <p>Poți schimba planul oricând din <Link href="/subscription" className="text-blue-600 hover:underline font-semibold">Setări → Abonament</Link>.</p>
-                    <p className="mt-1">După cele 14 zile gratis vei primi o notificare pentru activarea plății.</p>
+                <div className="mt-10 text-center text-xs text-slate-400 space-y-1">
+                    <p>🔒 Plata securizată prin <strong className="text-slate-600">Stripe</strong>. Cardul nu este stocat la noi.</p>
+                    <p>După 14 zile, abonamentul se reînnoiește automat. Anulezi oricând fără cost din Setări → Abonament.</p>
                 </div>
             </div>
         </div>

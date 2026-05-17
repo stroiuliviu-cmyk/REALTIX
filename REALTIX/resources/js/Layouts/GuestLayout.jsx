@@ -1,4 +1,3 @@
-import ApplicationLogo from '@/Components/ApplicationLogo';
 import { Link } from '@inertiajs/react';
 
 export default function GuestLayout({ children }) {
@@ -20,10 +19,7 @@ export default function GuestLayout({ children }) {
 
                 <div className="relative z-10">
                     <Link href="/">
-                        <div className="flex items-center gap-3">
-                            <ApplicationLogo className="h-9 w-9 fill-white" />
-                            <span className="text-2xl font-bold text-white tracking-wide">REALTIX</span>
-                        </div>
+                        <span className="text-3xl font-bold text-white tracking-widest" style={{ fontFamily: 'Montserrat, sans-serif' }}>REALTIX</span>
                     </Link>
                 </div>
 
@@ -66,10 +62,7 @@ export default function GuestLayout({ children }) {
                 {/* Mobile logo */}
                 <div className="lg:hidden mb-8">
                     <Link href="/">
-                        <div className="flex items-center gap-2">
-                            <ApplicationLogo className="h-8 w-8 fill-blue-700" />
-                            <span className="text-xl font-bold text-blue-700 tracking-wide">REALTIX</span>
-                        </div>
+                        <span className="text-2xl font-bold text-blue-700 tracking-widest" style={{ fontFamily: 'Montserrat, sans-serif' }}>REALTIX</span>
                     </Link>
                 </div>
 

@@ -28,7 +28,7 @@ function Progress({ current, steps }) {
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all
                         ${current === s.id ? 'text-white' : current > s.id ? 'text-white' : 'text-slate-400 bg-slate-100'}`}
                         style={current >= s.id ? { background: 'linear-gradient(135deg,#10b981,#059669)' } : {}}>
-                        {current > s.id ? '✓' : s.id}
+                        {current > s.id ? '✓' : i + 1}
                     </div>
                     <span className={`text-xs font-medium hidden sm:block ${current >= s.id ? 'text-slate-700' : 'text-slate-400'}`}>
                         {s.label}
@@ -105,7 +105,6 @@ function StepLanguage({ currentLocale, onNext, onSkip, t }) {
     const langs = [
         { code: 'ro', flag: '🇲🇩', label: t('onboarding.lang_ro_label'), sub: t('onboarding.lang_ro_sub') },
         { code: 'ru', flag: '🇷🇺', label: t('onboarding.lang_ru_label'), sub: t('onboarding.lang_ru_sub') },
-        { code: 'en', flag: '🇬🇧', label: t('onboarding.lang_en_label'), sub: t('onboarding.lang_en_sub') },
     ];
 
     return (
@@ -141,9 +140,16 @@ function StepLanguage({ currentLocale, onNext, onSkip, t }) {
 }
 
 /* ── Step 3: Invite agents ── */
-function StepAgents({ onNext, onSkip, t }) {
-    const [emails, setEmails] = useState(['']);
-    const add    = () => setEmails(e => [...e, '']);
+function StepAgents({ plan, onNext, onSkip, t }) {
+    const unlimited     = plan?.max_realtors === -1;
+    const remaining     = plan?.remaining_seats ?? 0;
+    const canAddBeyond  = unlimited || plan?.has_extra_seats;
+    const initialCount  = Math.min(unlimited ? 4 : Math.max(1, remaining), 4);
+    const [emails, setEmails] = useState(Array(initialCount).fill(''));
+
+    const reachedSeatLimit = !unlimited && !canAddBeyond && emails.length >= remaining;
+
+    const add    = () => setEmails(e => reachedSeatLimit ? e : [...e, '']);
     const remove = (i) => setEmails(e => e.filter((_, idx) => idx !== i));
     const update = (i, v) => setEmails(e => e.map((x, idx) => idx === i ? v : x));
 
@@ -155,11 +161,20 @@ function StepAgents({ onNext, onSkip, t }) {
         onNext();
     };
 
+    const planHint = unlimited
+        ? t('onboarding.agents_plan_unlimited', { plan: plan?.name ?? '' })
+        : canAddBeyond
+            ? t('onboarding.agents_plan_overage', { plan: plan?.name ?? '', included: plan?.seats_included ?? 0 })
+            : t('onboarding.agents_plan_limit', { plan: plan?.name ?? '', remaining });
+
     return (
         <div className="step-enter space-y-6">
             <div>
                 <h2 className="text-2xl font-bold text-slate-900 mb-1">{t('onboarding.agents_title')}</h2>
                 <p className="text-sm text-slate-500">{t('onboarding.agents_sub')}</p>
+                {plan && (
+                    <p className="text-xs text-emerald-700 mt-2 font-medium">{planHint}</p>
+                )}
             </div>
 
             <div className="space-y-2.5">
@@ -180,10 +195,12 @@ function StepAgents({ onNext, onSkip, t }) {
                         )}
                     </div>
                 ))}
-                <button onClick={add}
-                    className="flex items-center gap-2 text-sm font-medium text-emerald-600 hover:text-emerald-700">
-                    <span className="text-lg leading-none">+</span> {t('onboarding.add_agent')}
-                </button>
+                {!reachedSeatLimit && (
+                    <button onClick={add}
+                        className="flex items-center gap-2 text-sm font-medium text-emerald-600 hover:text-emerald-700">
+                        <span className="text-lg leading-none">+</span> {t('onboarding.add_agent')}
+                    </button>
+                )}
             </div>
 
             <div className="flex gap-3 pt-2">
@@ -250,19 +267,24 @@ function StepListing({ t }) {
 /* ═══════════════════════════════════════════════════════════════════
    MAIN
 ═══════════════════════════════════════════════════════════════════ */
-export default function OnboardingIndex({ user, agency }) {
+export default function OnboardingIndex({ user, agency, plan }) {
     const { t } = useTranslation();
-    const [step, setStep]     = useState(1);
-    const [locale, setLocale] = useState(user?.locale ?? 'ro');
+    const showAgentsStep = plan?.max_realtors === -1 || (plan?.seats_included ?? 1) > 1;
 
     const STEPS = [
         { id: 1, label: t('onboarding.step_logo'),    icon: '🏢' },
         { id: 2, label: t('onboarding.step_language'), icon: '🌍' },
-        { id: 3, label: t('onboarding.step_agents'),   icon: '👥' },
+        ...(showAgentsStep ? [{ id: 3, label: t('onboarding.step_agents'), icon: '👥' }] : []),
         { id: 4, label: t('onboarding.step_listing'),  icon: '🏠' },
     ];
 
-    const next = () => setStep(s => Math.min(s + 1, 4));
+    const [step, setStep]     = useState(1);
+    const [locale, setLocale] = useState(user?.locale ?? 'ro');
+
+    const next = () => setStep(s => {
+        if (s === 2 && !showAgentsStep) return 4;
+        return Math.min(s + 1, 4);
+    });
     const skip = () => next();
 
     const handleLanguage = (lang) => {
@@ -319,12 +341,12 @@ export default function OnboardingIndex({ user, agency }) {
 
                         {step === 1 && <StepLogo    agency={agency} onNext={next} onSkip={skip} t={t} />}
                         {step === 2 && <StepLanguage currentLocale={locale} onNext={handleLanguage} onSkip={skip} t={t} />}
-                        {step === 3 && <StepAgents   onNext={next} onSkip={skip} t={t} />}
+                        {step === 3 && showAgentsStep && <StepAgents plan={plan} onNext={next} onSkip={skip} t={t} />}
                         {step === 4 && <StepListing  t={t} />}
                     </div>
 
                     <p className="mt-4 text-center text-xs" style={{ color: '#94a3b8' }}>
-                        {t('onboarding.step_progress', { step, total: STEPS.length })}
+                        {t('onboarding.step_progress', { step: Math.max(1, STEPS.findIndex(s => s.id === step) + 1), total: STEPS.length })}
                     </p>
                 </div>
             </div>

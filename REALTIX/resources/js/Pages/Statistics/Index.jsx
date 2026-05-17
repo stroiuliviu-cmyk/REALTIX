@@ -20,6 +20,91 @@ const TYPE_COLORS = {
     land:      'bg-purple-500',
 };
 
+const ADMIN_EXPORT_SECTIONS = [
+    { id: 'summary',         label: 'Sumar agenție (proprietăți, contacte, apeluri, tranzacții, venit)' },
+    { id: 'by_type',         label: 'Proprietăți pe tip' },
+    { id: 'agents',          label: 'Agenți — performanță individuală' },
+    { id: 'revenue_monthly', label: 'Venit pe luni (anul curent)' },
+    { id: 'top_districts',   label: 'Top districte (piață)' },
+    { id: 'avg_price',       label: 'Preț mediu €/m² pe district' },
+    { id: 'ai_insights',     label: 'AI Insights — predicții, recomandări, prognoză' },
+];
+
+const REALTOR_EXPORT_SECTIONS = [
+    { id: 'summary',         label: 'Sumar personal' },
+    { id: 'top_properties',  label: 'Top 3 proprietăți după vizualizări' },
+    { id: 'revenue_monthly', label: 'Venit pe luni (anul curent)' },
+];
+
+function ExportModal({ open, onClose, format, period, isAdmin }) {
+    const sectionsList = isAdmin ? ADMIN_EXPORT_SECTIONS : REALTOR_EXPORT_SECTIONS;
+    const [selected, setSelected] = useState(() => sectionsList.map(s => s.id));
+
+    if (!open) return null;
+
+    const toggle = (id) => setSelected(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
+    const all    = () => setSelected(sectionsList.map(s => s.id));
+    const none   = () => setSelected([]);
+
+    const download = () => {
+        if (selected.length === 0) return;
+        const routeName = format === 'pdf' ? 'statistics.export.pdf' : 'statistics.export.csv';
+        const url = route(routeName, { period, sections: selected.join(',') });
+        if (format === 'pdf') {
+            window.open(url, '_blank', 'noopener');
+        } else {
+            window.location.href = url;
+        }
+        onClose();
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={onClose}>
+            <div className="w-full max-w-lg rounded-4xl bg-white p-7 shadow-2xl" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between mb-1">
+                    <h3 className="text-lg font-bold text-slate-900">
+                        {format === 'pdf' ? '📄 Export PDF' : '📊 Export Excel'}
+                    </h3>
+                    <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center text-sm">✕</button>
+                </div>
+                <p className="text-xs text-slate-500 mb-5">
+                    Perioadă: <strong className="text-slate-700">{PERIOD_LABELS[period] ?? period}</strong>. Bifează secțiunile pe care vrei să le incluzi în raport.
+                </p>
+
+                <div className="flex gap-2 mb-3">
+                    <button onClick={all}  className="text-xs font-semibold text-blue-700 hover:underline">Selectează tot</button>
+                    <button onClick={none} className="text-xs font-semibold text-slate-500 hover:underline">Deselectează tot</button>
+                </div>
+
+                <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                    {sectionsList.map(s => (
+                        <label key={s.id} className="flex items-start gap-3 p-3 rounded-2xl border border-slate-100 hover:bg-slate-50 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={selected.includes(s.id)}
+                                onChange={() => toggle(s.id)}
+                                className="mt-0.5 h-4 w-4 rounded border-gray-300 accent-blue-500 shrink-0"
+                            />
+                            <span className="text-sm text-slate-700">{s.label}</span>
+                        </label>
+                    ))}
+                </div>
+
+                <div className="mt-6 flex items-center justify-end gap-2">
+                    <button onClick={onClose} className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">Anulează</button>
+                    <button
+                        onClick={download}
+                        disabled={selected.length === 0}
+                        className="rounded-2xl bg-slate-900 px-5 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        Descarcă ({selected.length})
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // ─── Primitive Components ────────────────────────────────────────────────────
 
 function MiniBar({ value, max, color = 'bg-blue-500' }) {
@@ -125,10 +210,11 @@ function AdminDashboard({
     contactsTotal, contactsByType,
     callsTotal, callsPeriod, callConversion,
     dealsPeriod, revenuePeriod, revenuePrev, avgCommission,
-    avgDaysToClose, agentStats, revenueByMonth,
+    avgDaysToClose, agentStats, revenueByMonth, aiInsights,
     period,
 }) {
     const [activeTab, setActiveTab] = useState('overview');
+    const [exportFormat, setExportFormat] = useState(null);
 
     const tabs = [
         { id: 'overview', label: '📊 Prezentare generală' },
@@ -167,24 +253,32 @@ function AdminDashboard({
                 ))}
 
                 <div className="ml-auto flex gap-2">
-                    <a
-                        href={route('statistics.export.pdf', { period })}
-                        target="_blank"
-                        rel="noopener"
+                    <button
+                        type="button"
+                        onClick={() => setExportFormat('pdf')}
                         className="rounded-2xl px-4 py-2 text-sm font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
-                        title="Descarcă raport PDF complet"
+                        title="Configurează și descarcă PDF"
                     >
                         📄 PDF
-                    </a>
-                    <a
-                        href={route('statistics.export.csv', { period })}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setExportFormat('csv')}
                         className="rounded-2xl px-4 py-2 text-sm font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
-                        title="Descarcă raport Excel/CSV"
+                        title="Configurează și descarcă Excel/CSV"
                     >
                         📊 Excel
-                    </a>
+                    </button>
                 </div>
             </div>
+
+            <ExportModal
+                open={exportFormat !== null}
+                onClose={() => setExportFormat(null)}
+                format={exportFormat}
+                period={period}
+                isAdmin={true}
+            />
 
             {/* ── Tab: Overview ── */}
             {activeTab === 'overview' && (
@@ -331,14 +425,23 @@ function AdminDashboard({
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm">
                                     <thead>
-                                        <tr className="text-xs text-slate-400 font-bold uppercase border-b border-slate-100">
-                                            <th className="text-left pb-3">Agent</th>
-                                            <th className="text-right pb-3">Anunțuri</th>
-                                            <th className="text-right pb-3">Vizualizări</th>
-                                            <th className="text-right pb-3">Apeluri</th>
-                                            <th className="text-right pb-3">Tranzacții</th>
-                                            <th className="text-right pb-3">Venit (€)</th>
-                                            <th className="text-right pb-3">Zile medii</th>
+                                        <tr className="text-[10px] text-slate-400 font-bold uppercase border-b border-slate-100">
+                                            <th rowSpan={2} className="text-left pb-3 align-bottom">Agent</th>
+                                            <th rowSpan={2} className="text-right pb-3 align-bottom">Anunțuri</th>
+                                            <th rowSpan={2} className="text-right pb-3 align-bottom">Vizualizări</th>
+                                            <th colSpan={3} className="text-center pb-1 border-b border-slate-100 text-slate-500">Web Offers</th>
+                                            <th colSpan={3} className="text-center pb-1 border-b border-slate-100 text-slate-500">Anunțuri proprii</th>
+                                            <th rowSpan={2} className="text-right pb-3 align-bottom">Tranzacții</th>
+                                            <th rowSpan={2} className="text-right pb-3 align-bottom">Venit (€)</th>
+                                            <th rowSpan={2} className="text-right pb-3 align-bottom">Zile medii</th>
+                                        </tr>
+                                        <tr className="text-[10px] text-slate-400 font-bold uppercase border-b border-slate-100">
+                                            <th className="text-right pb-3" title="Numere văzute">👁 Văz.</th>
+                                            <th className="text-right pb-3" title="Apeluri încercate">📞 Înc.</th>
+                                            <th className="text-right pb-3" title="Apeluri reușite">✓ Reuș.</th>
+                                            <th className="text-right pb-3" title="Apeluri încercate">📞 Înc.</th>
+                                            <th className="text-right pb-3" title="Apeluri reușite">✓ Reuș.</th>
+                                            <th className="text-right pb-3" title="Refuzuri">❌ Ref.</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-50">
@@ -354,7 +457,12 @@ function AdminDashboard({
                                                 </td>
                                                 <td className="py-3 text-right text-slate-600">{agent.properties_count}</td>
                                                 <td className="py-3 text-right text-slate-600">{agent.views_total.toLocaleString('ro')}</td>
-                                                <td className="py-3 text-right text-slate-600">{agent.calls_count}</td>
+                                                <td className="py-3 text-right text-slate-600">{agent.wo_views ?? 0}</td>
+                                                <td className="py-3 text-right text-slate-600">{agent.wo_attempts ?? 0}</td>
+                                                <td className="py-3 text-right font-semibold text-emerald-700">{agent.wo_success ?? 0}</td>
+                                                <td className="py-3 text-right text-slate-600">{agent.own_attempts ?? 0}</td>
+                                                <td className="py-3 text-right font-semibold text-emerald-700">{agent.own_success ?? 0}</td>
+                                                <td className="py-3 text-right text-rose-600">{agent.own_refused ?? 0}</td>
                                                 <td className="py-3 text-right font-bold text-slate-900">{agent.deals_count}</td>
                                                 <td className="py-3 text-right font-bold text-emerald-700">
                                                     {agent.revenue > 0 ? `€${Number(agent.revenue).toLocaleString('ro', { maximumFractionDigits: 0 })}` : '—'}
@@ -490,11 +598,9 @@ function AdminDashboard({
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <SectionCard title="📈 Predicții tendințe">
                             <div className="space-y-3">
-                                {[
-                                    { icon: '📈', text: 'Cererea pentru apartamente cu 2 camere în Centru a crescut cu 12% față de trimestrul anterior.', badge: 'Creștere', color: 'green' },
-                                    { icon: '📉', text: 'Activitatea pentru proprietăți comerciale arată o scădere ușoară de 5% — potențial moment de achiziție.', badge: 'Atenție', color: 'amber' },
-                                    { icon: '🏘️', text: 'Sectorul Botanica prezintă cel mai rapid ritm de realizare — mediana 18 zile față de 31 zile media națională.', badge: 'Rapid', color: 'blue' },
-                                ].map((item, i) => (
+                                {(aiInsights?.trends ?? []).length === 0 ? (
+                                    <p className="text-sm text-slate-400 text-center py-6">Nu există suficiente date de piață pentru detectarea tendințelor. Reîncearcă după ce platforma colectează cel puțin 60 de zile de anunțuri.</p>
+                                ) : (aiInsights.trends).map((item, i) => (
                                     <div key={i} className="flex items-start gap-3 p-3 rounded-2xl bg-slate-50">
                                         <span className="text-xl shrink-0">{item.icon}</span>
                                         <div className="flex-1">
@@ -508,42 +614,47 @@ function AdminDashboard({
 
                         <SectionCard title="💡 Recomandări optimizare prețuri">
                             <div className="space-y-3">
-                                {agentStats.slice(0, 3).map(agent => (
-                                    <div key={agent.id} className="p-3 rounded-2xl bg-slate-50">
-                                        <div className="font-semibold text-slate-800 text-sm mb-1">{agent.name}</div>
-                                        <p className="text-xs text-slate-600">
-                                            {agent.avg_days_close != null && agent.avg_days_close > 45
-                                                ? `Timp mediu ridicat (${agent.avg_days_close} zile). Evaluați reducerea prețului cu 5-8% la anunțurile cu vechime > 30 zile.`
-                                                : agent.avg_days_close != null
-                                                ? `Performanță bună — ${agent.avg_days_close} zile mediu. Mențineți strategia curentă de prețuri.`
-                                                : 'Date insuficiente pentru recomandare.'}
-                                        </p>
+                                {(aiInsights?.priceRecommendations ?? []).length === 0 ? (
+                                    <p className="text-sm text-slate-400 text-center py-4">Niciun agent înregistrat.</p>
+                                ) : aiInsights.priceRecommendations.map((rec, i) => (
+                                    <div key={i} className="p-3 rounded-2xl bg-slate-50">
+                                        <div className="font-semibold text-slate-800 text-sm mb-1">{rec.name}</div>
+                                        <p className="text-xs text-slate-600">{rec.text}</p>
                                     </div>
                                 ))}
-                                {agentStats.length === 0 && (
-                                    <p className="text-sm text-slate-400 text-center py-4">Niciun agent înregistrat.</p>
-                                )}
                             </div>
                         </SectionCard>
                     </div>
 
                     <SectionCard title="🔮 Prognoză venit (estimat AI)">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            {[
-                                { label: 'Luna viitoare',    pct: '+8%',  color: 'text-emerald-600', note: 'bazat pe ritmul actual' },
-                                { label: 'Trimestrul viitor', pct: '+15%', color: 'text-blue-600',    note: 'sezon activ' },
-                                { label: 'Sfârșitul anului',   pct: '+22%', color: 'text-violet-600',  note: 'tendință istorică' },
-                            ].map(item => (
-                                <div key={item.label} className="rounded-2xl bg-slate-50 p-4 text-center">
-                                    <div className="text-xs text-slate-500 mb-1">{item.label}</div>
-                                    <div className={`text-2xl font-black ${item.color}`}>{item.pct}</div>
-                                    <div className="text-xs text-slate-400 mt-1">{item.note}</div>
+                        {aiInsights?.forecast ? (
+                            <>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    {[
+                                        { label: 'Luna viitoare',     data: aiInsights.forecast.next_month,   color: 'text-emerald-600' },
+                                        { label: 'Trimestrul viitor', data: aiInsights.forecast.next_quarter, color: 'text-blue-600' },
+                                        { label: 'Sfârșitul anului',  data: aiInsights.forecast.next_year,    color: 'text-violet-600' },
+                                    ].map(item => {
+                                        const pct  = item.data?.pct ?? 0;
+                                        const sign = pct >= 0 ? '+' : '';
+                                        return (
+                                            <div key={item.label} className="rounded-2xl bg-slate-50 p-4 text-center">
+                                                <div className="text-xs text-slate-500 mb-1">{item.label}</div>
+                                                <div className={`text-2xl font-black ${item.color}`}>{sign}{pct}%</div>
+                                                <div className="text-xs text-slate-400 mt-1">~ €{Number(item.data?.amount ?? 0).toLocaleString('ro')}</div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
-                            ))}
-                        </div>
-                        <p className="text-xs text-slate-400 mt-4 text-center">
-                            * Estimările AI se bazează pe datele istorice ale agenției și nu constituie garanții financiare.
-                        </p>
+                                <p className="text-xs text-slate-400 mt-4 text-center">
+                                    {aiInsights.forecast.basis} * Estimările se bazează pe datele istorice ale agenției și nu constituie garanții financiare.
+                                </p>
+                            </>
+                        ) : (
+                            <p className="text-sm text-slate-400 text-center py-6">
+                                Sunt necesare cel puțin 2 luni de tranzacții închise pentru a genera o prognoză.
+                            </p>
+                        )}
                     </SectionCard>
                 </div>
             )}
@@ -561,6 +672,8 @@ function RealtorDashboard({
     dealsPeriod, revenuePeriod, revenueTotal, revenueByMonth,
     period,
 }) {
+    const [exportFormat, setExportFormat] = useState(null);
+
     return (
         <div className="space-y-6">
             {/* Notice + Export */}
@@ -569,21 +682,29 @@ function RealtorDashboard({
                 <p className="text-sm text-blue-700 flex-1 min-w-0">
                     Vizualizezi <strong>statisticile tale personale</strong>. Administratorul agenției are acces la datele complete.
                 </p>
-                <a
-                    href={route('statistics.export.pdf', { period })}
-                    target="_blank"
-                    rel="noopener"
+                <button
+                    type="button"
+                    onClick={() => setExportFormat('pdf')}
                     className="rounded-xl px-3 py-1.5 text-xs font-semibold bg-white border border-blue-200 text-blue-700 hover:bg-blue-100 transition-colors"
                 >
                     📄 PDF
-                </a>
-                <a
-                    href={route('statistics.export.csv', { period })}
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setExportFormat('csv')}
                     className="rounded-xl px-3 py-1.5 text-xs font-semibold bg-white border border-blue-200 text-blue-700 hover:bg-blue-100 transition-colors"
                 >
                     📊 Excel
-                </a>
+                </button>
             </div>
+
+            <ExportModal
+                open={exportFormat !== null}
+                onClose={() => setExportFormat(null)}
+                format={exportFormat}
+                period={period}
+                isAdmin={false}
+            />
 
             {/* Personal KPIs */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

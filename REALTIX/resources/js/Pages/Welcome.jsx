@@ -2,7 +2,7 @@ import { Head, Link } from '@inertiajs/react';
 
 const features = [
     { title: 'Sistem CRM', desc: 'Gestionează clienții și tranzacțiile într-un singur loc.', icon: '👥' },
-    { title: 'Agregator Anunțuri', desc: 'Colectare automată de pe 999.md, imobiliare.md și altele.', icon: '🔍' },
+    { title: 'Catalog Anunțuri', desc: 'Vizualizare centralizată a anunțurilor de pe 999.md, imobiliare.md și alte platforme.', icon: '🔍' },
     { title: 'Asistent AI', desc: 'Generare automată de descrieri și evaluare inteligentă a proprietăților.', icon: '🤖' },
     { title: 'Contracte PDF', desc: 'Generare automată a contractelor și documentelor necesare.', icon: '📄' },
 ];
@@ -10,24 +10,32 @@ const features = [
 const targetAudience = [
     { role: 'Agenții Imobiliare', desc: 'Automatizarea proceselor și managementul echipei.' },
     { role: 'Agenți Independenți', desc: 'Gestionarea eficientă a portofoliului de clienți.' },
-    { role: 'Investitori', desc: 'Analiza pieței și a activelor în timp real.' },
-    { role: 'Cumpărători / Chiriași', desc: 'Acces la anunțuri verificate direct de la proprietari.' },
+    { role: 'Investitori', desc: 'Analiza pieței, monitorizarea activelor și identificarea oportunităților imobiliare în timp real, cu acces la date centralizate, statistici și informații relevante pentru decizii rapide și eficiente.' },
+    { role: 'Dezvoltatori Imobiliari', desc: 'Gestionarea proiectelor rezidențiale și promovarea ofertelor către agenții, investitori și potențiali parteneri într-o platformă centralizată.' },
+];
+
+const PLAN_FEATURES = [
+    'Sistem CRM',
+    'Catalog Anunțuri',
+    'Asistent AI',
+    'Contracte PDF',
+    'Statistici + export',
 ];
 
 const pricing = [
     {
-        name: 'Starter', price: '12€', users: '1 agent',
-        features: ['CRM de bază', 'Asistent AI limitat', 'Suport email'],
+        name: 'Solo', price: '15€', extra: null, users: '1 agent (doar tu)',
+        features: PLAN_FEATURES,
         popular: false,
     },
     {
-        name: 'Medium', price: '49€', users: '2–5 agenți',
-        features: ['CRM avansat', 'Agregator anunțuri', 'Generare PDF', 'Suport prioritar'],
+        name: 'Team', price: '49€', extra: null, users: 'Până la 5 agenți',
+        features: PLAN_FEATURES,
         popular: true,
     },
     {
-        name: 'Pro', price: '89€', users: 'Nelimitat agenți',
-        features: ['Toate funcțiile Medium', 'White-label / branding', 'API & Integrări personalizate', 'Manager dedicat'],
+        name: 'Growth', price: '49€', extra: '+ 8€/agent peste 5', users: '5 agenți incluși, agenți nelimitați',
+        features: PLAN_FEATURES,
         popular: false,
     },
 ];
@@ -49,18 +57,18 @@ export default function Welcome() {
 
                 {/* Header */}
                 <header className="fixed top-0 w-full z-50 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
-                    <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-                        <div style={mont} className="text-3xl font-bold text-[#1E3A8A] tracking-widest">
+                    <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 py-3 sm:py-4 gap-2">
+                        <div style={mont} className="text-xl sm:text-3xl font-bold text-[#1E3A8A] tracking-wider sm:tracking-widest shrink-0">
                             REALTIX
                         </div>
 
-                        <nav className="hidden md:flex gap-8 text-sm font-medium text-slate-600">
+                        <nav className="hidden md:flex gap-6 lg:gap-8 text-sm font-medium text-slate-600">
                             <a href="#functionalitati" className="hover:text-[#1E3A8A] transition-colors">Funcționalități</a>
                             <a href="#audienta" className="hover:text-[#1E3A8A] transition-colors">Pentru Cine</a>
                             <a href="#preturi" className="hover:text-[#1E3A8A] transition-colors">Prețuri</a>
                         </nav>
 
-                        <div className="flex gap-4 items-center">
+                        <div className="flex gap-2 sm:gap-4 items-center">
                             <Link
                                 href={route('login')}
                                 className="hidden sm:block text-sm font-semibold text-[#1E3A8A] hover:text-blue-900 transition-colors"
@@ -69,7 +77,7 @@ export default function Welcome() {
                             </Link>
                             <Link
                                 href={route('register')}
-                                className="rounded-full bg-[#1E3A8A] hover:bg-blue-900 transition-colors px-6 py-2.5 text-white text-sm font-semibold shadow-lg"
+                                className="rounded-full bg-[#1E3A8A] hover:bg-blue-900 transition-colors px-4 sm:px-6 py-2 sm:py-2.5 text-white text-xs sm:text-sm font-semibold shadow-lg whitespace-nowrap"
                             >
                                 Încearcă Gratuit
                             </Link>
@@ -78,33 +86,33 @@ export default function Welcome() {
                 </header>
 
                 {/* Hero */}
-                <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
-                    <div className="mx-auto max-w-7xl px-6 text-center">
-                        <div className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-[#1E3A8A] mb-8">
+                <section className="relative pt-24 sm:pt-32 pb-16 sm:pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
+                    <div className="mx-auto max-w-7xl px-4 sm:px-6 text-center">
+                        <div className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm text-[#1E3A8A] mb-6 sm:mb-8">
                             <span className="flex h-2 w-2 rounded-full bg-[#22C55E]" />
                             SaaS PropTech pregătit de scalare în Moldova
                         </div>
 
-                        <h1 style={mont} className="mx-auto max-w-4xl text-5xl font-bold tracking-tight text-slate-900 sm:text-7xl">
+                        <h1 style={mont} className="mx-auto max-w-4xl text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-slate-900">
                             Găsește, evaluează, vinde –{' '}
                             <span className="text-[#1E3A8A]">ușor.</span>
                         </h1>
 
-                        <p className="mx-auto mt-6 max-w-2xl text-lg text-slate-600 leading-relaxed">
+                        <p className="mx-auto mt-4 sm:mt-6 max-w-2xl text-base sm:text-lg text-slate-600 leading-relaxed px-2">
                             REALTIX combină funcțiile unui sistem CRM, agregator de căutare și asistent AI
                             pentru a face lucrul cu imobiliarele simplu, inteligent și transparent.
                         </p>
 
-                        <div className="mt-10 flex flex-col sm:flex-row justify-center gap-4">
+                        <div className="mt-8 sm:mt-10 flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 px-4 sm:px-0">
                             <Link
                                 href={route('register')}
-                                className="rounded-full bg-[#1E3A8A] px-8 py-4 text-base font-semibold text-white shadow-xl hover:bg-blue-900 transition-all"
+                                className="rounded-full bg-[#1E3A8A] px-6 sm:px-8 py-3 sm:py-4 text-sm sm:text-base font-semibold text-white shadow-xl hover:bg-blue-900 transition-all"
                             >
                                 Creează cont de agent
                             </Link>
                             <Link
                                 href={route('login')}
-                                className="rounded-full bg-white border border-slate-200 px-8 py-4 text-base font-semibold text-slate-900 shadow-sm hover:bg-slate-50 transition-all inline-flex items-center justify-center"
+                                className="rounded-full bg-white border border-slate-200 px-6 sm:px-8 py-3 sm:py-4 text-sm sm:text-base font-semibold text-slate-900 shadow-sm hover:bg-slate-50 transition-all inline-flex items-center justify-center"
                             >
                                 Autentifică-te
                             </Link>
@@ -113,21 +121,21 @@ export default function Welcome() {
                 </section>
 
                 {/* Features */}
-                <section id="functionalitati" className="py-20 bg-white">
-                    <div className="mx-auto max-w-7xl px-6">
-                        <div className="text-center mb-16">
-                            <h2 style={mont} className="text-3xl font-bold text-slate-900">
+                <section id="functionalitati" className="py-14 sm:py-20 bg-white">
+                    <div className="mx-auto max-w-7xl px-4 sm:px-6">
+                        <div className="text-center mb-10 sm:mb-16">
+                            <h2 style={mont} className="text-2xl sm:text-3xl font-bold text-slate-900">
                                 Instrumentele viitorului imobiliar
                             </h2>
-                            <p className="mt-4 text-slate-600">
+                            <p className="mt-3 sm:mt-4 text-sm sm:text-base text-slate-600">
                                 Automatizează tranzacțiile și folosește inteligența artificială.
                             </p>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
                             {features.map((feat, idx) => (
-                                <div key={idx} className="rounded-4xl bg-slate-50 p-8 border border-slate-100 hover:shadow-xl transition-shadow">
-                                    <div className="text-4xl mb-4">{feat.icon}</div>
-                                    <h3 className="text-xl font-bold text-slate-900 mb-2">{feat.title}</h3>
+                                <div key={idx} className="rounded-3xl sm:rounded-4xl bg-slate-50 p-5 sm:p-8 border border-slate-100 hover:shadow-xl transition-shadow">
+                                    <div className="text-3xl sm:text-4xl mb-3 sm:mb-4">{feat.icon}</div>
+                                    <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2">{feat.title}</h3>
                                     <p className="text-slate-600 text-sm leading-relaxed">{feat.desc}</p>
                                 </div>
                             ))}
@@ -136,27 +144,25 @@ export default function Welcome() {
                 </section>
 
                 {/* Target Audience */}
-                <section id="audienta" className="py-20 bg-linear-to-br from-[#1E3A8A] to-blue-900 text-white">
-                    <div className="mx-auto max-w-7xl px-6">
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+                <section id="audienta" className="py-14 sm:py-20 bg-linear-to-br from-[#1E3A8A] to-blue-900 text-white">
+                    <div className="mx-auto max-w-7xl px-4 sm:px-6">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
                             <div>
-                                <h2 style={mont} className="text-3xl md:text-4xl font-bold mb-6">
-                                    Un ecosistem complet pentru toți actorii pieței
+                                <h2 style={mont} className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4 sm:mb-6">
+                                    Un ecosistem imobiliar inteligent pentru agenții, agenți și dezvoltatori
                                 </h2>
                                 <p className="text-blue-200 text-lg mb-8 leading-relaxed">
-                                    Fie că ești o agenție mare cu zeci de angajați sau un cumpărător în căutarea
-                                    locuinței perfecte, REALTIX filtrează, organizează și automatizează informația
-                                    pentru tine.
+                                    Fie că administrezi o agenție cu mai multe echipe, coordonezi activitatea agenților
+                                    sau analizezi oportunități de investiții, REALTIX centralizează anunțurile,
+                                    automatizează procesele și oferă instrumente moderne pentru gestionarea eficientă
+                                    a activității imobiliare.
                                 </p>
                                 <ul className="space-y-4">
                                     <li className="flex items-center gap-3">
                                         <span className="text-[#22C55E]">✓</span> Filtru „doar de la proprietari"
                                     </li>
                                     <li className="flex items-center gap-3">
-                                        <span className="text-[#22C55E]">✓</span> Multilingv (RO / RU / EN)
-                                    </li>
-                                    <li className="flex items-center gap-3">
-                                        <span className="text-[#22C55E]">✓</span> Aplicație mobilă integrată
+                                        <span className="text-[#22C55E]">✓</span> Multilingv (RO / RU)
                                     </li>
                                 </ul>
                             </div>
@@ -173,23 +179,23 @@ export default function Welcome() {
                 </section>
 
                 {/* Pricing */}
-                <section id="preturi" className="py-24 bg-slate-50">
-                    <div className="mx-auto max-w-7xl px-6">
-                        <div className="text-center mb-16">
-                            <h2 style={mont} className="text-3xl font-bold text-slate-900">
+                <section id="preturi" className="py-14 sm:py-20 lg:py-24 bg-slate-50">
+                    <div className="mx-auto max-w-7xl px-4 sm:px-6">
+                        <div className="text-center mb-10 sm:mb-16">
+                            <h2 style={mont} className="text-2xl sm:text-3xl font-bold text-slate-900">
                                 Abonamente transparente
                             </h2>
-                            <p className="mt-4 text-slate-600">
+                            <p className="mt-3 sm:mt-4 text-sm sm:text-base text-slate-600">
                                 Alege planul potrivit pentru volumul tău de muncă.
                             </p>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 max-w-5xl mx-auto pt-6 md:pt-0">
                             {pricing.map((plan, idx) => (
                                 <div
                                     key={idx}
-                                    className={`relative rounded-4xl p-8 border ${
+                                    className={`relative rounded-3xl sm:rounded-4xl p-6 sm:p-8 border ${
                                         plan.popular
-                                            ? 'bg-[#1E3A8A] text-white border-[#1E3A8A] shadow-2xl scale-105'
+                                            ? 'bg-[#1E3A8A] text-white border-[#1E3A8A] shadow-2xl md:scale-105'
                                             : 'bg-white text-slate-900 border-slate-200 shadow-lg'
                                     }`}
                                 >
@@ -202,6 +208,11 @@ export default function Welcome() {
                                     <div className="mb-6">
                                         <span style={mont} className="text-4xl font-bold">{plan.price}</span>
                                         <span className={`text-sm ${plan.popular ? 'text-blue-200' : 'text-slate-500'}`}> / lună</span>
+                                        {plan.extra && (
+                                            <div className={`text-xs mt-1 font-semibold ${plan.popular ? 'text-blue-200' : 'text-slate-500'}`}>
+                                                {plan.extra}
+                                            </div>
+                                        )}
                                     </div>
                                     <div className={`inline-block px-3 py-1 rounded-full text-xs font-semibold mb-8 ${plan.popular ? 'bg-white/20' : 'bg-slate-100'}`}>
                                         {plan.users}
@@ -231,13 +242,13 @@ export default function Welcome() {
                 </section>
 
                 {/* Footer */}
-                <footer className="bg-slate-900 text-slate-400 py-12 text-sm">
-                    <div className="mx-auto max-w-7xl px-6 flex flex-col md:flex-row justify-between items-center gap-4">
+                <footer className="bg-slate-900 text-slate-400 py-10 sm:py-12 text-sm">
+                    <div className="mx-auto max-w-7xl px-4 sm:px-6 flex flex-col md:flex-row justify-between items-center gap-4 text-center md:text-left">
                         <div style={mont} className="text-2xl font-bold text-white tracking-widest">REALTIX</div>
-                        <p>© {new Date().getFullYear()} REALTIX. Toate drepturile rezervate.</p>
-                        <div className="flex gap-4">
-                            <a href="#" className="hover:text-white transition-colors">Termeni și Condiții</a>
-                            <a href="#" className="hover:text-white transition-colors">Confidențialitate</a>
+                        <p className="text-xs sm:text-sm">© {new Date().getFullYear()} REALTIX. Toate drepturile rezervate.</p>
+                        <div className="flex gap-4 text-xs sm:text-sm">
+                            <Link href="/terms" className="hover:text-white transition-colors">Termeni și Condiții</Link>
+                            <Link href="/privacy" className="hover:text-white transition-colors">Confidențialitate</Link>
                         </div>
                     </div>
                 </footer>

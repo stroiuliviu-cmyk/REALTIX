@@ -1,27 +1,172 @@
+import { useState, useCallback } from 'react';
+import { Head, router, Link } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
-import { Head, useForm, Link } from '@inertiajs/react';
+import Combobox from '@/Components/Combobox';
+import { MOLDOVA_LOCALITIES, CHISINAU_DISTRICTS } from '@/Constants/moldova';
 
-const inputCls = 'w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:border-blue-700 focus:ring-1 focus:ring-blue-700';
-const selectCls = 'w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:border-blue-700 bg-white';
+// ── styles ─────────────────────────────────────────────────────────────────
+const inputCls =
+    'w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 bg-white';
+const selectCls = inputCls;
 
-function Field({ label, error, children }) {
+// ── constants ───────────────────────────────────────────────────────────────
+const TYPES = [
+    { value: 'apartment', label: 'Apartament', icon: '🏢' },
+    { value: 'house',     label: 'Casă',       icon: '🏠' },
+    { value: 'commercial',label: 'Comercial',  icon: '🏪' },
+    { value: 'land',      label: 'Teren',      icon: '🌿' },
+];
+const TRANSACTIONS = [
+    { value: 'sale',               label: 'Vânzare' },
+    { value: 'rent',               label: 'Chirie' },
+    { value: 'inchiriere_zilnica', label: 'Zilnică' },
+];
+const CONDITIONS = [
+    { value: '',                label: '— Nedefinit —' },
+    { value: 'new',             label: 'Nou / fără renovare' },
+    { value: 'renovated',       label: 'Cu renovare' },
+    { value: 'needs_renovation',label: 'Necesită renovare' },
+];
+const STATUSES = [
+    { value: 'active',   label: 'Activ' },
+    { value: 'inactive', label: 'Inactiv' },
+    { value: 'sold',     label: 'Vândut' },
+    { value: 'rented',   label: 'Închiriat' },
+    { value: 'draft',    label: 'Schiță' },
+];
+const FEATURES = [
+    { key: 'furnished', label: 'Mobilat' },
+    { key: 'parking',   label: 'Parcare' },
+    { key: 'balcony',   label: 'Balcon / Terasă' },
+    { key: 'ac',        label: 'Aer condiționat' },
+    { key: 'elevator',  label: 'Lift' },
+    { key: 'pets',      label: 'Animale permise' },
+];
+const TRACKED = ['title', 'type', 'transaction_type', 'city', 'price', 'area_total', 'rooms', 'address', 'district', 'description_ro'];
+
+const AI_LOCALES = [{ v: 'ro', l: 'RO' }, { v: 'ru', l: 'RU' }];
+const AI_STYLES  = [
+    { v: 'short',    l: 'Scurt' },
+    { v: 'detailed', l: 'Detaliat' },
+    { v: 'formal',   l: 'Oficial' },
+    { v: 'emotional',l: 'Emoțional' },
+];
+
+function csrfToken() {
+    return document.head.querySelector('meta[name="csrf-token"]')?.content ?? '';
+}
+
+const EMPTY_META = {
+    furnished: false, parking: false, balcony: false,
+    ac: false, elevator: false, pets: false,
+    condition: '', year_built: '', rental_purpose: 'long_term',
+    video_url: '', contact_phone: '', contact_email: '',
+};
+
+// ── helpers ─────────────────────────────────────────────────────────────────
+function Field({ label, error, required, children }) {
     return (
         <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">{label}</label>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">
+                {label}{required && <span className="text-red-400 ml-0.5">*</span>}
+            </label>
             {children}
             {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
         </div>
     );
 }
 
+function PillBtn({ active, onClick, children, small }) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className={`rounded-full border font-medium transition-colors ${
+                small ? 'px-3 py-1 text-xs' : 'px-4 py-1.5 text-sm'
+            } ${
+                active
+                    ? 'bg-blue-700 text-white border-blue-700 shadow-sm'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-blue-400 hover:text-blue-600'
+            }`}
+        >
+            {children}
+        </button>
+    );
+}
+
+function Toggle({ active, onToggle, label }) {
+    return (
+        <button
+            type="button"
+            onClick={onToggle}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                active
+                    ? 'bg-green-50 text-green-700 border-green-300'
+                    : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+            }`}
+        >
+            <span className={`w-3.5 h-3.5 rounded-sm border flex items-center justify-center text-[10px] ${
+                active ? 'bg-green-500 border-green-500 text-white' : 'border-slate-300'
+            }`}>{active ? '✓' : ''}</span>
+            {label}
+        </button>
+    );
+}
+
+function SectionCard({ title, children }) {
+    return (
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-4">
+            <h2 className="font-bold text-slate-800 text-[15px]">{title}</h2>
+            {children}
+        </div>
+    );
+}
+
+function completion(data, totalPhotos) {
+    const filled = TRACKED.filter(k => data[k] !== '' && data[k] !== null && data[k] !== undefined).length
+        + (totalPhotos > 0 ? 1 : 0);
+    const total = TRACKED.length + 1;
+    return { filled, total, pct: Math.round((filled / total) * 100) };
+}
+
+// Extract a YouTube video ID from common URL formats:
+//   https://youtu.be/<ID>           https://www.youtube.com/watch?v=<ID>
+//   https://www.youtube.com/embed/<ID>   https://www.youtube.com/shorts/<ID>
+function youtubeId(url) {
+    if (!url) return null;
+    const m = String(url).match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{11})/);
+    return m ? m[1] : null;
+}
+
+function YoutubeEmbed({ url }) {
+    const id = youtubeId(url);
+    if (!id) return null;
+    return (
+        <div className="mt-3 aspect-video rounded-xl overflow-hidden bg-black">
+            <iframe
+                src={`https://www.youtube.com/embed/${id}`}
+                title="YouTube preview"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="w-full h-full"
+            />
+        </div>
+    );
+}
+
+// ── main component ──────────────────────────────────────────────────────────
 export default function Edit({ property }) {
-    const { data, setData, put, processing, errors } = useForm({
+    const existing = property.media ?? [];
+    const existingCover = existing.find(m => m.is_cover);
+
+    const [data, setDataRaw] = useState({
         title: property.title ?? '',
         type: property.type ?? 'apartment',
         transaction_type: property.transaction_type ?? 'sale',
         price: property.price ?? '',
         currency: property.currency ?? 'EUR',
         area_total: property.area_total ?? '',
+        area_living: property.area_living ?? '',
         rooms: property.rooms ?? '',
         floor: property.floor ?? '',
         floors_total: property.floors_total ?? '',
@@ -30,99 +175,702 @@ export default function Edit({ property }) {
         district: property.district ?? '',
         description_ro: property.description_ro ?? '',
         description_ru: property.description_ru ?? '',
-        description_en: property.description_en ?? '',
         status: property.status ?? 'active',
+        meta: {
+            ...EMPTY_META,
+            ...(property.meta ?? {}),
+            contact_phone: property.meta?.contact_phone ?? '',
+            contact_email: property.meta?.contact_email ?? '',
+        },
     });
 
-    const submit = (e) => {
-        e.preventDefault();
-        put(`/properties/${property.id}`);
+    const [errors, setErrors] = useState({});
+    const [processing, setProcessing] = useState(false);
+
+    // Existing photos that user kept (id, url, is_cover)
+    const [existingMedia, setExistingMedia] = useState(
+        existing.map(m => ({ id: m.id, url: `/storage/${m.path}`, is_cover: !!m.is_cover }))
+    );
+    const [deletedMediaIds, setDeletedMediaIds] = useState([]);
+
+    // New photos uploaded in this session
+    const [photoFiles, setPhotoFiles]     = useState([]);
+    const [photoPreviews, setPhotoPreviews] = useState([]);
+
+    // Cover: either existing media id (preferred) or new-photo index
+    const [coverMediaId, setCoverMediaId] = useState(existingCover?.id ?? null);
+    const [coverNewIdx, setCoverNewIdx]   = useState(null);
+
+    const [aiLocale,       setAiLocale]       = useState('ro');
+    const [aiStyle,        setAiStyle]        = useState('detailed');
+    const [aiDescLoading,  setAiDescLoading]  = useState(false);
+    const [aiPriceLoading, setAiPriceLoading] = useState(false);
+    const [aiDescResult,   setAiDescResult]   = useState(null);
+    const [aiPriceResult,  setAiPriceResult]  = useState(null);
+    const [aiError,        setAiError]        = useState('');
+    const [aiVariant,      setAiVariant]      = useState(0);
+    const [dragOver,       setDragOver]       = useState(false);
+
+    const setData = (key, val) => setDataRaw(prev => ({ ...prev, [key]: val }));
+    const setMeta = (key, val) => setData('meta', { ...data.meta, [key]: val });
+
+    const totalPhotos = existingMedia.length + photoFiles.length;
+    const allowedSlots = Math.max(0, 15 - totalPhotos);
+
+    // ── photo helpers ─────────────────────────────────────────────────────────
+    const ALLOWED_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+    const MAX_PHOTO_BYTES     = 5 * 1024 * 1024;
+    const [photoError, setPhotoError] = useState('');
+
+    const addPhotos = useCallback((fileList) => {
+        const rejected = [];
+        const accepted = [];
+        for (const f of fileList) {
+            if (!ALLOWED_PHOTO_TYPES.includes(f.type)) {
+                rejected.push(`${f.name}: tip nepermis (doar JPG, PNG, WebP)`);
+                continue;
+            }
+            if (f.size > MAX_PHOTO_BYTES) {
+                rejected.push(`${f.name}: depășește 5 MB`);
+                continue;
+            }
+            accepted.push(f);
+        }
+        const newFiles = accepted.slice(0, allowedSlots);
+        const overflow = accepted.length - newFiles.length;
+        setPhotoFiles(prev => [...prev, ...newFiles]);
+        setPhotoPreviews(prev => [...prev, ...newFiles.map(f => URL.createObjectURL(f))]);
+
+        const errs = [...rejected];
+        if (overflow > 0) errs.push(`${overflow} foto peste limita de 15`);
+        setPhotoError(errs.length ? errs.join(' · ') : '');
+    }, [allowedSlots]);
+
+    const removeNewPhoto = useCallback((idx) => {
+        URL.revokeObjectURL(photoPreviews[idx]);
+        setPhotoFiles(prev => prev.filter((_, i) => i !== idx));
+        setPhotoPreviews(prev => prev.filter((_, i) => i !== idx));
+        if (coverNewIdx === idx) setCoverNewIdx(null);
+        else if (coverNewIdx > idx) setCoverNewIdx(c => c - 1);
+    }, [photoPreviews, coverNewIdx]);
+
+    const removeExistingPhoto = (id) => {
+        setExistingMedia(prev => prev.filter(m => m.id !== id));
+        setDeletedMediaIds(prev => [...prev, id]);
+        if (coverMediaId === id) setCoverMediaId(null);
     };
+
+    const setExistingCover = (id) => { setCoverMediaId(id); setCoverNewIdx(null); };
+    const setNewCover = (idx) => { setCoverNewIdx(idx); setCoverMediaId(null); };
+
+    // ── submit ────────────────────────────────────────────────────────────────
+    const submit = (statusOverride) => {
+        setProcessing(true);
+        const fd = new FormData();
+        fd.append('_method', 'PUT');
+
+        const scalar = { ...data, status: statusOverride || data.status };
+        delete scalar.meta;
+        Object.entries(scalar).forEach(([k, v]) => {
+            if (v !== null && v !== undefined && v !== '') fd.append(k, v);
+        });
+        Object.entries(data.meta).forEach(([k, v]) => {
+            fd.append(`meta[${k}]`, typeof v === 'boolean' ? (v ? '1' : '0') : (v ?? ''));
+        });
+
+        photoFiles.forEach(f => fd.append('photos[]', f));
+        deletedMediaIds.forEach(id => fd.append('deleted_media_ids[]', id));
+
+        if (coverMediaId) fd.append('cover_media_id', coverMediaId);
+        else if (coverNewIdx !== null) fd.append('cover_index', coverNewIdx);
+
+        router.post(`/properties/${property.id}`, fd, {
+            forceFormData: true,
+            onError: (errs) => { setErrors(errs); setProcessing(false); },
+            onFinish: () => setProcessing(false),
+        });
+    };
+
+    const aiPropertyData = {
+        type: data.type, transaction_type: data.transaction_type,
+        title: data.title,
+        city: data.city, district: data.district, address: data.address,
+        area_total: data.area_total, area_living: data.area_living, rooms: data.rooms,
+        floor: data.floor, floors_total: data.floors_total,
+        price: data.price, currency: data.currency,
+        description_ro: data.description_ro,
+        description_ru: data.description_ru,
+        meta: data.meta,
+    };
+
+    const handleAiDescription = useCallback(async () => {
+        if (!data.city) { setAiError('Completați cel puțin orașul pentru AI.'); return; }
+        setAiDescLoading(true); setAiError('');
+        try {
+            const res = await fetch('/ai/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken(),
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({ locale: aiLocale, style: aiStyle, data: aiPropertyData }),
+            });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json?.error ?? `Eroare HTTP ${res.status}`);
+            setAiDescResult(json);
+            setAiVariant(c => c + 1);
+            if (aiLocale === 'ro') setData('description_ro', json.description ?? '');
+            else if (aiLocale === 'ru') setData('description_ru', json.description ?? '');
+        } catch (e) {
+            setAiError(e.message || 'Eroare la generare AI. Verificați cheia ANTHROPIC_API_KEY în .env.');
+        } finally {
+            setAiDescLoading(false);
+        }
+    }, [data.city, data.type, data.transaction_type, data.district, data.area_total, data.rooms, data.price, data.currency, data.description_ro, data.description_ru, data.meta, aiLocale, aiStyle]);
+
+    const handleAiPrice = useCallback(async () => {
+        if (!data.city) { setAiError('Completați cel puțin orașul pentru estimare.'); return; }
+        setAiPriceLoading(true); setAiError('');
+        try {
+            const res = await fetch('/ai/estimate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken(),
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({ data: aiPropertyData }),
+            });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json?.error ?? `Eroare HTTP ${res.status}`);
+            setAiPriceResult(json);
+        } catch (e) {
+            setAiError(e.message || 'Eroare la estimare preț AI.');
+        } finally {
+            setAiPriceLoading(false);
+        }
+    }, [data.city, data.type, data.transaction_type, data.district, data.area_total, data.rooms, data.price, data.currency, data.description_ro, data.description_ru, data.meta]);
+
+    const { filled, total, pct } = completion(data, totalPhotos);
+    const typeLabel = TYPES.find(t => t.value === data.type)?.label ?? '';
+    const txLabel   = TRANSACTIONS.find(t => t.value === data.transaction_type)?.label ?? '';
+    const isRent    = data.transaction_type === 'rent' || data.transaction_type === 'inchiriere_zilnica';
+    const isChisinau = (data.city ?? '').trim().toLowerCase().startsWith('chișinău')
+                    || (data.city ?? '').trim().toLowerCase().startsWith('chisinau');
+    const districtOptions = isChisinau ? CHISINAU_DISTRICTS : [];
 
     return (
         <AppLayout title="Editează proprietate">
             <Head title="Editează proprietate" />
-            <div className="max-w-3xl">
-                <form onSubmit={submit} className="space-y-6">
-                    <div className="bg-white p-8 rounded-[2rem] shadow-2xl border border-slate-100 space-y-5">
-                        <h2 className="text-lg font-bold text-slate-900">Informații de bază</h2>
-                        <Field label="Titlu *" error={errors.title}>
-                            <input value={data.title} onChange={e => setData('title', e.target.value)} className={inputCls} required />
+
+            {/* ── top action bar ─────────────────────────────────────────── */}
+            <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
+                <div>
+                    <h1 className="text-xl font-bold text-slate-900">Editează proprietate #{property.id}</h1>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                        <span className={`font-semibold ${pct === 100 ? 'text-green-600' : 'text-blue-600'}`}>{filled}</span>
+                        /{total} câmpuri completate
+                    </p>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                    <button
+                        type="button"
+                        onClick={() => submit('active')}
+                        disabled={processing}
+                        className="rounded-xl bg-green-600 hover:bg-green-700 text-white px-5 py-2 text-sm font-semibold shadow transition-colors disabled:opacity-50"
+                    >
+                        {processing ? 'Se salvează…' : '✓ Salvează modificările'}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => submit('draft')}
+                        disabled={processing}
+                        className="rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 px-5 py-2 text-sm font-semibold transition-colors disabled:opacity-40"
+                    >
+                        Salvează ca schiță
+                    </button>
+                    <Link
+                        href={`/properties/${property.id}`}
+                        className="rounded-xl border border-slate-200 px-5 py-2 text-sm text-slate-500 hover:bg-slate-50 transition-colors"
+                    >
+                        Anulează
+                    </Link>
+                </div>
+            </div>
+
+            <div className="flex gap-6 items-start">
+                {/* ── LEFT: form ──────────────────────────────────────────── */}
+                <div className="flex-1 min-w-0 space-y-5">
+
+                    {/* Section 1 — Basic info */}
+                    <SectionCard title="Informații de bază">
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-500 mb-2">Tip proprietate</label>
+                            <div className="flex flex-wrap gap-2">
+                                {TYPES.map(t => (
+                                    <PillBtn key={t.value} active={data.type === t.value} onClick={() => setData('type', t.value)}>
+                                        {t.icon} {t.label}
+                                    </PillBtn>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-500 mb-2">Tip operație</label>
+                            <div className="flex flex-wrap gap-2">
+                                {TRANSACTIONS.map(t => (
+                                    <PillBtn key={t.value} active={data.transaction_type === t.value} onClick={() => setData('transaction_type', t.value)}>
+                                        {t.label}
+                                    </PillBtn>
+                                ))}
+                            </div>
+                        </div>
+
+                        <Field label="Titlu anunț" required error={errors.title}>
+                            <input
+                                value={data.title}
+                                onChange={e => setData('title', e.target.value)}
+                                className={inputCls}
+                                placeholder="ex: Apartament 2 camere, Buiucani, 55 m²"
+                            />
                         </Field>
-                        <div className="grid grid-cols-2 gap-4">
-                            <Field label="Tip *" error={errors.type}>
-                                <select value={data.type} onChange={e => setData('type', e.target.value)} className={selectCls}>
-                                    <option value="apartment">Apartament</option>
-                                    <option value="house">Casă</option>
-                                    <option value="commercial">Comercial</option>
-                                    <option value="land">Teren</option>
-                                </select>
-                            </Field>
-                            <Field label="Tranzacție *">
-                                <select value={data.transaction_type} onChange={e => setData('transaction_type', e.target.value)} className={selectCls}>
-                                    <option value="sale">Vânzare</option>
-                                    <option value="rent">Chirie</option>
-                                </select>
-                            </Field>
-                        </div>
-                        <div className="grid grid-cols-3 gap-4">
-                            <Field label="Preț"><input type="number" value={data.price} onChange={e => setData('price', e.target.value)} className={inputCls} min="0" /></Field>
-                            <Field label="Monedă">
-                                <select value={data.currency} onChange={e => setData('currency', e.target.value)} className={selectCls}>
-                                    <option value="EUR">EUR</option>
-                                    <option value="USD">USD</option>
-                                    <option value="MDL">MDL</option>
-                                </select>
-                            </Field>
-                            <Field label="Status">
-                                <select value={data.status} onChange={e => setData('status', e.target.value)} className={selectCls}>
-                                    <option value="active">Activ</option>
-                                    <option value="inactive">Inactiv</option>
-                                    <option value="sold">Vândut</option>
-                                    <option value="rented">Închiriat</option>
-                                </select>
-                            </Field>
-                        </div>
-                    </div>
 
-                    <div className="bg-white p-8 rounded-[2rem] shadow-2xl border border-slate-100 space-y-5">
-                        <h2 className="text-lg font-bold text-slate-900">Caracteristici</h2>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <Field label="Suprafață (m²)"><input type="number" value={data.area_total} onChange={e => setData('area_total', e.target.value)} className={inputCls} min="0" step="0.1" /></Field>
-                            <Field label="Camere"><input type="number" value={data.rooms} onChange={e => setData('rooms', e.target.value)} className={inputCls} min="0" /></Field>
-                            <Field label="Etaj"><input type="number" value={data.floor} onChange={e => setData('floor', e.target.value)} className={inputCls} /></Field>
-                            <Field label="Total etaje"><input type="number" value={data.floors_total} onChange={e => setData('floors_total', e.target.value)} className={inputCls} min="1" /></Field>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <Field label="Oraș *"><input value={data.city} onChange={e => setData('city', e.target.value)} className={inputCls} required /></Field>
-                            <Field label="Sector"><input value={data.district} onChange={e => setData('district', e.target.value)} className={inputCls} /></Field>
-                        </div>
-                        <Field label="Adresă"><input value={data.address} onChange={e => setData('address', e.target.value)} className={inputCls} /></Field>
-                    </div>
-
-                    <div className="bg-white p-8 rounded-[2rem] shadow-2xl border border-slate-100 space-y-4">
-                        <h2 className="text-lg font-bold text-slate-900">Descrieri</h2>
-                        {[['ro', 'Română'], ['ru', 'Rusă'], ['en', 'Engleză']].map(([lang, label]) => (
-                            <Field key={lang} label={`Descriere — ${label}`}>
-                                <textarea
-                                    value={data[`description_${lang}`]}
-                                    onChange={e => setData(`description_${lang}`, e.target.value)}
-                                    className="w-full h-32 rounded-2xl border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:border-blue-700 resize-none"
-                                    placeholder={`Descriere în ${label}...`}
+                        <div className="grid grid-cols-2 gap-3">
+                            <Field label="Raion" required error={errors.city}>
+                                <Combobox
+                                    value={data.city}
+                                    onChange={v => setData('city', v)}
+                                    options={MOLDOVA_LOCALITIES}
+                                    placeholder="Ex: Chișinău"
                                 />
                             </Field>
-                        ))}
-                    </div>
+                            <Field label="Sector / District" error={errors.district}>
+                                <Combobox
+                                    value={data.district}
+                                    onChange={v => setData('district', v)}
+                                    options={districtOptions}
+                                    placeholder={isChisinau ? 'Ex: Botanica' : 'Ex: Centru'}
+                                />
+                            </Field>
+                        </div>
 
-                    <div className="flex gap-4">
-                        <button type="submit" disabled={processing} className="rounded-2xl bg-gradient-to-r from-slate-900 to-blue-700 px-8 py-3 text-white font-semibold shadow-lg disabled:opacity-50">
-                            {processing ? 'Se salvează...' : 'Salvează modificările'}
+                        <Field label="Adresă" error={errors.address}>
+                            <input
+                                value={data.address}
+                                onChange={e => setData('address', e.target.value)}
+                                className={inputCls}
+                                placeholder="Str. Independenței 12, ap. 34"
+                            />
+                        </Field>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <Field label="Suprafață totală (m²)" error={errors.area_total}>
+                                <input type="number" min="0" step="0.1" value={data.area_total} onChange={e => setData('area_total', e.target.value)} className={inputCls} />
+                            </Field>
+                            <Field label="Suprafață locativă (m²)" error={errors.area_living}>
+                                <input type="number" min="0" step="0.1" value={data.area_living} onChange={e => setData('area_living', e.target.value)} className={inputCls} />
+                            </Field>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-500 mb-2">Număr camere</label>
+                            <div className="flex flex-wrap gap-2">
+                                {['1','2','3','4','5','5+'].map(r => (
+                                    <PillBtn key={r} small active={String(data.rooms) === (r === '5+' ? '5' : r)} onClick={() => setData('rooms', r === '5+' ? 5 : parseInt(r))}>
+                                        {r}
+                                    </PillBtn>
+                                ))}
+                                <input
+                                    type="number" min="0"
+                                    value={data.rooms}
+                                    onChange={e => setData('rooms', e.target.value)}
+                                    className="w-20 rounded-xl border border-slate-200 px-3 py-1 text-sm text-center focus:outline-none focus:border-blue-600"
+                                    placeholder="nr."
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <Field label="Etaj" error={errors.floor}>
+                                <input type="number" value={data.floor} onChange={e => setData('floor', e.target.value)} className={inputCls} />
+                            </Field>
+                            <Field label="Total etaje clădire" error={errors.floors_total}>
+                                <input type="number" min="1" value={data.floors_total} onChange={e => setData('floors_total', e.target.value)} className={inputCls} />
+                            </Field>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <div className="flex-1">
+                                <Field label="Preț" error={errors.price}>
+                                    <input type="number" min="0" value={data.price} onChange={e => setData('price', e.target.value)} className={inputCls} placeholder="0" />
+                                </Field>
+                            </div>
+                            <div className="w-28">
+                                <Field label="Valută">
+                                    <select value={data.currency} onChange={e => setData('currency', e.target.value)} className={selectCls}>
+                                        <option value="EUR">EUR €</option>
+                                        <option value="USD">USD $</option>
+                                        <option value="MDL">MDL lei</option>
+                                    </select>
+                                </Field>
+                            </div>
+                            <div className="w-32">
+                                <Field label="Status">
+                                    <select value={data.status} onChange={e => setData('status', e.target.value)} className={selectCls}>
+                                        {STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                                    </select>
+                                </Field>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <Field label="Telefon contact">
+                                <input value={data.meta.contact_phone} onChange={e => setMeta('contact_phone', e.target.value)} className={inputCls} placeholder="+373 ..." />
+                            </Field>
+                            <Field label="Email contact">
+                                <input type="email" value={data.meta.contact_email} onChange={e => setMeta('contact_email', e.target.value)} className={inputCls} />
+                            </Field>
+                        </div>
+                    </SectionCard>
+
+                    {/* Section 2 — Extra characteristics */}
+                    <SectionCard title="Caracteristici suplimentare">
+                        <div className="flex flex-wrap gap-2">
+                            {FEATURES.map(f => (
+                                <Toggle key={f.key} active={!!data.meta[f.key]} onToggle={() => setMeta(f.key, !data.meta[f.key])} label={f.label} />
+                            ))}
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <Field label="Stare proprietate">
+                                <select value={data.meta.condition} onChange={e => setMeta('condition', e.target.value)} className={selectCls}>
+                                    {CONDITIONS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                                </select>
+                            </Field>
+                            <Field label="An construcție">
+                                <input
+                                    type="number" min="1900" max={new Date().getFullYear()}
+                                    value={data.meta.year_built} onChange={e => setMeta('year_built', e.target.value)}
+                                    className={inputCls} placeholder="ex: 2012"
+                                />
+                            </Field>
+                        </div>
+                    </SectionCard>
+
+                    {/* Section 3 — Description + AI */}
+                    <SectionCard title="Descriere">
+                        <textarea
+                            value={data.description_ro}
+                            onChange={e => setData('description_ro', e.target.value)}
+                            rows={5}
+                            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-blue-600 resize-none"
+                            placeholder="Descriere proprietate în română…"
+                        />
+
+                        <div className="border border-blue-100 rounded-2xl bg-blue-50/40 p-4 space-y-3">
+                            <p className="text-xs font-bold text-blue-700 uppercase tracking-wide flex items-center gap-1.5">
+                                <span>✨</span> Instrumente AI
+                            </p>
+
+                            <div className="flex flex-wrap gap-3">
+                                <div>
+                                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Limbă</p>
+                                    <div className="flex gap-1">
+                                        {AI_LOCALES.map(o => (
+                                            <button
+                                                key={o.v} type="button"
+                                                onClick={() => setAiLocale(o.v)}
+                                                className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition-colors ${
+                                                    aiLocale === o.v
+                                                        ? 'bg-blue-700 text-white border-blue-700'
+                                                        : 'bg-white text-slate-500 border-slate-200 hover:border-blue-400'
+                                                }`}
+                                            >{o.l}</button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Stil</p>
+                                    <div className="flex flex-wrap gap-1">
+                                        {AI_STYLES.map(o => (
+                                            <button
+                                                key={o.v} type="button"
+                                                onClick={() => setAiStyle(o.v)}
+                                                className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition-colors ${
+                                                    aiStyle === o.v
+                                                        ? 'bg-blue-700 text-white border-blue-700'
+                                                        : 'bg-white text-slate-500 border-slate-200 hover:border-blue-400'
+                                                }`}
+                                            >{o.l}</button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {aiError && (
+                                <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{aiError}</p>
+                            )}
+
+                            <div className="flex flex-wrap gap-2 items-center">
+                                <button
+                                    type="button"
+                                    onClick={handleAiDescription}
+                                    disabled={aiDescLoading || aiPriceLoading || aiVariant >= 3}
+                                    className="flex items-center gap-1.5 rounded-xl border border-blue-200 bg-white hover:bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {aiDescLoading ? 'Se generează…' : <><span>✨</span> Generează descriere</>}
+                                </button>
+                                {aiDescResult && aiVariant < 3 && (
+                                    <button type="button" onClick={handleAiDescription} disabled={aiDescLoading} className="text-sm text-blue-600 hover:text-blue-800 font-medium disabled:opacity-50">
+                                        ↻ Alt variant ({aiVariant}/3)
+                                    </button>
+                                )}
+                                {aiVariant >= 3 && (
+                                    <span className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-3 py-1">
+                                        ⚠ Limită atinsă (3/3 generări).
+                                    </span>
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={handleAiPrice}
+                                    disabled={aiDescLoading || aiPriceLoading}
+                                    className="flex items-center gap-1.5 rounded-xl border border-purple-200 bg-white hover:bg-purple-50 px-4 py-2 text-sm font-medium text-purple-700 transition-colors disabled:opacity-50"
+                                >
+                                    {aiPriceLoading ? 'Se calculează…' : <><span>🔮</span> Estimare preț</>}
+                                </button>
+                            </div>
+
+                            {aiDescResult && (
+                                <div className="space-y-2 border-t border-blue-100 pt-3">
+                                    {aiDescResult.title && (
+                                        <div className="rounded-lg bg-white border border-blue-100 px-3 py-2">
+                                            <p className="text-[10px] font-bold text-blue-400 uppercase mb-0.5">Titlu generat</p>
+                                            <p className="text-sm font-semibold text-slate-800">{aiDescResult.title}</p>
+                                        </div>
+                                    )}
+                                    <p className="text-[11px] text-slate-500">Descrierea a fost aplicată în câmpul de mai sus.</p>
+                                </div>
+                            )}
+
+                            {aiPriceResult && (
+                                <div className="border-t border-blue-100 pt-3 space-y-2">
+                                    <div className="rounded-xl bg-white border border-slate-100 p-4 space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="text-[10px] text-slate-400 uppercase font-bold mb-0.5">Estimare AI</p>
+                                                <p className="text-xl font-bold text-slate-900">
+                                                    {aiPriceResult.min && aiPriceResult.max
+                                                        ? `€${Number(aiPriceResult.min).toLocaleString('ro')} – €${Number(aiPriceResult.max).toLocaleString('ro')}`
+                                                        : '—'}
+                                                </p>
+                                            </div>
+                                            {aiPriceResult.valuation && (
+                                                <span className={`rounded-full px-3 py-1 text-xs font-bold ${
+                                                    aiPriceResult.valuation === 'cheap'
+                                                        ? 'bg-emerald-100 text-emerald-700'
+                                                        : aiPriceResult.valuation === 'expensive'
+                                                            ? 'bg-red-100 text-red-600'
+                                                            : 'bg-amber-100 text-amber-700'
+                                                }`}>
+                                                    {aiPriceResult.valuation === 'cheap' ? '● Avantajos' : aiPriceResult.valuation === 'expensive' ? '● Ridicat' : '● La piață'}
+                                                </span>
+                                            )}
+                                        </div>
+                                        {aiPriceResult.reason && (
+                                            <p className="text-xs text-slate-500 border-t border-slate-100 pt-2">{aiPriceResult.reason}</p>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </SectionCard>
+
+                    {/* Section 4 — Photos (existing + new) */}
+                    <SectionCard title={`Fotografii (${totalPhotos}/15)`}>
+                        {/* Existing photos */}
+                        {existingMedia.length > 0 && (
+                            <div>
+                                <p className="text-xs font-semibold text-slate-500 mb-2">Fotografii existente</p>
+                                <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
+                                    {existingMedia.map(m => (
+                                        <div key={m.id} className="relative group aspect-square">
+                                            <img
+                                                src={m.url}
+                                                alt=""
+                                                className={`w-full h-full object-cover rounded-xl border-2 transition-colors ${
+                                                    coverMediaId === m.id ? 'border-blue-500' : 'border-transparent'
+                                                }`}
+                                            />
+                                            {coverMediaId === m.id && (
+                                                <span className="absolute top-1 left-1 bg-blue-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">Cover</span>
+                                            )}
+                                            <div className="absolute inset-0 bg-black/50 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
+                                                {coverMediaId !== m.id && (
+                                                    <button type="button" onClick={() => setExistingCover(m.id)} className="bg-white/90 text-[10px] font-semibold px-2 py-1 rounded-lg">Cover</button>
+                                                )}
+                                                <button type="button" onClick={() => removeExistingPhoto(m.id)} className="bg-red-500 text-white text-[10px] px-2 py-1 rounded-lg">✕</button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Drop zone for new uploads */}
+                        {allowedSlots > 0 && (
+                            <div
+                                onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                                onDragLeave={() => setDragOver(false)}
+                                onDrop={e => { e.preventDefault(); setDragOver(false); addPhotos(e.dataTransfer.files); }}
+                                onClick={() => document.getElementById('photo-input-edit').click()}
+                                className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
+                                    dragOver ? 'border-blue-400 bg-blue-50' : 'border-slate-200 hover:border-blue-300 hover:bg-slate-50/50'
+                                }`}
+                            >
+                                <div className="text-4xl mb-2">📷</div>
+                                <p className="text-sm text-slate-500">
+                                    Trageți fotografii aici sau <span className="text-blue-600 font-medium">selectați fișiere</span>
+                                </p>
+                                <p className="text-xs text-slate-400 mt-1">
+                                    Mai poți adăuga {allowedSlots} foto · max 5 MB/foto · JPG, PNG, WebP
+                                </p>
+                                <input id="photo-input-edit" type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden" onChange={e => addPhotos(e.target.files)} />
+                            </div>
+                        )}
+
+                        {photoError && (
+                            <p className="text-xs text-rose-600 mt-2">{photoError}</p>
+                        )}
+
+                        {/* New photos preview */}
+                        {photoPreviews.length > 0 && (
+                            <div>
+                                <p className="text-xs font-semibold text-slate-500 mb-2">Fotografii noi</p>
+                                <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
+                                    {photoPreviews.map((src, idx) => (
+                                        <div key={idx} className="relative group aspect-square">
+                                            <img
+                                                src={src}
+                                                alt=""
+                                                className={`w-full h-full object-cover rounded-xl border-2 transition-colors ${
+                                                    coverNewIdx === idx ? 'border-blue-500' : 'border-transparent'
+                                                }`}
+                                            />
+                                            {coverNewIdx === idx && (
+                                                <span className="absolute top-1 left-1 bg-blue-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">Cover</span>
+                                            )}
+                                            <div className="absolute inset-0 bg-black/50 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
+                                                {coverNewIdx !== idx && (
+                                                    <button type="button" onClick={() => setNewCover(idx)} className="bg-white/90 text-[10px] font-semibold px-2 py-1 rounded-lg">Cover</button>
+                                                )}
+                                                <button type="button" onClick={() => removeNewPhoto(idx)} className="bg-red-500 text-white text-[10px] px-2 py-1 rounded-lg">✕</button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        <Field label="Video (YouTube URL — opțional)">
+                            <input
+                                type="url"
+                                value={data.meta.video_url}
+                                onChange={e => setMeta('video_url', e.target.value)}
+                                className={inputCls}
+                                placeholder="https://youtube.com/watch?v=..."
+                            />
+                            <YoutubeEmbed url={data.meta.video_url} />
+                        </Field>
+                    </SectionCard>
+
+                    {/* Bottom action bar */}
+                    <div className="flex flex-wrap gap-3 pt-2 pb-8">
+                        <button type="button" onClick={() => submit('active')} disabled={processing} className="rounded-xl bg-green-600 hover:bg-green-700 text-white px-6 py-2.5 text-sm font-semibold shadow transition-colors disabled:opacity-50">
+                            {processing ? 'Se salvează…' : '✓ Salvează modificările'}
                         </button>
-                        <Link href={`/properties/${property.id}`} className="rounded-2xl border border-slate-200 px-8 py-3 text-slate-700 font-semibold hover:bg-slate-50 transition-colors">
+                        <Link href={`/properties/${property.id}`} className="rounded-xl border border-slate-200 px-6 py-2.5 text-sm text-slate-500 hover:bg-slate-50 transition-colors">
                             Anulează
                         </Link>
                     </div>
-                </form>
+                </div>
+
+                {/* ── RIGHT: sticky live preview ───────────────────────── */}
+                <div className="w-72 shrink-0 sticky top-24 hidden xl:block">
+                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                        <div className="h-44 bg-slate-100 flex items-center justify-center overflow-hidden">
+                            {(() => {
+                                const coverExisting = existingMedia.find(m => m.id === coverMediaId);
+                                const coverNew     = coverNewIdx !== null ? photoPreviews[coverNewIdx] : null;
+                                const src          = coverExisting?.url ?? coverNew ?? existingMedia[0]?.url ?? photoPreviews[0] ?? null;
+                                return src
+                                    ? <img src={src} alt="" className="w-full h-full object-cover" />
+                                    : <span className="text-5xl opacity-30">🏠</span>;
+                            })()}
+                        </div>
+
+                        <div className="p-4 space-y-3">
+                            <div className="flex flex-wrap gap-1">
+                                <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[11px] font-semibold">{typeLabel}</span>
+                                <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[11px] font-medium">{txLabel}</span>
+                                {data.rooms ? <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[11px] font-medium">{data.rooms} cam.</span> : null}
+                            </div>
+
+                            <p className="font-semibold text-slate-800 text-sm leading-snug line-clamp-2">
+                                {data.title || <span className="text-slate-300 italic font-normal">Titlul apare aici…</span>}
+                            </p>
+
+                            {data.price
+                                ? <p className="text-blue-700 font-bold text-lg leading-none">
+                                    {Number(data.price).toLocaleString('ro-RO')}
+                                    <span className="text-sm font-medium ml-1">{data.currency}</span>
+                                  </p>
+                                : <p className="text-slate-300 text-sm italic">Preț…</p>
+                            }
+
+                            <p className="text-xs text-slate-400 flex items-center gap-1">
+                                <span>📍</span>
+                                {[data.district, data.city].filter(Boolean).join(', ') || <span className="italic">Locație…</span>}
+                            </p>
+
+                            {data.area_total && (
+                                <p className="text-xs text-slate-500">
+                                    {data.area_total} m² total
+                                    {data.area_living ? ` · ${data.area_living} m² locativă` : ''}
+                                    {data.floor ? ` · et. ${data.floor}${data.floors_total ? `/${data.floors_total}` : ''}` : ''}
+                                </p>
+                            )}
+
+                            {FEATURES.some(f => data.meta[f.key]) && (
+                                <div className="flex flex-wrap gap-1">
+                                    {FEATURES.filter(f => data.meta[f.key]).map(f => (
+                                        <span key={f.key} className="text-[10px] bg-green-50 text-green-700 px-1.5 py-0.5 rounded-full border border-green-100">
+                                            {f.label}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+
+                            {data.description_ro && (
+                                <p className="text-xs text-slate-500 leading-relaxed line-clamp-3 border-t border-slate-50 pt-2">
+                                    {data.description_ro}
+                                </p>
+                            )}
+
+                            <div className="pt-2 border-t border-slate-100">
+                                <div className="flex justify-between text-[11px] text-slate-400 mb-1">
+                                    <span>Completat</span>
+                                    <span className={`font-semibold ${pct === 100 ? 'text-green-600' : 'text-slate-600'}`}>{pct}%</span>
+                                </div>
+                                <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                    <div
+                                        className={`h-full rounded-full transition-all duration-500 ${pct === 100 ? 'bg-green-500' : 'bg-blue-500'}`}
+                                        style={{ width: `${pct}%` }}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </AppLayout>
     );

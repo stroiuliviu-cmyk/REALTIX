@@ -63,7 +63,13 @@ function AiDealCard({ listing, t }) {
                         <div className="text-lg font-black text-slate-900">{listing.price ? `€${Number(listing.price).toLocaleString('ro')}` : '—'}</div>
                         {listing.area && <div className="text-xs text-slate-400">{listing.area} m²</div>}
                     </div>
-                    <Link href="/web-offers" className="text-xs font-semibold text-blue-700 hover:underline">{t('common.details')}</Link>
+                    {listing.external_url ? (
+                        <a href={listing.external_url} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-blue-700 hover:underline">
+                            {t('common.details')}
+                        </a>
+                    ) : (
+                        <Link href="/web-offers" className="text-xs font-semibold text-blue-700 hover:underline">{t('common.details')}</Link>
+                    )}
                 </div>
             </div>
         </div>
@@ -138,29 +144,29 @@ export default function Index({ stats, recentProperties, recentContacts, hotDeal
                 )}
 
                 {/* ─── Welcome + Plan ─── */}
-                <section className="rounded-4xl bg-linear-to-br from-blue-700 via-blue-800 to-slate-900 p-8 text-white shadow-2xl">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <section className="rounded-3xl sm:rounded-4xl bg-linear-to-br from-blue-700 via-blue-800 to-slate-900 p-5 sm:p-8 text-white shadow-2xl">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 md:gap-6">
                         <div>
                             <div className="text-xs font-bold uppercase tracking-widest text-blue-300 mb-1">{t('dashboard.welcome_back')}</div>
-                            <h1 className="text-3xl font-black" style={{ fontFamily: 'Montserrat, sans-serif' }}>
+                            <h1 className="text-2xl sm:text-3xl font-black" style={{ fontFamily: 'Montserrat, sans-serif' }}>
                                 {user?.name}
                             </h1>
                             {agency && (
                                 <div className="text-blue-200 mt-1 text-sm">{agency.name}</div>
                             )}
-                            <div className="mt-3 flex items-center gap-3 flex-wrap">
+                            <div className="mt-3 flex items-center gap-2 sm:gap-3 flex-wrap">
                                 <span className="bg-white/15 border border-white/20 rounded-full px-3 py-1 text-xs font-semibold">
                                     {t('dashboard.plan_prefix')} {planLabel}
                                 </span>
                                 {planEnds && (
                                     <span className="text-xs text-blue-300">{t('dashboard.active_until')} {planEnds}</span>
                                 )}
-                                <Link href="/subscription" className="bg-white text-slate-900 rounded-full px-4 py-1.5 text-xs font-bold hover:bg-blue-50 transition-colors">
+                                <Link href="/subscription" className="bg-white text-slate-900 rounded-full px-3 sm:px-4 py-1.5 text-xs font-bold hover:bg-blue-50 transition-colors">
                                     {t('dashboard.upgrade_plan')}
                                 </Link>
                             </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-3 min-w-65">
+                        <div className="grid grid-cols-2 gap-2.5 sm:gap-3 md:min-w-65 w-full md:w-auto">
                             {[
                                 { label: t('dashboard.mini_properties'),   value: stats.properties },
                                 { label: t('dashboard.mini_clients'),      value: stats.contacts },

@@ -1,6 +1,8 @@
 import AppLayout from '@/Layouts/AppLayout';
 import { Head, Link, router } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
+import { MOLDOVA_LOCALITIES, CHISINAU_DISTRICTS } from '@/Constants/moldova';
+import Combobox from '@/Components/Combobox';
 
 /* ─── Constants ─────────────────────────────────────────────────────────── */
 const STATUS_COLORS = {
@@ -12,6 +14,7 @@ const STATUS_COLORS = {
 const STATUS_LABELS = { active: 'Activ', inactive: 'Inactiv', sold: 'Vândut', rented: 'Închiriat' };
 const TYPE_LABELS   = { apartment: 'Apartament', house: 'Casă', commercial: 'Comercial', land: 'Teren' };
 const TRANS_LABELS  = { sale: 'Vânzare', rent: 'Chirie' };
+
 
 /* ─── Sidebar helpers ───────────────────────────────────────────────────── */
 function SideLabel({ children }) {
@@ -81,11 +84,6 @@ function ActionsMenu({ p, canEdit, onArchive, onDelete }) {
 
     const items = [
         canEdit && { icon: '✏️', label: 'Editează', action: () => router.visit(route('properties.edit', p.id)) },
-        canEdit && { icon: '🤖', label: 'AI Descriere', action: () => router.post(route('properties.ai.description', p.id)) },
-        canEdit && { icon: '💰', label: 'AI Evaluare preț', action: () => router.post(route('properties.ai.price', p.id)) },
-        { icon: '📤', label: 'Autopostare', action: () => router.visit(route('autopost.index')) },
-        { icon: '📄', label: 'Contract', action: () => router.visit(route('contracts.index')) },
-        { icon: '📅', label: 'Adaugă în calendar', action: () => router.visit(route('calendar.index')) },
         canEdit && { icon: '🗃️', label: 'Arhivează', cls: 'text-amber-600', action: () => { onArchive(p.id); setOpen(false); } },
         canEdit && { icon: '🗑️', label: 'Șterge', cls: 'text-red-500', action: () => { onDelete(p.id); setOpen(false); } },
     ].filter(Boolean);
@@ -237,12 +235,12 @@ function PropertyRow({ p, isFavorite, isSelected, isAdmin, authUserId, onFav, on
 /* ─── Main page ─────────────────────────────────────────────────────────── */
 const EMPTY = {
     search: '', types: [], transaction_type: '', statuses: [],
-    city: '', district: '', rooms: '',
+    city: '', district: '', rooms: [],
     price_min: '', price_max: '', area_min: '', area_max: '',
     date_from: '', date_to: '', phone: '', favorite: false, sort: '',
 };
 
-export default function Index({ properties, filters = {}, isAdmin, authUserId, favoriteIds = [] }) {
+export default function Index({ properties, filters = {}, isAdmin, authUserId, favoriteIds = [], cities = [], districts = [] }) {
     const [f, setF] = useState({
         ...EMPTY,
         ...filters,
@@ -252,6 +250,7 @@ export default function Index({ properties, filters = {}, isAdmin, authUserId, f
     });
     const [selected, setSelected]   = useState([]);
     const [localFavs, setLocalFavs] = useState(new Set(favoriteIds));
+    const [filterOpen, setFilterOpen] = useState(false);
 
     const push = (updated) => {
         const params = {};
@@ -291,18 +290,29 @@ export default function Index({ properties, filters = {}, isAdmin, authUserId, f
 
     const activeCount = [
         f.types.length, f.statuses.length, f.transaction_type, f.city, f.district,
-        f.rooms, f.price_min, f.price_max, f.area_min, f.area_max,
+        f.rooms.length, f.price_min, f.price_max, f.area_min, f.area_max,
         f.date_from, f.date_to, f.phone, f.favorite,
     ].filter(Boolean).length + (f.search ? 1 : 0);
 
     return (
         <AppLayout title="Anunțuri">
             <Head title="Anunțuri" />
+
+            {/* Mobile filter drawer overlay */}
+            {filterOpen && (
+                <div className="lg:hidden fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={() => setFilterOpen(false)} />
+            )}
+
             <div className="flex gap-6">
 
                 {/* ─── SIDEBAR ──────────────────────────────────────────── */}
-                <aside className="hidden lg:flex flex-col w-72 shrink-0">
-                    <div className="rounded-4xl bg-white border border-slate-100 shadow-xl p-5 space-y-5 sticky top-6 overflow-y-auto max-h-[calc(100vh-5rem)]">
+                <aside className={`${filterOpen ? 'fixed inset-y-0 left-0 z-50 w-80 max-w-[90vw] bg-white shadow-2xl overflow-y-auto p-3' : 'hidden'} lg:flex lg:static lg:z-auto lg:w-72 lg:bg-transparent lg:shadow-none lg:p-0 lg:overflow-visible flex-col shrink-0`}>
+                    <div className="rounded-4xl lg:bg-white border lg:border-slate-100 lg:shadow-xl p-5 space-y-5 lg:sticky lg:top-6 lg:overflow-y-auto lg:max-h-[calc(100vh-5rem)]">
+                        {filterOpen && (
+                            <button onClick={() => setFilterOpen(false)} className="lg:hidden ml-auto block p-1.5 rounded-lg hover:bg-slate-100" aria-label="Close filters">
+                                <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        )}
                         <div className="flex items-center justify-between">
                             <span className="font-bold text-slate-900 text-sm">
                                 Filtre
@@ -349,30 +359,42 @@ export default function Index({ properties, filters = {}, isAdmin, authUserId, f
                             </div>
                         </div>
 
-                        {/* City + District */}
+                        {/* Raion + Sector */}
                         <div className="space-y-2">
                             <div>
-                                <SideLabel>Localitate</SideLabel>
-                                <input
+                                <SideLabel>Raion</SideLabel>
+                                <Combobox
                                     value={f.city}
-                                    onChange={e => setF(s => ({ ...s, city: e.target.value }))}
-                                    onBlur={() => push(f)}
-                                    onKeyDown={e => e.key === 'Enter' && push(f)}
+                                    onChange={v => setF(s => ({ ...s, city: v }))}
+                                    onCommit={() => push({ ...f })}
+                                    options={MOLDOVA_LOCALITIES}
                                     placeholder="Ex: Chișinău"
-                                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
                                 />
                             </div>
-                            <div>
-                                <SideLabel>Sector / Raion</SideLabel>
-                                <input
-                                    value={f.district}
-                                    onChange={e => setF(s => ({ ...s, district: e.target.value }))}
-                                    onBlur={() => push(f)}
-                                    onKeyDown={e => e.key === 'Enter' && push(f)}
-                                    placeholder="Ex: Centru"
-                                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
-                                />
-                            </div>
+
+                            {(() => {
+                                const isChisinau = f.city.trim().toLowerCase().startsWith('chișinău')
+                                                || f.city.trim().toLowerCase().startsWith('chisinau');
+                                const source = isChisinau
+                                    ? [
+                                        ...CHISINAU_DISTRICTS,
+                                        ...districts.map(d => d.district).filter(d => !CHISINAU_DISTRICTS.includes(d)),
+                                      ]
+                                    : districts.map(d => d.district);
+
+                                return (
+                                    <div>
+                                        <SideLabel>Sector</SideLabel>
+                                        <Combobox
+                                            value={f.district}
+                                            onChange={v => setF(s => ({ ...s, district: v }))}
+                                            onCommit={() => push({ ...f })}
+                                            options={source}
+                                            placeholder={isChisinau ? 'Ex: Botanica' : 'Ex: Centru'}
+                                        />
+                                    </div>
+                                );
+                            })()}
                         </div>
 
                         <RangeRow
@@ -391,21 +413,24 @@ export default function Index({ properties, filters = {}, isAdmin, authUserId, f
                             onApply={() => push(f)}
                         />
 
-                        {/* Rooms */}
+                        {/* Rooms (multi-select) */}
                         <div>
                             <SideLabel>Camere</SideLabel>
                             <div className="flex gap-1">
-                                {['1','2','3','4','5+'].map(r => (
-                                    <button
-                                        key={r}
-                                        onClick={() => set('rooms', f.rooms === r ? '' : r)}
-                                        className={`flex-1 text-xs font-bold py-1.5 rounded-xl transition-colors ${
-                                            f.rooms === r
-                                                ? 'bg-blue-600 text-white'
-                                                : 'bg-slate-100 text-slate-700 hover:bg-blue-50 hover:text-blue-700'
-                                        }`}
-                                    >{r}</button>
-                                ))}
+                                {['1','2','3','4','5+'].map(r => {
+                                    const active = f.rooms.includes(r);
+                                    return (
+                                        <button
+                                            key={r}
+                                            onClick={() => set('rooms', active ? f.rooms.filter(x => x !== r) : [...f.rooms, r])}
+                                            className={`flex-1 text-xs font-bold py-1.5 rounded-xl transition-colors ${
+                                                active
+                                                    ? 'bg-blue-600 text-white'
+                                                    : 'bg-slate-100 text-slate-700 hover:bg-blue-50 hover:text-blue-700'
+                                            }`}
+                                        >{r}</button>
+                                    );
+                                })}
                             </div>
                         </div>
 
@@ -472,16 +497,29 @@ export default function Index({ properties, filters = {}, isAdmin, authUserId, f
                 <div className="flex-1 min-w-0 space-y-3">
 
                     {/* Top bar */}
-                    <div className="flex items-center justify-between bg-white rounded-4xl border border-slate-100 shadow-xl px-6 py-4">
-                        <div>
-                            <h2 className="text-lg font-bold text-slate-900">Anunțuri</h2>
-                            <p className="text-xs text-slate-400 mt-0.5">{properties.total} proprietăți</p>
+                    <div className="flex flex-wrap items-center justify-between gap-3 bg-white rounded-3xl sm:rounded-4xl border border-slate-100 shadow-xl px-4 sm:px-6 py-3 sm:py-4">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <button
+                                type="button"
+                                onClick={() => setFilterOpen(true)}
+                                className="lg:hidden shrink-0 rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors px-3 py-2 text-sm font-bold text-slate-700 flex items-center gap-1.5"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
+                                Filtre
+                                {activeCount > 0 && (
+                                    <span className="bg-blue-600 text-white text-[10px] px-1.5 rounded-full">{activeCount}</span>
+                                )}
+                            </button>
+                            <div className="min-w-0">
+                                <h2 className="text-base sm:text-lg font-bold text-slate-900 truncate">Anunțuri</h2>
+                                <p className="text-xs text-slate-400 mt-0.5">{properties.total} proprietăți</p>
+                            </div>
                         </div>
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
                             <select
                                 value={f.sort}
                                 onChange={e => set('sort', e.target.value)}
-                                className="rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 bg-white"
+                                className="flex-1 sm:flex-initial rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 bg-white"
                             >
                                 <option value="">Sortare: Recente</option>
                                 <option value="price_asc">Preț ↑</option>
@@ -491,8 +529,8 @@ export default function Index({ properties, filters = {}, isAdmin, authUserId, f
                             </select>
                             <Link
                                 href={route('properties.create')}
-                                className="rounded-2xl bg-slate-900 px-5 py-2.5 text-white text-sm font-semibold hover:bg-slate-700 transition-colors whitespace-nowrap"
-                            >+ Anunț nou</Link>
+                                className="rounded-2xl bg-slate-900 px-3 sm:px-5 py-2 sm:py-2.5 text-white text-xs sm:text-sm font-semibold hover:bg-slate-700 transition-colors whitespace-nowrap"
+                            >+ <span className="hidden sm:inline">Anunț nou</span></Link>
                         </div>
                     </div>
 

@@ -29,7 +29,7 @@ class Portal999Service
     const TRANSACTION_SETTINGS_KEY = [
         'sale'       => 'p999_offer_sale',
         'rent'       => 'p999_offer_rent',
-        'rent_short' => 'p999_offer_rent_short',
+        'inchiriere_zilnica' => 'p999_offer_rent_short',
         'new_build'  => 'p999_offer_sale',
     ];
 

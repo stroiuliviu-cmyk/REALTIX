@@ -46,8 +46,67 @@ import sqlite3
 import sys
 import time
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+try:
+    import psycopg2  # type: ignore
+except ImportError:
+    psycopg2 = None  # falls back to SQLite if Laravel still uses it
+
+
+# ── DB adapter (Postgres / SQLite) ────────────────────────────────────────────
+def _load_laravel_env(env_path: Path) -> dict:
+    env: dict[str, str] = {}
+    if not env_path.exists():
+        return env
+    for line in env_path.read_text(encoding="utf-8", errors="replace").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        k, v = line.split("=", 1)
+        env[k.strip()] = v.strip().strip('"').strip("'")
+    return env
+
+
+def open_db_connection(repo_root: Path, sqlite_path_override: str | None = None):
+    """Returns (connection, dialect) where dialect is 'pgsql' or 'sqlite'.
+
+    Reads Laravel .env to decide which backend to connect to. With pgsql we
+    use psycopg2; otherwise sqlite3 against the legacy file.
+    """
+    env = _load_laravel_env(repo_root / ".env")
+    driver = env.get("DB_CONNECTION", "sqlite")
+
+    if driver == "pgsql":
+        if psycopg2 is None:
+            raise RuntimeError("DB_CONNECTION=pgsql but psycopg2 is not installed (run: pip install psycopg2-binary)")
+        conn = psycopg2.connect(
+            host=env.get("DB_HOST", "127.0.0.1"),
+            port=int(env.get("DB_PORT", "5432") or 5432),
+            dbname=env.get("DB_DATABASE", "realtix"),
+            user=env.get("DB_USERNAME", "postgres"),
+            password=env.get("DB_PASSWORD", ""),
+        )
+        return conn, "pgsql"
+
+    db_path = sqlite_path_override or str(repo_root / "database" / "database.sqlite")
+    conn = sqlite3.connect(db_path)
+    conn.execute("PRAGMA journal_mode=WAL")
+    return conn, "sqlite"
+
+
+def _ph(sql: str, dialect: str) -> str:
+    """Convert ? placeholders to %s for psycopg2."""
+    return sql.replace("?", "%s") if dialect == "pgsql" else sql
+
+
+def _bool_value(v, dialect: str):
+    if v is None:
+        return None
+    if dialect == "pgsql":
+        return bool(v)
+    return 1 if v else 0
 
 # Force UTF-8 on Windows so emoji + diacritics in print() don't crash cp1252
 if sys.platform == "win32":
@@ -118,14 +177,24 @@ def make_driver(headless: bool = True) -> webdriver.Firefox:
 
 
 # ── Recent-cache: skip URLs updated in last N hours ──────────────────────────
-def get_recently_updated_ids(conn: sqlite3.Connection, hours: int = 4) -> set[str]:
+def get_recently_updated_ids(conn, dialect: str, hours: int = 4) -> set[str]:
     """IDs whose row was updated_at within the last N hours — skip refetching."""
-    cur = conn.execute(
-        "SELECT external_id FROM scraped_listings "
-        "WHERE source = '999md' AND updated_at >= datetime('now', ?)",
-        (f"-{hours} hours",),
-    )
-    return {row[0] for row in cur.fetchall()}
+    cur = conn.cursor()
+    if dialect == "pgsql":
+        cur.execute(
+            "SELECT external_id FROM scraped_listings "
+            "WHERE source = '999md' AND updated_at >= NOW() - (%s || ' hours')::interval",
+            (str(hours),),
+        )
+    else:
+        cur.execute(
+            "SELECT external_id FROM scraped_listings "
+            "WHERE source = '999md' AND updated_at >= datetime('now', ?)",
+            (f"-{hours} hours",),
+        )
+    rows = cur.fetchall()
+    cur.close()
+    return {row[0] for row in rows}
 
 
 # ── List page → ad URLs ───────────────────────────────────────────────────────
@@ -200,7 +269,10 @@ def collect_ad_urls(driver, category_slug: str, max_pages: int | None = 2) -> li
 
 
 # ── Detail page → structured ad data ──────────────────────────────────────────
-PHONE_PATTERN_MD = re.compile(r"(?:\+?373\s?\d{8}|\b0\d{8}\b)")
+# Matches Moldovan phone numbers in formats:
+#   +37368254455, +373 68 254 455, +373-68-254-455, 068254455, 0 68 254 455
+# Allows space/dash separators between any digit so we catch human-formatted output.
+PHONE_PATTERN_MD = re.compile(r"\+?373(?:[\s\-]?\d){8}|\b0(?:[\s\-]?\d){8}\b")
 PRICE_DIGITS = re.compile(r"\d[\d\s]*\d|\d")
 NUMERIC_RE = re.compile(r"\d+(?:[.,]\d+)?")
 
@@ -225,8 +297,10 @@ def extract_ad(driver, url: str) -> dict | None:
         pass
 
     if _FAST_MODE:
-        # Minimal wait, no scroll, no clicks → fast bulk
+        # Minimal wait, no scroll/gallery — but still reveal phone (essential
+        # for call-tracking features; visible-text reveal is fast on 999.md).
         time.sleep(random.uniform(0.2, 0.4))
+        _try_reveal_phone(driver)
     else:
         time.sleep(random.uniform(0.8, 1.4))
         _trigger_lazyload(driver)
@@ -309,13 +383,15 @@ def extract_ad(driver, url: str) -> dict | None:
     # Download images locally if requested
     if _DOWNLOAD_IMAGES and images:
         local_paths = []
-        for idx, img_url in enumerate(images[:30], start=1):
+        for idx, img_url in enumerate(images[:15], start=1):
             local = _download_image(img_url, external_id, idx)
             if local:
                 local_paths.append(local)
         # Replace remote URLs with local relative paths
         if local_paths:
             images = local_paths
+
+    price_per_m2 = _extract_price_per_m2(soup, price, area)
 
     return {
         "external_id":              external_id,
@@ -324,6 +400,7 @@ def extract_ad(driver, url: str) -> dict | None:
         "price":                    price,
         "currency":                 currency,
         "area":                     area,
+        "price_per_m2":             price_per_m2,
         "rooms":                    rooms,
         "floor":                    floor,
         "floors_total":             floors_total,
@@ -480,8 +557,66 @@ def _extract_price(soup: BeautifulSoup, json_ld: list[dict] | None = None) -> tu
     return price, currency
 
 
+# Matches "5 306 €/m²", "1,200 EUR/mp", "850 €/m2" and Russian "за м²" variants.
+_PRICE_PER_M2_RE = re.compile(
+    r"(\d[\d\s.,]*)\s*(?:€|EUR|USD|\$|lei|MDL)\s*[/\\]\s*(?:m\s*[²2]|mp|кв\.?\s*м)",
+    re.IGNORECASE,
+)
+
+
+def _extract_price_per_m2(soup: BeautifulSoup, price: float | None, area: float | None) -> float | None:
+    """Try to read 'X €/m²' directly from the page; fall back to price/area math."""
+    text = soup.get_text(" ", strip=True)
+    m = _PRICE_PER_M2_RE.search(text)
+    if m:
+        digits = re.sub(r"[^\d]", "", m.group(1))
+        if digits:
+            try:
+                val = float(digits)
+                if 1 <= val <= 1_000_000:
+                    return val
+            except ValueError:
+                pass
+    # Deterministic fallback
+    if price and area and area > 0:
+        return round(float(price) / float(area), 2)
+    return None
+
+
+_GALLERY_SELECTORS = [
+    '[class*="Gallery"]', '[class*="gallery"]',
+    '[class*="ImageGallery"]', '[class*="MainPhoto"]',
+    '[class*="adImages"]', '[class*="AdImages"]',
+    '[class*="PhotoSlider"]', '[class*="photoSlider"]',
+    '[data-testid*="gallery"]', '[data-cy*="gallery"]',
+    '[role="region"][aria-label*="photo" i]',
+]
+
+# Containers that we MUST NOT pull images from (similar/recommended ads, banners).
+_GALLERY_EXCLUDE_SELECTORS = [
+    '[class*="Similar"]', '[class*="similar"]',
+    '[class*="Recommend"]', '[class*="recommend"]',
+    '[class*="Related"]', '[class*="related"]',
+    '[class*="OtherAds"]', '[class*="otherAds"]',
+    '[class*="Recent"]', '[class*="recent"]',
+    '[class*="Sponsored"]', '[class*="banner"]', '[class*="Banner"]',
+    '[class*="Promo"]', '[class*="promo"]',
+    'footer', 'header', 'aside',
+]
+
+
 def _extract_images(soup: BeautifulSoup, json_ld: list[dict] | None = None) -> list[str]:
-    """Collect unique image URLs: JSON-LD `image` array, og:image, then all <img>/<source> simpalsmedia."""
+    """Collect unique listing-specific image URLs.
+
+    Priority:
+      1. JSON-LD `image` (per-listing, authoritative)
+      2. og:image (per-listing, single)
+      3. DOM scan inside a narrow gallery container — only if 1+2 returned <3 images.
+
+    The DOM-wide scan was previously contaminating listings with images from
+    "similar ads" / "recommended" sidebars; we now scope to gallery selectors and
+    explicitly exclude known recommender containers.
+    """
     seen: set[str] = set()
     images: list[str] = []
 
@@ -493,7 +628,7 @@ def _extract_images(soup: BeautifulSoup, json_ld: list[dict] | None = None) -> l
             seen.add(clean)
             images.append(clean)
 
-    # 1. JSON-LD image field (often the cleanest source)
+    # 1. JSON-LD image field — authoritative per-listing source.
     if json_ld:
         for block in json_ld:
             img = block.get("image")
@@ -508,42 +643,90 @@ def _extract_images(soup: BeautifulSoup, json_ld: list[dict] | None = None) -> l
             elif isinstance(img, dict) and isinstance(img.get("url"), str):
                 add(img["url"])
 
-    # 2. og:image
+    # 2. og:image (single hero image).
     og_img = soup.find("meta", property="og:image")
     if og_img and og_img.get("content"):
         add(og_img["content"])
 
-    # 3. All <img> and <source> tags pointing to simpalsmedia /board
-    for img in soup.find_all(["img", "source"]):
-        for attr in ("src", "data-src", "data-lazy-src", "srcset", "data-srcset"):
-            v = img.get(attr) or ""
-            for piece in v.split(","):
-                token = piece.strip().split(" ")[0]
-                if "simpalsmedia.com" in token and "/board" in token:
-                    add(token)
+    # 3. DOM scan — only when JSON-LD didn't yield enough images.
+    if len(images) < 3:
+        # Strip out excluded containers so they can't contribute images.
+        for sel in _GALLERY_EXCLUDE_SELECTORS:
+            for el in soup.select(sel):
+                el.decompose()
 
-    # 4. Inline style url(...) backgrounds
-    for el in soup.find_all(style=re.compile(r"url\([^)]*simpalsmedia")):
-        m = re.search(r"url\(['\"]?([^)'\"]+simpalsmedia[^)'\"]+)['\"]?\)", el.get("style", ""))
-        if m:
-            add(m.group(1))
+        # Find a narrow gallery scope; fall back to <main> if none of the
+        # specific selectors match. Last resort: skip the broad scan entirely
+        # rather than pollute with sidebar content.
+        scopes = []
+        for sel in _GALLERY_SELECTORS:
+            scopes.extend(soup.select(sel))
+        if not scopes:
+            main_el = soup.find("main")
+            if main_el:
+                scopes = [main_el]
 
-    return images[:30]  # cap at 30
+        for scope in scopes:
+            for img in scope.find_all(["img", "source"]):
+                for attr in ("src", "data-src", "data-lazy-src", "srcset", "data-srcset"):
+                    v = img.get(attr) or ""
+                    for piece in v.split(","):
+                        token = piece.strip().split(" ")[0]
+                        if "simpalsmedia.com" in token and "/board" in token:
+                            add(token)
+            for el in scope.find_all(style=re.compile(r"url\([^)]*simpalsmedia")):
+                m = re.search(r"url\(['\"]?([^)'\"]+simpalsmedia[^)'\"]+)['\"]?\)", el.get("style", ""))
+                if m:
+                    add(m.group(1))
+
+    return images[:15]  # cap at 15
+
+
+_999MD_SERVICE_PHONES = {
+    "+37322888002",  # 999.md / Simpals customer support — appears in header/footer
+    "022888002",
+}
+
+
+def _normalize_phone(raw: str) -> str:
+    cleaned = re.sub(r"[^\d+]", "", raw)
+    if cleaned.startswith("00373"):
+        cleaned = "+" + cleaned[2:]
+    return cleaned
 
 
 def _extract_phone(soup: BeautifulSoup) -> str | None:
-    # Search anywhere in the page — phone reveal click should have made it visible
+    # 1. Prefer the ad's own phone container — narrowly scoped, avoids header/footer leakage.
+    selectors = [
+        '[class*="PhoneNumber"]', '[class*="phoneNumber"]',
+        '[class*="phone-number"]', '[class*="phone_number"]',
+        '[data-testid*="phone"]',
+        '[itemprop="telephone"]',
+    ]
+    for sel in selectors:
+        for node in soup.select(sel):
+            inner = node.get_text(" ", strip=True)
+            m = PHONE_PATTERN_MD.search(inner)
+            if m:
+                num = _normalize_phone(m.group())
+                if num and num not in _999MD_SERVICE_PHONES:
+                    return num
+
+    # 2. tel: links inside the ad body.
+    for a in soup.find_all("a", href=True):
+        if a["href"].startswith("tel:"):
+            num = _normalize_phone(a["href"][4:])
+            if len(num) >= 8 and num not in _999MD_SERVICE_PHONES:
+                return num
+
+    # 3. Last-resort full-page regex (only if not matching a service number).
     text = soup.get_text(" ", strip=True)
     m = PHONE_PATTERN_MD.search(text)
     if m:
-        return re.sub(r"\s+", "", m.group())
+        num = _normalize_phone(m.group())
+        if num and num not in _999MD_SERVICE_PHONES:
+            return num
 
-    # tel: links sometimes contain the number even when hidden visually
-    for a in soup.find_all("a", href=True):
-        if a["href"].startswith("tel:"):
-            num = re.sub(r"[^\d+]", "", a["href"][4:])
-            if len(num) >= 8:
-                return num
     return None
 
 
@@ -1018,7 +1201,7 @@ def _detect_transaction_type_from_breadcrumb(soup: BeautifulSoup) -> str | None:
             continue
         if "închiri" in text or "аренд" in text or "сдам" in text:
             if "termen scurt" in text or "посуточно" in text or "scurt" in text:
-                return "rent_short"
+                return "inchiriere_zilnica"
             return "rent"
         if "vând" in text or "vînd" in text or "продаж" in text or "продаю" in text:
             return "sale"
@@ -1046,41 +1229,141 @@ def _detect_owner_type(soup: BeautifulSoup) -> str:
 
 
 def _detect_transaction_type(soup: BeautifulSoup, features_text: str) -> str | None:
-    """Return 'rent' / 'sale' / 'rent_short' if detected from page; None to keep category default."""
+    """Return 'rent' / 'sale' / 'inchiriere_zilnica' if detected from page; None to keep category default."""
     text = (soup.get_text(" ", strip=True) + " " + features_text).lower()
     if "chirie" in text or "аренд" in text or "închiri" in text:
         if "посуточно" in text or "pe zi" in text or "termen scurt" in text:
-            return "rent_short"
+            return "inchiriere_zilnica"
         return "rent"
     if "vânz" in text or "продаж" in text or "vand " in text or "продаю" in text:
         return "sale"
     return None
 
 
-def _try_reveal_phone(driver):
-    """Click any obvious phone-reveal buttons. Best-effort, non-blocking."""
-    selectors = [
-        '[class*="phone"][class*="show"]',
-        '[class*="contact"][class*="show"]',
-        'button[class*="phone"]',
-        'button[class*="contact"]',
-        '[data-testid*="phone"]',
+_RATE_LIMIT_PATTERNS = [
+    re.compile(r"prea\s+multe\s+cereri.*?(\d+)\s*secunde", re.IGNORECASE | re.DOTALL),
+    re.compile(r"too\s+many\s+requests.*?(\d+)\s*second", re.IGNORECASE | re.DOTALL),
+    re.compile(r"слишком\s+много\s+запросов.*?(\d+)\s*секунд", re.IGNORECASE | re.DOTALL),
+]
+
+
+def _detect_rate_limit(driver) -> int | None:
+    """Returns number of seconds to wait if 999.md is rate-limiting the reveal
+    endpoint, else None. 999.md shows a tooltip 'Prea multe cereri. Încearcă
+    din nou peste N secunde.' when the same client clicks reveal too often."""
+    try:
+        source = driver.page_source
+    except Exception:
+        return None
+    for pat in _RATE_LIMIT_PATTERNS:
+        m = pat.search(source)
+        if m:
+            try:
+                return int(m.group(1))
+            except (ValueError, IndexError):
+                return 8  # safe default
+    return None
+
+
+def _try_reveal_phone(driver) -> bool:
+    """Click the 999.md "Arată numărul" reveal button and wait for the full phone
+    to render. Returns True if a phone number became visible in the DOM.
+
+    Handles rate-limit responses: if 999.md shows 'Prea multe cereri', sleep
+    the indicated seconds and retry once."""
+
+    # Step 1: collect candidate buttons via CSS classes (loose match).
+    candidates = []
+    css_selectors = [
+        '[class*="phone-reveal"]', '[class*="PhoneReveal"]',
+        '[class*="show-phone"]',   '[class*="ShowPhone"]',
+        'button[class*="phone" i]', 'button[class*="contact" i]',
+        '[data-testid*="phone" i]', '[data-cy*="phone" i]',
     ]
-    for sel in selectors:
+    for sel in css_selectors:
         try:
-            buttons = driver.find_elements(By.CSS_SELECTOR, sel)
-            for btn in buttons[:3]:
-                try:
-                    driver.execute_script("arguments[0].click();", btn)
-                    time.sleep(0.4)
-                except (ElementClickInterceptedException, Exception):
-                    continue
+            candidates.extend(driver.find_elements(By.CSS_SELECTOR, sel))
         except Exception:
             continue
 
+    # Step 2: also match by visible text — 999.md uses "Arată numărul" /
+    # "Показать номер". Restrict to leaf nodes (no nested similar elements).
+    text_xpaths = [
+        "//button[contains(translate(., 'AĂÂÎȘȚ', 'aaaist'), 'arată numărul')]",
+        "//a[contains(translate(., 'AĂÂÎȘȚ', 'aaaist'), 'arată numărul')]",
+        "//*[contains(., 'Показать номер') and not(.//*[contains(., 'Показать номер')])]",
+        "//*[contains(., 'Arată numărul') and not(.//*[contains(., 'Arată numărul')])]",
+    ]
+    for xp in text_xpaths:
+        try:
+            candidates.extend(driver.find_elements(By.XPATH, xp))
+        except Exception:
+            continue
+
+    # Dedup while preserving order.
+    seen_ids = set()
+    unique = []
+    for c in candidates:
+        ref = id(c)
+        if ref not in seen_ids:
+            seen_ids.add(ref)
+            unique.append(c)
+
+    if not unique:
+        return False
+
+    # Helper: click ONE button (the first viable candidate) — clicking multiple
+    # was bloating the reveal-endpoint request count and triggering rate limits.
+    def _click_first() -> bool:
+        for btn in unique:
+            try:
+                driver.execute_script("arguments[0].click();", btn)
+                return True
+            except (ElementClickInterceptedException, Exception):
+                continue
+        return False
+
+    if not _click_first():
+        return False
+
+    # Step 3: wait up to 4s for either the number to appear OR a rate-limit notice.
+    def _ready(d):
+        if d.find_elements(By.CSS_SELECTOR, 'a[href^="tel:"]'):
+            return 'ok'
+        if PHONE_PATTERN_MD.search(d.page_source):
+            return 'ok'
+        if _detect_rate_limit(d):
+            return 'rate_limit'
+        return False
+
+    try:
+        outcome = WebDriverWait(driver, 4).until(_ready)
+    except TimeoutException:
+        return False
+
+    if outcome == 'rate_limit':
+        wait = _detect_rate_limit(driver) or 8
+        # Add ~30% jitter so we don't retry exactly when the window opens.
+        sleep_for = wait + random.uniform(1.5, 3.0)
+        print(f"    [rate-limit] 999.md asked to wait {wait}s — sleeping {sleep_for:.1f}s")
+        time.sleep(sleep_for)
+        # Retry once
+        if not _click_first():
+            return False
+        try:
+            WebDriverWait(driver, 4).until(
+                lambda d: bool(d.find_elements(By.CSS_SELECTOR, 'a[href^="tel:"]'))
+                          or bool(PHONE_PATTERN_MD.search(d.page_source))
+            )
+            return True
+        except TimeoutException:
+            return False
+
+    return True
+
 
 # ── Database writer ───────────────────────────────────────────────────────────
-def upsert_listing(conn: sqlite3.Connection, ad: dict, category: dict, agency_id: int) -> bool:
+def upsert_listing(conn, dialect: str, ad: dict, category: dict, agency_id: int) -> bool:
     """Returns True if newly inserted, False if updated."""
     transaction_type = ad.get("transaction_type_override") or category["transaction_type"]
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
@@ -1099,10 +1382,6 @@ def upsert_listing(conn: sqlite3.Connection, ad: dict, category: dict, agency_id
     else:
         pub_str = now
 
-    def _bool_to_int(v):
-        if v is None: return None
-        return 1 if v else 0
-
     fields = {
         "agency_id":         agency_id,
         "source":            "999md",
@@ -1112,6 +1391,7 @@ def upsert_listing(conn: sqlite3.Connection, ad: dict, category: dict, agency_id
         "price":             ad.get("price"),
         "currency":          ad.get("currency") or "EUR",
         "area":              ad.get("area"),
+        "price_per_m2":      ad.get("price_per_m2"),
         "rooms":             ad.get("rooms"),
         "floor":             ad.get("floor"),
         "floors_total":      ad.get("floors_total"),
@@ -1122,12 +1402,12 @@ def upsert_listing(conn: sqlite3.Connection, ad: dict, category: dict, agency_id
         "condition":         ad.get("condition"),
         "building_type":     ad.get("building_type"),
         "heating":           ad.get("heating"),
-        "furnished":         _bool_to_int(ad.get("furnished")),
-        "parking":           _bool_to_int(ad.get("parking")),
-        "balcony":           _bool_to_int(ad.get("balcony")),
-        "elevator":          _bool_to_int(ad.get("elevator")),
-        "pets_allowed":      _bool_to_int(ad.get("pets_allowed")),
-        "air_conditioning":  _bool_to_int(ad.get("air_conditioning")),
+        "furnished":         _bool_value(ad.get("furnished"), dialect),
+        "parking":           _bool_value(ad.get("parking"), dialect),
+        "balcony":           _bool_value(ad.get("balcony"), dialect),
+        "elevator":          _bool_value(ad.get("elevator"), dialect),
+        "pets_allowed":      _bool_value(ad.get("pets_allowed"), dialect),
+        "air_conditioning":  _bool_value(ad.get("air_conditioning"), dialect),
         "description":       ad["description"][:5000] if ad.get("description") else None,
         "images":            json.dumps(ad.get("images") or [], ensure_ascii=False),
         "phone":             ad.get("phone"),
@@ -1139,22 +1419,28 @@ def upsert_listing(conn: sqlite3.Connection, ad: dict, category: dict, agency_id
         "updated_at":        now,
     }
 
-    cursor = conn.execute(
-        "SELECT id FROM scraped_listings WHERE source = ? AND external_id = ?",
+    cur = conn.cursor()
+    cur.execute(
+        _ph("SELECT id FROM scraped_listings WHERE source = ? AND external_id = ?", dialect),
         ("999md", ad["external_id"]),
     )
-    existing = cursor.fetchone()
+    existing = cur.fetchone()
 
     if existing:
         sets = ", ".join(f'"{k}" = ?' for k in fields.keys())
         params = list(fields.values()) + [existing[0]]
-        conn.execute(f'UPDATE scraped_listings SET {sets} WHERE id = ?', params)
+        cur.execute(_ph(f'UPDATE scraped_listings SET {sets} WHERE id = ?', dialect), params)
+        cur.close()
         return False
 
     fields["created_at"] = now
     cols = ", ".join(f'"{k}"' for k in fields.keys())
     placeholders = ", ".join(["?"] * len(fields))
-    conn.execute(f"INSERT INTO scraped_listings ({cols}) VALUES ({placeholders})", list(fields.values()))
+    cur.execute(
+        _ph(f"INSERT INTO scraped_listings ({cols}) VALUES ({placeholders})", dialect),
+        list(fields.values()),
+    )
+    cur.close()
     return True
 
 
@@ -1168,8 +1454,10 @@ def main() -> int:
     parser.add_argument("--db", type=str, default=str(REALTIX_DB_DEFAULT), help="REALTIX SQLite path")
     parser.add_argument("--agency", type=int, default=DEFAULT_AGENCY_ID, help="Agency ID for new rows")
     parser.add_argument("--category", type=str, default=None, help="Run only one category (slug)")
-    parser.add_argument("--delay-min", type=float, default=0.6)
-    parser.add_argument("--delay-max", type=float, default=1.4)
+    parser.add_argument("--delay-min", type=float, default=1.2,
+                        help="Min seconds between ads (helps avoid 999.md reveal-endpoint rate limit)")
+    parser.add_argument("--delay-max", type=float, default=2.5,
+                        help="Max seconds between ads")
     parser.add_argument("--skip-recent-hours", type=int, default=4,
                         help="Skip ads updated within last N hours (0 to disable)")
     parser.add_argument("--fast", action="store_true",
@@ -1184,10 +1472,12 @@ def main() -> int:
     if args.fast:
         global _FAST_MODE
         _FAST_MODE = True
-        if args.delay_min == 0.6:
-            args.delay_min = 0.2
-        if args.delay_max == 1.4:
-            args.delay_max = 0.5
+        # Fast mode keeps inter-ad delay reasonable so we don't trigger
+        # the 999.md reveal rate-limit (8 reveals in ~10s consistently hits it).
+        if args.delay_min == 1.2:
+            args.delay_min = 0.6
+        if args.delay_max == 2.5:
+            args.delay_max = 1.2
 
     # Activate global flags
     global _DOWNLOAD_IMAGES, _TODAY_ONLY
@@ -1227,13 +1517,15 @@ def main() -> int:
     print()
 
     driver = make_driver(headless=not args.no_headless)
-    conn = sqlite3.connect(str(db_path))
-    conn.execute("PRAGMA journal_mode=WAL")
+
+    repo_root = Path(__file__).resolve().parent.parent
+    conn, dialect = open_db_connection(repo_root, sqlite_path_override=str(db_path) if str(db_path) != str(REALTIX_DB_DEFAULT) else None)
+    print(f"🗄  DB driver: {dialect}")
 
     # Load list of recently-updated external IDs to skip (saves ~3-5s per ad)
     recently_updated: set[str] = set()
     if args.skip_recent_hours > 0:
-        recently_updated = get_recently_updated_ids(conn, hours=args.skip_recent_hours)
+        recently_updated = get_recently_updated_ids(conn, dialect, hours=args.skip_recent_hours)
         if recently_updated:
             print(f"💾 Skipping {len(recently_updated)} ads updated within last {args.skip_recent_hours}h")
 
@@ -1283,7 +1575,7 @@ def main() -> int:
                         else:
                             consecutive_old = 0
 
-                    is_new = upsert_listing(conn, ad, cat, args.agency)
+                    is_new = upsert_listing(conn, dialect, ad, cat, args.agency)
                     conn.commit()
                     stats["processed"] += 1
 

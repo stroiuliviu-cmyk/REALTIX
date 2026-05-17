@@ -96,7 +96,7 @@ Per anunț:
 - **images** — URL-uri CDN simpalsmedia (până la 30 imagini)
 - **phone** — încearcă click pe „afișează numărul" + regex pe `+373xxxxxxxx`
 - **owner_type** — heuristic „persoană fizică" vs agenție
-- **transaction_type** — sale / rent / rent_short detectat din text
+- **transaction_type** — sale / rent / inchiriere_zilnica detectat din text
 - **description** — block descriere sau `og:description`
 - **raw_data** (JSON) — descriere completă, slug categorie, timestamp
 

@@ -3,6 +3,7 @@
 .env
 .env.backup
 .env.production
+.env.local
 .phpactor.json
 .phpunit.result.cache
 /.fleet
@@ -18,6 +19,10 @@
 /public/storage
 /storage/*.key
 /storage/pail
+/storage/app/public/scraped/*
+!/storage/app/public/scraped/.gitkeep
+/python_scraper/venv/
+/python_scraper/__pycache__/
 /vendor
 Homestead.json
 Homestead.yaml

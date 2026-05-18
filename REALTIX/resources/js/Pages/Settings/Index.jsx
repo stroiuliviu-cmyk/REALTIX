@@ -206,7 +206,7 @@ function ProfileTab({ user }) {
             </div>
 
             {/* Locale & timezone */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                     <Label>Limbă interfață</Label>
                     <select
@@ -348,7 +348,7 @@ function AgencyTab({ agency }) {
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                     <Label>Telefon agenție</Label>
                     <Input value={data.contact_phone} onChange={v => setData('contact_phone', v)} type="tel" />
@@ -964,312 +964,70 @@ function SecurityTab({ sessions, activityLog = [] }) {
 
 // ─── Integrations Tab ─────────────────────────────────────────────────────────
 
-function IntegrationsTab({ agency, user }) {
+function IntegrationsTab({ agency }) {
     const s = agency?.settings ?? {};
-    const googleConnected = !!user?.google_access_token;
-    const [disconnecting, setDisconnecting] = useState(false);
-    const [syncing, setSyncing] = useState(false);
 
     const { data, setData, patch, processing } = useForm({
-        facebook_token: s.facebook_token ?? '',
-        claude_api_key: s.claude_api_key ?? '',
+        facebook_token:       s.facebook_token       ?? '',
+        portal_999md_api_key: s.portal_999md_api_key ?? '',
     });
 
     const submit = (e) => { e.preventDefault(); patch(route('settings.integrations')); };
 
-    const handleDisconnect = () => {
-        setDisconnecting(true);
-        router.post(route('google.calendar.disconnect'), {}, {
-            onFinish: () => setDisconnecting(false),
-        });
-    };
-
-    const handleSync = () => {
-        setSyncing(true);
-        router.post(route('google.calendar.sync'), {}, {
-            onFinish: () => setSyncing(false),
-        });
-    };
+    const items = [
+        {
+            icon: '📘',
+            title: 'Facebook / Instagram',
+            desc: 'Autopostare automată pe rețelele sociale',
+            field: 'facebook_token',
+            placeholder: 'Access token Facebook',
+        },
+        {
+            icon: '🏠',
+            title: '999.md Partners API',
+            desc: 'Publică anunțuri imobiliare direct pe 999.md din REALTIX.',
+            field: 'portal_999md_api_key',
+            placeholder: 'Cheia ta API de pe partners-api.999.md',
+        },
+    ];
 
     return (
-        <div className="space-y-4 max-w-lg">
-            {/* ── Google Calendar ── */}
-            <div className="rounded-3xl border border-slate-100 bg-white p-5">
-                <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center text-2xl shrink-0">
-                        📅
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <div className="font-bold text-slate-900 text-sm">Google Calendar</div>
-                        <div className="text-xs text-slate-500 mt-0.5">
-                            Sincronizare bidirecțională — evenimentele create în REALTIX apar automat în Google Calendar.
+        <form onSubmit={submit} className="space-y-4 max-w-lg">
+            {items.map(item => (
+                <div key={item.field} className="rounded-3xl border border-slate-100 bg-white p-5">
+                    <div className="flex items-center gap-4 mb-4">
+                        <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-2xl shrink-0">
+                            {item.icon}
                         </div>
+                        <div className="flex-1 min-w-0">
+                            <div className="font-bold text-slate-900 text-sm">{item.title}</div>
+                            <div className="text-xs text-slate-500 mt-0.5">{item.desc}</div>
+                        </div>
+                        {data[item.field] && (
+                            <span className="ml-auto text-xs bg-emerald-100 text-emerald-700 font-semibold px-2 py-0.5 rounded-full shrink-0">
+                                Conectat
+                            </span>
+                        )}
                     </div>
-                    {googleConnected
-                        ? <span className="text-xs bg-emerald-100 text-emerald-700 font-semibold px-2 py-0.5 rounded-full shrink-0">✅ Conectat</span>
-                        : <span className="text-xs bg-slate-100 text-slate-500 font-semibold px-2 py-0.5 rounded-full shrink-0">Neconectat</span>
-                    }
+                    <input
+                        type="password"
+                        value={data[item.field]}
+                        onChange={e => setData(item.field, e.target.value)}
+                        placeholder={item.placeholder}
+                        autoComplete="new-password"
+                        className="w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:border-blue-700 font-mono"
+                    />
                 </div>
-
-                {googleConnected ? (
-                    <div className="mt-4 flex gap-2 flex-wrap">
-                        <button
-                            type="button"
-                            onClick={handleSync}
-                            disabled={syncing}
-                            className="rounded-xl bg-blue-700 text-white px-4 py-2 text-sm font-bold hover:bg-blue-800 disabled:opacity-50 transition-colors"
-                        >
-                            {syncing ? '⏳ Sincronizez...' : '🔄 Sincronizează acum'}
-                        </button>
-                        <button
-                            type="button"
-                            onClick={handleDisconnect}
-                            disabled={disconnecting}
-                            className="rounded-xl border border-rose-200 text-rose-600 px-4 py-2 text-sm font-bold hover:bg-rose-50 disabled:opacity-50 transition-colors"
-                        >
-                            {disconnecting ? 'Se deconectează...' : 'Deconectează'}
-                        </button>
-                    </div>
-                ) : (
-                    <div className="mt-4">
-                        <a
-                            href={route('google.calendar.connect')}
-                            className="inline-flex items-center gap-2 rounded-xl bg-slate-900 text-white px-5 py-2.5 text-sm font-bold hover:bg-slate-700 transition-colors"
-                        >
-                            <svg className="w-4 h-4" viewBox="0 0 24 24">
-                                <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                                <path fill="#4285F4" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                            </svg>
-                            Conectează cu Google
-                        </a>
-                        <p className="text-xs text-slate-400 mt-2">
-                            Necesită cont Google. Evenimentele vor fi sincronizate automat la creare.
-                        </p>
-                    </div>
-                )}
-            </div>
-
-            {/* ── Other integrations ── */}
-            <form onSubmit={submit} className="space-y-4">
-                {[
-                    {
-                        icon: '📘',
-                        title: 'Facebook / Instagram',
-                        desc: 'Autopostare automată pe rețelele sociale',
-                        field: 'facebook_token',
-                        placeholder: 'Access token Facebook',
-                    },
-                    {
-                        icon: '🤖',
-                        title: 'Anthropic Claude API',
-                        desc: 'Cheie API pentru generare descrieri AI și evaluare',
-                        field: 'claude_api_key',
-                        placeholder: 'sk-ant-...',
-                    },
-                ].map(item => (
-                    <div key={item.field} className="rounded-3xl border border-slate-100 bg-white p-5">
-                        <div className="flex items-center gap-4 mb-4">
-                            <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-2xl shrink-0">
-                                {item.icon}
-                            </div>
-                            <div>
-                                <div className="font-bold text-slate-900 text-sm">{item.title}</div>
-                                <div className="text-xs text-slate-500 mt-0.5">{item.desc}</div>
-                            </div>
-                            {data[item.field] && (
-                                <span className="ml-auto text-xs bg-emerald-100 text-emerald-700 font-semibold px-2 py-0.5 rounded-full shrink-0">
-                                    Conectat
-                                </span>
-                            )}
-                        </div>
-                        <input
-                            type="password"
-                            value={data[item.field]}
-                            onChange={e => setData(item.field, e.target.value)}
-                            placeholder={item.placeholder}
-                            autoComplete="new-password"
-                            className="w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:border-blue-700 font-mono"
-                        />
-                    </div>
-                ))}
-                <SaveBtn processing={processing} label="Salvează integrările" />
-            </form>
-        </div>
+            ))}
+            <SaveBtn processing={processing} label="Salvează integrările" />
+        </form>
     );
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-// ─── Portals Tab ──────────────────────────────────────────────────────────────
+// (PortalsTab eliminat — 999.md API key e acum în IntegrationsTab.)
 
-function PortalsTab({ agency }) {
-    const s = agency?.settings ?? {};
-    const configured = !!s.portal_999md_api_key;
-    const [showAdvanced, setShowAdvanced] = useState(false);
-    const [discovering, setDiscovering] = useState(false);
-    const [categories, setCategories] = useState(null);
-
-    const { data, setData, patch, processing } = useForm({
-        portal_999md_api_key:     s.portal_999md_api_key     ?? '',
-        p999_category_id:         s.p999_category_id         ?? '',
-        p999_subcat_apartment:    s.p999_subcat_apartment    ?? '',
-        p999_subcat_house:        s.p999_subcat_house        ?? '',
-        p999_subcat_commercial:   s.p999_subcat_commercial   ?? '',
-        p999_subcat_land:         s.p999_subcat_land         ?? '',
-        p999_offer_sale:          s.p999_offer_sale          ?? '',
-        p999_offer_rent:          s.p999_offer_rent          ?? '',
-        p999_offer_rent_short:    s.p999_offer_rent_short    ?? '',
-        p999_feature_price:       s.p999_feature_price       ?? '2',
-        p999_feature_title:       s.p999_feature_title       ?? '12',
-        p999_feature_description: s.p999_feature_description ?? '13',
-        p999_feature_images:      s.p999_feature_images      ?? '14',
-        p999_feature_contacts:    s.p999_feature_contacts    ?? '16',
-        p999_feature_location:    s.p999_feature_location    ?? '',
-    });
-
-    const submit = (e) => { e.preventDefault(); patch(route('settings.portals')); };
-
-    const discoverCategories = () => {
-        setDiscovering(true);
-        fetch(route('settings.portals.discover'))
-            .then(r => r.json())
-            .then(d => { setCategories(d.categories); setDiscovering(false); })
-            .catch(() => setDiscovering(false));
-    };
-
-    return (
-        <form onSubmit={submit} className="space-y-4 max-w-lg">
-            {/* 999.md card */}
-            <div className="rounded-3xl border border-slate-100 bg-white p-5 space-y-4">
-                <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-2xl shrink-0">
-                        🏠
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <div className="font-bold text-slate-900 text-sm">999.md Partners API</div>
-                        <div className="text-xs text-slate-500 mt-0.5">
-                            Publică anunțuri imobiliare direct pe 999.md din REALTIX.
-                        </div>
-                    </div>
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full shrink-0 ${configured ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
-                        {configured ? '✅ Configurat' : 'Neconfigurat'}
-                    </span>
-                </div>
-
-                <div>
-                    <Label>API Key 999.md</Label>
-                    <Input
-                        type="password"
-                        value={data.portal_999md_api_key}
-                        onChange={e => setData('portal_999md_api_key', e.target.value)}
-                        placeholder="Cheia ta API de pe partners-api.999.md"
-                    />
-                    <p className="text-xs text-slate-400 mt-1">
-                        Obține cheia din <span className="font-mono">partners-api.999.md</span> → Settings → API Keys
-                    </p>
-                </div>
-
-                {/* Discover button */}
-                {data.portal_999md_api_key && (
-                    <div>
-                        <button
-                            type="button"
-                            onClick={discoverCategories}
-                            disabled={discovering}
-                            className="text-xs text-blue-600 hover:underline disabled:opacity-50"
-                        >
-                            {discovering ? 'Se încarcă...' : '🔍 Descoperă categoriile disponibile'}
-                        </button>
-                        {categories && (
-                            <pre className="mt-2 text-xs bg-slate-50 rounded-xl p-3 overflow-auto max-h-40 border border-slate-100">
-                                {JSON.stringify(categories, null, 2)}
-                            </pre>
-                        )}
-                    </div>
-                )}
-
-                {/* Advanced toggle */}
-                <button
-                    type="button"
-                    onClick={() => setShowAdvanced(v => !v)}
-                    className="text-xs text-slate-400 hover:text-slate-600"
-                >
-                    {showAdvanced ? '▲ Ascunde' : '▼ Configurare avansată (categorii & features)'}
-                </button>
-
-                {showAdvanced && (
-                    <div className="space-y-3 pt-2 border-t border-slate-100">
-                        <p className="text-xs text-slate-500">
-                            Completează ID-urile după ce ai descoperit categoriile de mai sus.
-                        </p>
-
-                        <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <Label>Category ID (Imobiliare)</Label>
-                                <Input value={data.p999_category_id} onChange={e => setData('p999_category_id', e.target.value)} placeholder="ex: 2" />
-                            </div>
-                            <div>
-                                <Label>Subcat. Apartamente</Label>
-                                <Input value={data.p999_subcat_apartment} onChange={e => setData('p999_subcat_apartment', e.target.value)} placeholder="ex: 201" />
-                            </div>
-                            <div>
-                                <Label>Subcat. Case</Label>
-                                <Input value={data.p999_subcat_house} onChange={e => setData('p999_subcat_house', e.target.value)} placeholder="ex: 202" />
-                            </div>
-                            <div>
-                                <Label>Subcat. Comercial</Label>
-                                <Input value={data.p999_subcat_commercial} onChange={e => setData('p999_subcat_commercial', e.target.value)} placeholder="ex: 203" />
-                            </div>
-                            <div>
-                                <Label>Subcat. Teren</Label>
-                                <Input value={data.p999_subcat_land} onChange={e => setData('p999_subcat_land', e.target.value)} placeholder="ex: 204" />
-                            </div>
-                            <div>
-                                <Label>Offer type: Vânzare</Label>
-                                <Input value={data.p999_offer_sale} onChange={e => setData('p999_offer_sale', e.target.value)} placeholder="ex: 18979" />
-                            </div>
-                            <div>
-                                <Label>Offer type: Chirie</Label>
-                                <Input value={data.p999_offer_rent} onChange={e => setData('p999_offer_rent', e.target.value)} placeholder="ex: 18980" />
-                            </div>
-                            <div>
-                                <Label>Offer type: Chirie scurtă</Label>
-                                <Input value={data.p999_offer_rent_short} onChange={e => setData('p999_offer_rent_short', e.target.value)} placeholder="ex: 18981" />
-                            </div>
-                        </div>
-
-                        <p className="text-xs font-semibold text-slate-600 mt-2">Feature IDs</p>
-                        <div className="grid grid-cols-3 gap-3">
-                            {[
-                                ['p999_feature_price',       'Preț'],
-                                ['p999_feature_title',       'Titlu'],
-                                ['p999_feature_description', 'Descriere'],
-                                ['p999_feature_images',      'Imagini'],
-                                ['p999_feature_contacts',    'Telefon'],
-                                ['p999_feature_location',    'Locație'],
-                            ].map(([key, label]) => (
-                                <div key={key}>
-                                    <Label>{label}</Label>
-                                    <Input value={data[key]} onChange={e => setData(key, e.target.value)} placeholder="ID" />
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-            </div>
-
-            <button
-                type="submit"
-                disabled={processing}
-                className="w-full rounded-2xl bg-slate-900 text-white text-sm font-semibold py-2.5 hover:bg-slate-800 disabled:opacity-50 transition-colors"
-            >
-                {processing ? 'Se salvează...' : 'Salvează configurarea portalurilor'}
-            </button>
-        </form>
-    );
-}
 
 const TABS = [
     { key: 'profile',       label: 'Profil',        icon: '👤', adminOnly: false },
@@ -1278,7 +1036,6 @@ const TABS = [
     { key: 'notifications', label: 'Notificări',    icon: '🔔', adminOnly: false },
     { key: 'security',      label: 'Securitate',    icon: '🔒', adminOnly: false },
     { key: 'integrations',  label: 'Integrări',     icon: '🔗', adminOnly: true  },
-    { key: 'portals',       label: 'Portaluri',     icon: '🌐', adminOnly: true  },
 ];
 
 export default function Index({ user, agency, isAdmin, sessions = [], agents = [], invitations = [], canInviteAgents = false, canInviteMoreAgents = false, seatsUsed = 0, seatsLimit = null, activityLog = [], flash }) {
@@ -1328,8 +1085,7 @@ export default function Index({ user, agency, isAdmin, sessions = [], agents = [
                     {activeTab === 'users'         && <UsersTab agents={agents} invitations={invitations} currentUserId={user.id} canInvite={canInviteAgents} canInviteMore={canInviteMoreAgents} seatsUsed={seatsUsed} seatsLimit={seatsLimit} agencyPlan={agency?.subscription_plan ?? 'starter'} />}
                     {activeTab === 'notifications' && <NotificationsTab user={user} />}
                     {activeTab === 'security'      && <SecurityTab sessions={sessions} activityLog={activityLog} />}
-                    {activeTab === 'integrations'  && <IntegrationsTab agency={agency} user={user} />}
-                    {activeTab === 'portals'       && <PortalsTab agency={agency} />}
+                    {activeTab === 'integrations'  && <IntegrationsTab agency={agency} />}
                 </div>
             </div>
         </AppLayout>

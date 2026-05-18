@@ -62,10 +62,10 @@ function AddContactModal({ onClose }) {
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-            <div className="w-full max-w-lg rounded-[2rem] bg-white p-8 shadow-2xl">
+            <div className="w-full max-w-lg rounded-4xl bg-white p-8 shadow-2xl">
                 <h2 className="text-xl font-bold text-slate-900 mb-6">Contact nou</h2>
                 <form onSubmit={submit} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-xs font-semibold text-slate-600 mb-1">Prenume *</label>
                             <input
@@ -84,7 +84,7 @@ function AddContactModal({ onClose }) {
                             />
                         </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-xs font-semibold text-slate-600 mb-1">Telefon</label>
                             <input
@@ -103,7 +103,7 @@ function AddContactModal({ onClose }) {
                             />
                         </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-xs font-semibold text-slate-600 mb-1">Tip</label>
                             <select
@@ -184,7 +184,7 @@ export default function Index({ contacts, filters }) {
                         </div>
                         <button
                             onClick={() => setShowModal(true)}
-                            className="rounded-full bg-gradient-to-r from-slate-900 to-blue-700 px-6 py-2.5 text-white shadow-lg text-sm font-semibold"
+                            className="rounded-full bg-linear-to-r from-slate-900 to-blue-700 px-6 py-2.5 text-white shadow-lg text-sm font-semibold"
                         >
                             + Contact nou
                         </button>

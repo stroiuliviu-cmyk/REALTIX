@@ -102,13 +102,13 @@ function InteractionItem({ interaction, contactId }) {
                         <button
                             type="button"
                             onClick={() => setEditing(true)}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity text-xs font-semibold text-blue-700 hover:text-blue-900 px-1.5"
+                            className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity text-xs font-semibold text-blue-700 hover:text-blue-900 px-1.5"
                             title="Editează"
                         >✏</button>
                         <button
                             type="button"
                             onClick={remove}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity text-xs font-semibold text-rose-600 hover:text-rose-800 px-1.5"
+                            className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity text-xs font-semibold text-rose-600 hover:text-rose-800 px-1.5"
                             title="Șterge"
                         >🗑</button>
                     </div>

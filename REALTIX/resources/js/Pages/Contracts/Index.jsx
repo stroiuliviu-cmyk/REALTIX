@@ -891,8 +891,8 @@ export default function Index({ templates = [], generated = [], properties = [],
                 {generated.length > 0 && (
                     <div>
                         <h2 className="text-lg font-bold text-slate-900 mb-4">Contracte generate recent</h2>
-                        <div className="rounded-4xl bg-white border border-slate-100 shadow-xl overflow-hidden">
-                            <table className="w-full text-sm">
+                        <div className="rounded-4xl bg-white border border-slate-100 shadow-xl overflow-x-auto">
+                            <table className="w-full text-sm min-w-180">
                                 <thead className="bg-slate-50 border-b border-slate-100">
                                     <tr>
                                         {['Document', 'Proprietate', 'Client', 'Agent', 'Data', 'Acțiuni'].map(h => (

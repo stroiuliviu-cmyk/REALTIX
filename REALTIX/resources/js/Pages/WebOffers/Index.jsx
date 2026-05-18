@@ -1,5 +1,4 @@
 import AppLayout from '@/Layouts/AppLayout';
-import UpgradeLock from '@/Components/UpgradeLock';
 import PhoneInteractionModal from '@/Components/PhoneInteractionModal';
 import LastInteractionHint from '@/Components/LastInteractionHint';
 import { Head, router } from '@inertiajs/react';
@@ -255,7 +254,7 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
 
     const [localFavs,     setLocalFavs]     = useState(new Set(favoriteIds));
     const [localImported, setLocalImported] = useState(new Set(importedIds));
-    const [syncing,       setSyncing]       = useState(false);
+    const [refreshing,    setRefreshing]    = useState(false);
     const [filterOpen,    setFilterOpen]    = useState(false);
     const [activePhone,   setActivePhone]   = useState(null);
     const [hintMap,       setHintMap]       = useState({});
@@ -551,23 +550,22 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
                         </div>
                         </div>
                         <div className="flex items-center gap-2 flex-wrap">
-                            <UpgradeLock feature="scraper" mode="disable">
-                                <button
-                                    onClick={() => {
-                                        setSyncing(true);
-                                        router.post(route('web-offers.sync'), {}, {
-                                            preserveScroll: true,
-                                            onFinish: () => setSyncing(false),
-                                        });
-                                    }}
-                                    disabled={syncing}
-                                    className="flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-semibold px-4 py-2 transition-colors"
-                                    title="Preia anunțurile tale de pe 999.md prin Partners API"
-                                >
-                                    <span className={syncing ? 'animate-spin inline-block' : ''}>🔄</span>
-                                    {syncing ? 'Se sincronizează…' : 'Sincronizează anunțurile'}
-                                </button>
-                            </UpgradeLock>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setRefreshing(true);
+                                    router.reload({
+                                        preserveScroll: true,
+                                        onFinish: () => setRefreshing(false),
+                                    });
+                                }}
+                                disabled={refreshing}
+                                className="flex items-center gap-2 rounded-xl border border-slate-200 hover:bg-slate-50 disabled:opacity-60 text-slate-700 text-sm font-semibold px-3 py-2 transition-colors"
+                                title="Reîncarcă lista"
+                            >
+                                <span className={refreshing ? 'animate-spin inline-block' : ''}>🔄</span>
+                                Reîmprospătează
+                            </button>
                             <select
                                 value={f.sort}
                                 onChange={e => set('sort', e.target.value)}

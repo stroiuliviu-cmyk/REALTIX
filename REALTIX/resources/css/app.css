@@ -6,3 +6,15 @@
 body {
     font-family: 'Inter', sans-serif;
 }
+
+/* iOS Safari zoom-on-focus fix: forțează 16px pe input-uri sub 640px viewport.
+   Fără asta, iOS face zoom automat când utilizatorul atinge un input cu
+   font-size < 16px (Tailwind text-xs 12px / text-sm 14px declanșează asta),
+   rupând layout-ul. Desktop păstrează dimensiunile originale. */
+@media (max-width: 640px) {
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+    select,
+    textarea {
+        font-size: 16px;
+    }
+}

@@ -69,7 +69,8 @@ export default function Index({ disk, media, byAgency, foldersByDir, planLabels 
                     {byAgency.length === 0 ? (
                         <p className="px-5 py-10 text-center text-sm text-slate-400">Nicio agenție cu media încărcat.</p>
                     ) : (
-                        <table className="w-full text-sm">
+                        <div className="overflow-x-auto">
+                        <table className="w-full text-sm min-w-160">
                             <thead className="bg-slate-50">
                                 <tr className="text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
                                     <th className="px-4 py-2">Agenție</th>
@@ -89,6 +90,7 @@ export default function Index({ disk, media, byAgency, foldersByDir, planLabels 
                                 ))}
                             </tbody>
                         </table>
+                        </div>
                     )}
                 </div>
             </div>

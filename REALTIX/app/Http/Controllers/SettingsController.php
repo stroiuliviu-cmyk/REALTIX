@@ -513,9 +513,8 @@ class SettingsController extends Controller
         abort_unless($request->user()->isAdmin(), 403);
 
         $validated = $request->validate([
-            'claude_api_key'       => 'nullable|string|max:200',
-            'google_calendar_key'  => 'nullable|string|max:200',
             'facebook_token'       => 'nullable|string|max:500',
+            'portal_999md_api_key' => 'nullable|string|max:200',
         ]);
 
         $agency   = $request->user()->agency;

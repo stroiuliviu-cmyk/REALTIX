@@ -419,7 +419,7 @@ function EventDetailPanel({ event, onClose, onEdit, onDelete, onStatusUpdate }) 
             {needFeedback && (
                 <div className="mt-4 border-t border-slate-100 pt-4">
                     <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Cum a mers vizionarea?</p>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {[
                             { v: 'liked',    l: '👍 Plăcut',    cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
                             { v: 'thinking', l: '🤔 Se gândesc', cls: 'bg-amber-50 text-amber-700 border-amber-200' },

@@ -54,14 +54,20 @@ function NavLink({ item, active }) {
     );
 }
 
-function Sidebar({ currentPath, counters }) {
+function Sidebar({ currentPath, counters, mobileOpen, onCloseMobile }) {
     const badgeMap = {
         moderation: counters?.moderation_pending,
         support:    counters?.support_open,
     };
 
     return (
-        <aside className="w-64 shrink-0 bg-slate-950 text-slate-200 flex flex-col h-screen sticky top-0 border-r border-slate-800/80">
+        <aside
+            className={`bg-slate-950 text-slate-200 flex flex-col border-r border-slate-800/80 transition-transform z-50
+                fixed inset-y-0 left-0 w-72 max-w-[85vw] h-screen overflow-y-auto shadow-2xl
+                lg:sticky lg:top-0 lg:w-64 lg:shrink-0 lg:overflow-visible lg:shadow-none lg:translate-x-0
+                ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
+            onClick={onCloseMobile ? (e) => { if (e.target.tagName === 'A') onCloseMobile(); } : undefined}
+        >
             <div className="px-5 py-5 border-b border-slate-800/80 flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-linear-to-br from-rose-500 to-pink-600 flex items-center justify-center text-white font-black">R</div>
                 <div>
@@ -97,15 +103,26 @@ function Sidebar({ currentPath, counters }) {
     );
 }
 
-function Topbar({ user, alerts = [], criticalCount: criticalCountProp = 0 }) {
+function Topbar({ user, alerts = [], criticalCount: criticalCountProp = 0, onMenuClick }) {
     const [profileOpen, setProfileOpen] = useState(false);
     const activeAlerts = alerts.filter(a => !a.dismissed_at);
     const criticalCount = criticalCountProp || activeAlerts.filter(a => a.level === 'critical').length;
     const systemColor = criticalCount > 0 ? 'bg-red-500' : activeAlerts.length > 0 ? 'bg-amber-500' : 'bg-emerald-500';
 
     return (
-        <header className="sticky top-0 z-20 bg-white border-b border-slate-200 px-6 py-3 flex items-center gap-4">
-            <div className="flex-1 max-w-md">
+        <header className="sticky top-0 z-20 bg-white border-b border-slate-200 px-3 sm:px-6 py-3 flex items-center gap-2 sm:gap-4">
+            <button
+                type="button"
+                onClick={onMenuClick}
+                className="lg:hidden p-2 -ml-1 rounded-lg text-slate-600 hover:bg-slate-100"
+                aria-label="Open menu"
+            >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+            </button>
+
+            <div className="flex-1 max-w-md hidden md:block">
                 <div className="relative">
                     <input
                         type="search"
@@ -117,14 +134,16 @@ function Topbar({ user, alerts = [], criticalCount: criticalCountProp = 0 }) {
                     </svg>
                 </div>
             </div>
+            <div className="flex-1 md:hidden" />
 
-            <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+                <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200">
                     <span className={`w-2 h-2 rounded-full ${systemColor}`} />
                     <span className="text-xs font-semibold text-slate-700">
                         {criticalCount > 0 ? `${criticalCount} critical` : 'All systems normal'}
                     </span>
                 </div>
+                <span className={`sm:hidden w-2.5 h-2.5 rounded-full ${systemColor}`} title={criticalCount > 0 ? `${criticalCount} critical` : 'All systems normal'} />
 
                 <button className="relative p-2 rounded-lg hover:bg-slate-100 text-slate-600" title="Platform alerts">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -143,7 +162,7 @@ function Topbar({ user, alerts = [], criticalCount: criticalCountProp = 0 }) {
                         <div className="w-7 h-7 rounded-full bg-linear-to-br from-slate-700 to-slate-900 flex items-center justify-center text-white text-xs font-bold">
                             {user?.name?.[0]?.toUpperCase() ?? 'A'}
                         </div>
-                        <div className="text-left">
+                        <div className="text-left hidden sm:block">
                             <div className="text-xs font-semibold text-slate-900 leading-tight">{user?.name}</div>
                             <div className="text-[10px] text-slate-400 leading-tight">Super Admin</div>
                         </div>
@@ -167,6 +186,7 @@ function Topbar({ user, alerts = [], criticalCount: criticalCountProp = 0 }) {
 export default function SuperAdminLayout({ children, title, breadcrumb }) {
     const { auth, alerts = [], superAdminCounters } = usePage().props;
     const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
     useEffect(() => {
         const onKey = (e) => {
@@ -179,14 +199,33 @@ export default function SuperAdminLayout({ children, title, breadcrumb }) {
         return () => window.removeEventListener('keydown', onKey);
     }, []);
 
+    // Close mobile sidebar on path change.
+    useEffect(() => { setMobileMenuOpen(false); }, [currentPath]);
+
     return (
         <div className="min-h-screen bg-slate-50 flex">
-            <Sidebar currentPath={currentPath} counters={superAdminCounters} />
+            {mobileMenuOpen && (
+                <div
+                    className="lg:hidden fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+                    onClick={() => setMobileMenuOpen(false)}
+                />
+            )}
+            <Sidebar
+                currentPath={currentPath}
+                counters={superAdminCounters}
+                mobileOpen={mobileMenuOpen}
+                onCloseMobile={() => setMobileMenuOpen(false)}
+            />
 
             <div className="flex-1 flex flex-col min-w-0">
-                <Topbar user={auth?.user} alerts={alerts} criticalCount={superAdminCounters?.critical_alerts ?? 0} />
+                <Topbar
+                    user={auth?.user}
+                    alerts={alerts}
+                    criticalCount={superAdminCounters?.critical_alerts ?? 0}
+                    onMenuClick={() => setMobileMenuOpen(true)}
+                />
 
-                <main className="flex-1 p-6 lg:p-8">
+                <main className="flex-1 p-4 sm:p-6 lg:p-8">
                     {(title || breadcrumb) && (
                         <div className="mb-6">
                             {breadcrumb && (

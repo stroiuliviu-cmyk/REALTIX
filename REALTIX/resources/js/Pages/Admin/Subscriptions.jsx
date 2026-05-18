@@ -40,7 +40,7 @@ function PlanForm({ plan = null, onClose }) {
                 </div>
 
                 <form onSubmit={submit} className="space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                             <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Nume</label>
                             <input value={form.data.name} onChange={e => form.setData('name', e.target.value)}
@@ -62,7 +62,7 @@ function PlanForm({ plan = null, onClose }) {
                             className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-slate-400" />
                     </div>
 
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div>
                             <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Max anunțuri</label>
                             <input type="number" value={form.data.max_listings} onChange={e => form.setData('max_listings', e.target.value)}

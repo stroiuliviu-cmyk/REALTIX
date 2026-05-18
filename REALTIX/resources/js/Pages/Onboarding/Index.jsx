@@ -114,7 +114,7 @@ function StepLanguage({ currentLocale, onNext, onSkip, t }) {
                 <p className="text-sm text-slate-500">{t('onboarding.language_sub')}</p>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {langs.map(({ code, flag, label, sub }) => (
                     <button key={code} onClick={() => setSelected(code)}
                         className={`lang-btn flex flex-col items-center gap-2 rounded-2xl p-4 border-2 transition-all

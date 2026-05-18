@@ -100,7 +100,7 @@ function NewRequestModal({ properties, platforms, onClose, initialPropertyId = '
                     {/* Platforms */}
                     <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Platforme *</label>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             {platforms.map(p => {
                                 const m = PLATFORM_META[p];
                                 const active = selected.includes(p);
@@ -218,7 +218,7 @@ function ApproveModal({ req, allPlatforms, onClose }) {
                 {/* Platforms */}
                 <div>
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-2">Platforme</label>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {allPlatforms.map(p => {
                             const m = PLATFORM_META[p];
                             const active = platforms.includes(p);

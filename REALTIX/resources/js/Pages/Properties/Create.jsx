@@ -394,7 +394,7 @@ export default function Create({ authUser = {} }) {
                         </Field>
 
                         {/* City / District — autocomplete combobox like Web Offers */}
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <Field label="Oraș" required error={errors.city}>
                                 <Combobox
                                     value={data.city}
@@ -430,7 +430,7 @@ export default function Create({ authUser = {} }) {
                         </Field>
 
                         {/* Area */}
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <Field label="Suprafață totală (m²)" error={errors.area_total}>
                                 <input type="number" min="0" step="0.1" value={data.area_total} onChange={e => setData('area_total', e.target.value)} className={inputCls} />
                             </Field>
@@ -460,7 +460,7 @@ export default function Create({ authUser = {} }) {
                         </div>
 
                         {/* Floor */}
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <Field label="Etaj" error={errors.floor}>
                                 <input type="number" value={data.floor} onChange={e => setData('floor', e.target.value)} className={inputCls} />
                             </Field>
@@ -488,7 +488,7 @@ export default function Create({ authUser = {} }) {
                         </div>
 
                         {/* Contact */}
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <Field label="Telefon contact">
                                 <input value={data.meta.contact_phone} onChange={e => setMeta('contact_phone', e.target.value)} className={inputCls} placeholder="+373 ..." />
                             </Field>
@@ -505,7 +505,7 @@ export default function Create({ authUser = {} }) {
                                 <Toggle key={f.key} active={!!data.meta[f.key]} onToggle={() => setMeta(f.key, !data.meta[f.key])} label={f.label} />
                             ))}
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <Field label="Stare proprietate">
                                 <select value={data.meta.condition} onChange={e => setMeta('condition', e.target.value)} className={selectCls}>
                                     {CONDITIONS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
@@ -737,7 +737,7 @@ export default function Create({ authUser = {} }) {
                                                 Cover
                                             </span>
                                         )}
-                                        <div className="absolute inset-0 bg-black/50 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
+                                        <div className="absolute inset-0 bg-black/50 rounded-xl opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
                                             {coverIndex !== idx && (
                                                 <button type="button" onClick={() => setCoverIndex(idx)} className="bg-white/90 text-[10px] font-semibold px-2 py-1 rounded-lg">
                                                     Cover

@@ -85,8 +85,8 @@ export default function Users({ users, filters = {}, agencies = [] }) {
                 </div>
 
                 {/* Table */}
-                <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-                    <table className="w-full text-sm">
+                <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-x-auto">
+                    <table className="w-full text-sm min-w-180">
                         <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
                             <tr>
                                 <th className="text-left px-5 py-3">Nume / Email</th>

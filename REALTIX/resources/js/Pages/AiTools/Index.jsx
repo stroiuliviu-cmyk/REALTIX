@@ -228,7 +228,7 @@ export default function AiToolsIndex() {
                         </Field>
 
                         {/* City / District */}
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <Field label="Oraș *">
                                 <input value={form.city} onChange={e => setF('city', e.target.value)} className={inp} placeholder="Chișinău" />
                             </Field>
@@ -238,7 +238,7 @@ export default function AiToolsIndex() {
                         </div>
 
                         {/* Area / Rooms */}
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <Field label="Suprafață (m²)">
                                 <input type="number" min="0" value={form.area_total} onChange={e => setF('area_total', e.target.value)} className={inp} placeholder="55" />
                             </Field>
@@ -248,7 +248,7 @@ export default function AiToolsIndex() {
                         </div>
 
                         {/* Floor */}
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <Field label="Etaj">
                                 <input type="number" value={form.floor} onChange={e => setF('floor', e.target.value)} className={inp} placeholder="4" />
                             </Field>
@@ -346,7 +346,7 @@ export default function AiToolsIndex() {
                                         {/* Stil */}
                                         <div>
                                             <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-2">Stil</p>
-                                            <div className="grid grid-cols-2 gap-2">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                                 {STYLES.map(o => (
                                                     <button key={o.v} type="button" onClick={() => setStyle(o.v)}
                                                         className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-semibold transition-colors text-left ${
@@ -462,7 +462,7 @@ export default function AiToolsIndex() {
                                                 </div>
 
                                                 {/* Stats grid */}
-                                                <div className="grid grid-cols-2 gap-3">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                     {priceResult.regional_avg && (
                                                         <div className="rounded-xl bg-white border border-slate-100 p-3">
                                                             <p className="text-[11px] text-slate-400 mb-0.5">Medie regională</p>

@@ -426,7 +426,7 @@ def extract_ad(driver, url: str) -> dict | None:
         time.sleep(random.uniform(0.2, 0.4))
         _try_reveal_phone(driver)
     else:
-        time.sleep(random.uniform(0.8, 1.4))
+        time.sleep(random.uniform(2.5, 3.5))
         _trigger_lazyload(driver)
         _try_reveal_phone(driver)
         _try_open_gallery(driver)
@@ -1413,6 +1413,7 @@ def _try_reveal_phone(driver) -> bool:
     # Step 2: also match by visible text — 999.md uses "Arată numărul" /
     # "Показать номер". Restrict to leaf nodes (no nested similar elements).
     text_xpaths = [
+        "//button[contains(., '+373')]",
         "//button[contains(translate(., 'AĂÂÎȘȚ', 'aaaist'), 'arată numărul')]",
         "//a[contains(translate(., 'AĂÂÎȘȚ', 'aaaist'), 'arată numărul')]",
         "//*[contains(., 'Показать номер') and not(.//*[contains(., 'Показать номер')])]",
@@ -1461,7 +1462,7 @@ def _try_reveal_phone(driver) -> bool:
         return False
 
     try:
-        outcome = WebDriverWait(driver, 4).until(_ready)
+        outcome = WebDriverWait(driver, 10).until(_ready)
     except TimeoutException:
         return False
 
@@ -1475,7 +1476,7 @@ def _try_reveal_phone(driver) -> bool:
         if not _click_first():
             return False
         try:
-            WebDriverWait(driver, 4).until(
+            WebDriverWait(driver, 10).until(
                 lambda d: bool(d.find_elements(By.CSS_SELECTOR, 'a[href^="tel:"]'))
                           or bool(PHONE_PATTERN_MD.search(d.page_source))
             )
@@ -1642,7 +1643,8 @@ def main() -> int:
             return 1
 
     db_path = Path(args.db)
-    if not db_path.exists():
+    _env_probe = _load_laravel_env(Path(__file__).resolve().parent.parent / ".env")
+    if _env_probe.get("DB_CONNECTION", "sqlite") == "sqlite" and not db_path.exists():
         print(f"[FATAL] REALTIX database not found at {db_path}", file=sys.stderr)
         return 1
 

@@ -822,6 +822,8 @@ def _normalize_phone(raw: str) -> str:
 def _extract_phone(soup: BeautifulSoup) -> str | None:
     # 1. Prefer the ad's own phone container — narrowly scoped, avoids header/footer leakage.
     selectors = [
+        'a[href^="tel:"]',
+        '[class*="phone" i]',
         '[class*="PhoneNumber"]', '[class*="phoneNumber"]',
         '[class*="phone-number"]', '[class*="phone_number"]',
         '[data-testid*="phone"]',

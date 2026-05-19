@@ -1469,9 +1469,9 @@ def _try_reveal_phone(driver) -> bool:
         return False
 
     if outcome == 'rate_limit':
-        wait = _detect_rate_limit(driver) or 8
+        wait = _detect_rate_limit(driver) or 30
         # Add ~30% jitter so we don't retry exactly when the window opens.
-        sleep_for = wait + random.uniform(1.5, 3.0)
+        sleep_for = wait + random.uniform(5, 10)
         print(f"    [rate-limit] 999.md asked to wait {wait}s — sleeping {sleep_for:.1f}s")
         time.sleep(sleep_for)
         # Retry once
@@ -1727,6 +1727,8 @@ def main() -> int:
 
                 try:
                     ad = extract_ad(driver, url)
+                    # Anti-rate-limit preventive delay (3-5s between ads)
+                    time.sleep(random.uniform(3, 5))
                     if not ad:
                         continue
 

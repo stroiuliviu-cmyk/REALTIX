@@ -244,7 +244,12 @@ class AiService
     public function complete(string $prompt, string $type, int $userId = 0, ?int $agencyId = null): string
     {
         if (empty($this->apiKey)) {
-            $label = $this->provider === 'groq' ? 'GROQ_API_KEY (gratuit: console.groq.com)' : 'ANTHROPIC_API_KEY';
+            $label = match ($this->provider) {
+                'groq'      => 'GROQ_API_KEY (gratuit: console.groq.com)',
+                'gemini'    => 'GEMINI_API_KEY (gratuit: aistudio.google.com/app/apikey)',
+                'anthropic' => 'ANTHROPIC_API_KEY',
+                default     => 'ANTHROPIC_API_KEY',
+            };
             throw new RuntimeException(
                 "Cheia AI nu este configurată în .env. Adaugă: {$label}"
             );
@@ -253,9 +258,12 @@ class AiService
         $start = microtime(true);
 
         try {
-            $response = $this->provider === 'groq'
-                ? $this->callGroq($prompt)
-                : $this->callAnthropic($prompt);
+            $response = match ($this->provider) {
+                'groq'      => $this->callGroq($prompt),
+                'gemini'    => $this->callGemini($prompt),
+                'anthropic' => $this->callAnthropic($prompt),
+                default     => $this->callAnthropic($prompt),
+            };
         } catch (RequestException $e) {
             throw new RuntimeException("Conexiune eșuată la API AI: {$e->getMessage()}", 0, $e);
         }
@@ -276,8 +284,8 @@ class AiService
         $elapsed = microtime(true) - $start;
 
         [$inputTokens, $outputTokens] = $this->extractTokens($body);
-        $costUsd = $this->provider === 'groq'
-            ? 0.0   // Groq gratuit
+        $costUsd = in_array($this->provider, ['groq', 'gemini'])
+            ? 0.0   // Groq si Gemini gratuite
             : ($inputTokens * 0.000003) + ($outputTokens * 0.000015);
 
         $resolvedUserId   = $userId   ?: (auth()->id()              ?? 0);
@@ -314,6 +322,21 @@ class AiService
         ]);
     }
 
+    // ── Private: Gemini call ────────────────────────────────────────────────
+    private function callGemini(string $prompt)
+    {
+        $url = rtrim($this->baseUrl, '/') . '/' . $this->model . ':generateContent?key=' . $this->apiKey;
+        return Http::withHeaders(['Content-Type' => 'application/json'])
+            ->timeout(60)
+            ->post($url, [
+                'contents' => [['parts' => [['text' => $prompt]]]],
+                'generationConfig' => [
+                    'maxOutputTokens' => config('realtix.ai.max_tokens', 1024),
+                    'temperature'     => 0.7,
+                ],
+            ]);
+    }
+
     // ── Private: Anthropic call ─────────────────────────────────────────────
     private function callAnthropic(string $prompt)
     {
@@ -336,6 +359,9 @@ class AiService
         if ($this->provider === 'groq') {
             return $body['choices'][0]['message']['content'] ?? '';
         }
+        if ($this->provider === 'gemini') {
+            return trim($body['candidates'][0]['content']['parts'][0]['text'] ?? '');
+        }
         return $body['content'][0]['text'] ?? '';
     }
 
@@ -348,6 +374,12 @@ class AiService
                 $body['usage']['completion_tokens'] ?? 0,
             ];
         }
+        if ($this->provider === 'gemini') {
+            return [
+                $body['usageMetadata']['promptTokenCount']     ?? 0,
+                $body['usageMetadata']['candidatesTokenCount'] ?? 0,
+            ];
+        }
         return [
             $body['usage']['input_tokens']  ?? 0,
             $body['usage']['output_tokens'] ?? 0,
@@ -356,6 +388,11 @@ class AiService
 
     private function providerKeyName(): string
     {
-        return $this->provider === 'groq' ? 'GROQ_API_KEY' : 'ANTHROPIC_API_KEY';
+        return match ($this->provider) {
+            'groq'      => 'GROQ_API_KEY',
+            'gemini'    => 'GEMINI_API_KEY',
+            'anthropic' => 'ANTHROPIC_API_KEY',
+            default     => 'ANTHROPIC_API_KEY',
+        };
     }
 }

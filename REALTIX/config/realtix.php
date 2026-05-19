@@ -19,6 +19,13 @@ return [
             'base_url'=> 'https://api.anthropic.com/v1/messages',
         ],
 
+        // Google Gemini - GRATUIT: aistudio.google.com/app/apikey (1500 req/zi)
+        'gemini' => [
+            'api_key' => env('GEMINI_API_KEY', ''),
+            'model'   => env('GEMINI_MODEL', 'gemini-3-flash-preview'),
+            'base_url'=> 'https://generativelanguage.googleapis.com/v1beta/models',
+        ],
+
         'max_tokens' => 1024,
     ],
 

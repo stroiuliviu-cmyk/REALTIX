@@ -1,6 +1,7 @@
 import AppLayout from '@/Layouts/AppLayout';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
+import imageCompression from 'browser-image-compression';
 
 // ─── Primitive helpers ────────────────────────────────────────────────────────
 
@@ -93,12 +94,30 @@ function ProfileTab({ user }) {
 
     const avatarInputRef = useRef(null);
     const [avatarUploading, setAvatarUploading] = useState(false);
+    const [avatarCompressing, setAvatarCompressing] = useState(false);
 
-    const handleAvatarChange = (e) => {
+    const handleAvatarChange = async (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
+
+        let toUpload = file;
+        if (file.type !== 'image/svg+xml') {
+            setAvatarCompressing(true);
+            try {
+                toUpload = await imageCompression(file, {
+                    maxSizeMB: 1,
+                    maxWidthOrHeight: 1024,
+                    useWebWorker: true,
+                });
+            } catch (err) {
+                console.error('Avatar compression failed, using original:', err);
+            } finally {
+                setAvatarCompressing(false);
+            }
+        }
+
         setAvatarUploading(true);
-        router.post(route('settings.profile.avatar'), { avatar: file }, {
+        router.post(route('settings.profile.avatar'), { avatar: toUpload }, {
             forceFormData: true,
             preserveScroll: true,
             onFinish: () => {
@@ -149,10 +168,12 @@ function ProfileTab({ user }) {
                         <button
                             type="button"
                             onClick={() => avatarInputRef.current?.click()}
-                            disabled={avatarUploading}
+                            disabled={avatarUploading || avatarCompressing}
                             className="text-xs text-blue-700 hover:underline disabled:opacity-60"
                         >
-                            {avatarUploading ? 'Se încarcă...' : 'Schimbă fotografia'}
+                            {avatarCompressing
+                                ? 'Se procesează imaginea...'
+                                : avatarUploading ? 'Se încarcă...' : 'Schimbă fotografia'}
                         </button>
                         {user.avatar_path && (
                             <button
@@ -257,16 +278,34 @@ function AgencyTab({ agency }) {
     });
 
     const [logoPreview, setLogoPreview] = useState(null);
+    const [logoCompressing, setLogoCompressing] = useState(false);
     const fileInputRef = useRef(null);
 
-    const handleLogoChange = (e) => {
+    const handleLogoChange = async (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
-        setData('logo', file);
+
+        let toUpload = file;
+        if (file.type !== 'image/svg+xml') {
+            setLogoCompressing(true);
+            try {
+                toUpload = await imageCompression(file, {
+                    maxSizeMB: 1,
+                    maxWidthOrHeight: 1024,
+                    useWebWorker: true,
+                });
+            } catch (err) {
+                console.error('Logo compression failed, using original:', err);
+            } finally {
+                setLogoCompressing(false);
+            }
+        }
+
+        setData('logo', toUpload);
         setData('remove_logo', false);
         const reader = new FileReader();
         reader.onload = (ev) => setLogoPreview(ev.target.result);
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(toUpload);
     };
 
     const handleLogoRemove = () => {
@@ -301,9 +340,12 @@ function AgencyTab({ agency }) {
                         <button
                             type="button"
                             onClick={() => fileInputRef.current?.click()}
-                            className="text-xs text-blue-700 hover:underline font-semibold"
+                            disabled={logoCompressing}
+                            className="text-xs text-blue-700 hover:underline font-semibold disabled:opacity-60"
                         >
-                            {currentLogoUrl ? 'Schimbă logo' : 'Încarcă logo'}
+                            {logoCompressing
+                                ? 'Se procesează imaginea...'
+                                : currentLogoUrl ? 'Schimbă logo' : 'Încarcă logo'}
                         </button>
                         {currentLogoUrl && (
                             <button

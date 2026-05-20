@@ -7,10 +7,14 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Intervention\Image\Laravel\Facades\Image;
 
 class SettingsController extends Controller
 {
@@ -161,17 +165,22 @@ class SettingsController extends Controller
     public function updateAvatar(Request $request): RedirectResponse
     {
         $request->validate([
-            'avatar' => 'required|image|mimes:png,jpg,jpeg,webp|max:2048',
+            'avatar' => 'required|image|mimes:png,jpg,jpeg,webp|max:5120',
         ]);
 
         $user = $request->user();
 
         if ($user->avatar_path) {
-            \Illuminate\Support\Facades\Storage::disk('public')->delete($user->avatar_path);
+            Storage::disk('public')->delete($user->avatar_path);
         }
 
         $user->update([
-            'avatar_path' => $request->file('avatar')->store("users/{$user->id}", 'public'),
+            'avatar_path' => $this->processImageUpload(
+                $request->file('avatar'),
+                "users/{$user->id}",
+                512,
+                'avatar',
+            ),
         ]);
 
         ActivityLog::record('profile.avatar_updated', $user, 'Fotografie de profil actualizată');
@@ -184,7 +193,7 @@ class SettingsController extends Controller
         $user = $request->user();
 
         if ($user->avatar_path) {
-            \Illuminate\Support\Facades\Storage::disk('public')->delete($user->avatar_path);
+            Storage::disk('public')->delete($user->avatar_path);
             $user->update(['avatar_path' => null]);
             ActivityLog::record('profile.avatar_removed', $user, 'Fotografie de profil ștearsă');
         }
@@ -205,7 +214,7 @@ class SettingsController extends Controller
             'director_name' => 'nullable|string|max:255',
             'about'         => 'nullable|string|max:2000',
             'brand_color'   => 'nullable|string|max:7|regex:/^#[0-9a-fA-F]{6}$/',
-            'logo'          => 'nullable|image|mimes:png,jpg,jpeg,webp,svg|max:2048',
+            'logo'          => 'nullable|image|mimes:png,jpg,jpeg,webp,svg|max:10240',
             'remove_logo'   => 'nullable|boolean',
         ]);
 
@@ -228,17 +237,53 @@ class SettingsController extends Controller
         if ($request->hasFile('logo')) {
             // Delete old logo file if any
             if ($agency->logo_path) {
-                \Illuminate\Support\Facades\Storage::disk('public')->delete($agency->logo_path);
+                Storage::disk('public')->delete($agency->logo_path);
             }
-            $update['logo_path'] = $request->file('logo')->store("agencies/{$agency->id}", 'public');
+            $update['logo_path'] = $this->processImageUpload(
+                $request->file('logo'),
+                "agencies/{$agency->id}",
+                1024,
+                'logo',
+            );
         } elseif (! empty($validated['remove_logo']) && $agency->logo_path) {
-            \Illuminate\Support\Facades\Storage::disk('public')->delete($agency->logo_path);
+            Storage::disk('public')->delete($agency->logo_path);
             $update['logo_path'] = null;
         }
 
         $agency->update($update);
 
         return back()->with('success', 'Datele agenției au fost salvate.');
+    }
+
+    /**
+     * Resize an uploaded image down to fit within $maxDimension, encode as JPEG q85,
+     * and store under disk('public'). SVGs pass through unprocessed (vector format).
+     * On any failure (extension missing, malformed file) falls back to the raw uploaded
+     * file via ->store() so the feature degrades gracefully.
+     */
+    private function processImageUpload(UploadedFile $file, string $directory, int $maxDimension, string $filenamePrefix): string
+    {
+        if ($file->getMimeType() === 'image/svg+xml') {
+            return $file->store($directory, 'public');
+        }
+
+        try {
+            $encoded = Image::read($file)
+                ->scaleDown(width: $maxDimension, height: $maxDimension)
+                ->toJpeg(quality: 85);
+
+            $relativePath = $directory . '/' . $filenamePrefix . '_' . time() . '.jpg';
+            Storage::disk('public')->put($relativePath, (string) $encoded);
+
+            return $relativePath;
+        } catch (\Throwable $e) {
+            Log::error('Image upload processing failed, falling back to raw store', [
+                'error'     => $e->getMessage(),
+                'directory' => $directory,
+            ]);
+
+            return $file->store($directory, 'public');
+        }
     }
 
     public function updateNotifications(Request $request): RedirectResponse

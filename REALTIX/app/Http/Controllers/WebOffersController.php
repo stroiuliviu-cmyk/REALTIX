@@ -52,32 +52,52 @@ class WebOffersController extends Controller
     {
         $user = $request->user();
 
+        $applyNonFacetFilters = function ($q) use ($request, $user) {
+            $q->when($request->search, fn ($q, $s) => $q->where(function ($q) use ($s) {
+                    $q->where('title',    'like', "%{$s}%")
+                      ->orWhere('city',   'like', "%{$s}%")
+                      ->orWhere('district','like', "%{$s}%")
+                      ->orWhere('phone',  'like', "%{$s}%");
+                }))
+                ->when($request->city,     fn ($q, $c) => $q->where('city',     'like', "%{$c}%"))
+                ->when($request->district, fn ($q, $d) => $q->where('district', 'like', "%{$d}%"))
+                ->when($request->price_min, fn ($q, $v) => $q->where('price', '>=', (float) $v))
+                ->when($request->price_max, fn ($q, $v) => $q->where('price', '<=', (float) $v))
+                ->when($request->area_min,  fn ($q, $v) => $q->where('area', '>=', (float) $v))
+                ->when($request->area_max,  fn ($q, $v) => $q->where('area', '<=', (float) $v))
+                ->when($request->ai_valuation, fn ($q, $v) => $q->where('ai_valuation', $v))
+                ->when($request->date_from, fn ($q, $d) => $q->where('created_at', '>=', \Carbon\Carbon::parse($d)->startOfDay()))
+                ->when($request->date_to,   fn ($q, $d) => $q->where('created_at', '<=', \Carbon\Carbon::parse($d)->endOfDay()))
+                ->when($request->favorite,
+                    fn ($q) => $q->whereHas('favoritedByUsers', fn ($fq) => $fq->where('user_id', $user->id)));
+        };
+
+        $applySources = function ($q) use ($request) {
+            $q->when($request->filled('sources') && is_array($request->sources),
+                fn ($q) => $q->whereIn('source', $request->sources));
+        };
+
+        $applyOwnerTypes = function ($q) use ($request) {
+            $q->when($request->filled('owner_types') && is_array($request->owner_types),
+                fn ($q) => $q->whereIn('owner_type', $request->owner_types));
+        };
+
+        $applyTypes = function ($q) use ($request) {
+            $q->when($request->filled('types') && is_array($request->types),
+                fn ($q) => $q->whereIn('type', $request->types));
+        };
+
+        $applyTransaction = function ($q) use ($request) {
+            $q->when($request->transaction_type,
+                fn ($q, $t) => $q->where('transaction_type', $t));
+        };
+
         $query = ScrapedListing::query()
-            ->when($request->search, fn ($q, $s) => $q->where(function ($q) use ($s) {
-                $q->where('title',    'like', "%{$s}%")
-                  ->orWhere('city',   'like', "%{$s}%")
-                  ->orWhere('district','like', "%{$s}%")
-                  ->orWhere('phone',  'like', "%{$s}%");
-            }))
-            ->when($request->filled('sources') && is_array($request->sources),
-                fn ($q) => $q->whereIn('source', $request->sources))
-            ->when($request->filled('owner_types') && is_array($request->owner_types),
-                fn ($q) => $q->whereIn('owner_type', $request->owner_types))
-            ->when($request->filled('types') && is_array($request->types),
-                fn ($q) => $q->whereIn('type', $request->types))
-            ->when($request->transaction_type,
-                fn ($q, $t) => $q->where('transaction_type', $t))
-            ->when($request->city,     fn ($q, $c) => $q->where('city',     'like', "%{$c}%"))
-            ->when($request->district, fn ($q, $d) => $q->where('district', 'like', "%{$d}%"))
-            ->when($request->price_min, fn ($q, $v) => $q->where('price', '>=', (float) $v))
-            ->when($request->price_max, fn ($q, $v) => $q->where('price', '<=', (float) $v))
-            ->when($request->area_min,  fn ($q, $v) => $q->where('area', '>=', (float) $v))
-            ->when($request->area_max,  fn ($q, $v) => $q->where('area', '<=', (float) $v))
-            ->when($request->ai_valuation, fn ($q, $v) => $q->where('ai_valuation', $v))
-            ->when($request->date_from, fn ($q, $d) => $q->where('created_at', '>=', \Carbon\Carbon::parse($d)->startOfDay()))
-            ->when($request->date_to,   fn ($q, $d) => $q->where('created_at', '<=', \Carbon\Carbon::parse($d)->endOfDay()))
-            ->when($request->favorite,
-                fn ($q) => $q->whereHas('favoritedByUsers', fn ($fq) => $fq->where('user_id', $user->id)));
+            ->tap($applyNonFacetFilters)
+            ->tap($applySources)
+            ->tap($applyOwnerTypes)
+            ->tap($applyTypes)
+            ->tap($applyTransaction);
 
         match ($request->sort) {
             'price_asc'   => $query->orderBy('price'),
@@ -86,23 +106,41 @@ class WebOffersController extends Controller
             default       => $query->latest(),
         };
 
-        // Counters for filters — refreshed on every page load
+        // Faceted counts: each facet group's count applies all OTHER active filters
+        // (non-facet + the 3 other facet groups) but NOT its own — so checkboxes
+        // in the same group stay clickable while still reflecting the rest of the query.
         $countsByType = ScrapedListing::query()
+            ->tap($applyNonFacetFilters)
+            ->tap($applySources)
+            ->tap($applyOwnerTypes)
+            ->tap($applyTransaction)
             ->selectRaw('type, COUNT(*) as cnt')
             ->groupBy('type')
             ->pluck('cnt', 'type');
 
         $countsByTransaction = ScrapedListing::query()
+            ->tap($applyNonFacetFilters)
+            ->tap($applySources)
+            ->tap($applyOwnerTypes)
+            ->tap($applyTypes)
             ->selectRaw('transaction_type, COUNT(*) as cnt')
             ->groupBy('transaction_type')
             ->pluck('cnt', 'transaction_type');
 
         $countsBySource = ScrapedListing::query()
+            ->tap($applyNonFacetFilters)
+            ->tap($applyOwnerTypes)
+            ->tap($applyTypes)
+            ->tap($applyTransaction)
             ->selectRaw('source, COUNT(*) as cnt')
             ->groupBy('source')
             ->pluck('cnt', 'source');
 
         $countsByOwner = ScrapedListing::query()
+            ->tap($applyNonFacetFilters)
+            ->tap($applySources)
+            ->tap($applyTypes)
+            ->tap($applyTransaction)
             ->selectRaw('owner_type, COUNT(*) as cnt')
             ->groupBy('owner_type')
             ->pluck('cnt', 'owner_type');

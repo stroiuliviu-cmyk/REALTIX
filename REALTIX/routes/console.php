@@ -360,22 +360,17 @@ Artisan::command('ai:valuate-scraped {--all : Re-valuate everything, not just ne
     // Pre-compute median price/m² for each (type, transaction_type, city) bucket
     $rows = \Illuminate\Support\Facades\DB::table('scraped_listings')
         ->select('type', 'transaction_type', 'city')
-        ->selectRaw('GROUP_CONCAT(price * 1.0 / area) as ppms')
+        ->selectRaw('PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY price * 1.0 / area) as median_ppm, COUNT(*) as sample_size')
         ->whereNotNull('price')->where('price', '>', 0)
         ->whereNotNull('area')->where('area', '>', 0)
         ->groupBy('type', 'transaction_type', 'city')
+        ->having('sample_size', '>=', 3)
         ->get();
 
     $medians = [];
     foreach ($rows as $row) {
-        $values = array_map('floatval', explode(',', $row->ppms));
-        if (count($values) < 3) continue;  // need at least 3 to be reliable
-        sort($values);
         $key = "{$row->type}|{$row->transaction_type}|{$row->city}";
-        $mid = (int) (count($values) / 2);
-        $medians[$key] = count($values) % 2 === 0
-            ? ($values[$mid - 1] + $values[$mid]) / 2
-            : $values[$mid];
+        $medians[$key] = (float) $row->median_ppm;
     }
 
     $this->info('Computed medians for ' . count($medians) . ' buckets');

@@ -20,12 +20,12 @@ export default function Agencies({ agencies, filters = {} }) {
     const apply = (params) => {
         const merged = { ...filters, ...params };
         Object.keys(merged).forEach(k => { if (merged[k] === '' || merged[k] == null) delete merged[k]; });
-        router.get('/admin/agencies', merged, { preserveState: true, replace: true });
+        router.get(route('super-admin.agencies.index'), merged, { preserveState: true, replace: true });
     };
 
     const remove = (a) => {
         if (!confirm(`Sigur ștergi agenția "${a.name}"? Asta va șterge și utilizatorii, proprietățile și datele asociate.`)) return;
-        router.delete(`/admin/agencies/${a.id}`, { preserveScroll: true });
+        router.delete(route('super-admin.agencies.destroy', a.id), { preserveScroll: true });
     };
 
     return (

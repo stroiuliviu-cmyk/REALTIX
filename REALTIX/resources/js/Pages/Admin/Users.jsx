@@ -20,17 +20,17 @@ export default function Users({ users, filters = {}, agencies = [] }) {
     const apply = (params) => {
         const merged = { ...filters, ...params };
         Object.keys(merged).forEach(k => { if (merged[k] === '' || merged[k] == null) delete merged[k]; });
-        router.get('/admin/users', merged, { preserveState: true, replace: true });
+        router.get(route('super-admin.users.index'), merged, { preserveState: true, replace: true });
     };
 
     const toggleActive = (u) => {
         if (!confirm(`Sigur ${u.is_active ? 'dezactivezi' : 'activezi'} contul ${u.email}?`)) return;
-        router.patch(`/admin/users/${u.id}/toggle-active`, {}, { preserveScroll: true });
+        router.patch(route('super-admin.users.toggle-active', u.id), {}, { preserveScroll: true });
     };
 
     const remove = (u) => {
         if (!confirm(`Sigur ștergi definitiv contul ${u.email}? Acțiunea NU se poate anula.`)) return;
-        router.delete(`/admin/users/${u.id}`, { preserveScroll: true });
+        router.delete(route('super-admin.users.destroy', u.id), { preserveScroll: true });
     };
 
     return (

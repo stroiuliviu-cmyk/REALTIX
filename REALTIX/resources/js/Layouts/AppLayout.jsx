@@ -132,7 +132,7 @@ export default function AppLayout({ children, title }) {
         { label: t('nav.dashboard'),    href: '/dashboard' },
         { label: t('nav.statistics'),   href: '/statistics' },
         { label: t('nav.subscription'), href: '/subscription' },
-        ...(user?.is_super_admin ? [{ label: 'Admin', href: '/admin', highlight: true }] : []),
+        ...(user?.is_super_admin ? [{ label: 'Admin', href: route('super-admin.dashboard'), highlight: true }] : []),
     ];
 
     const activeKey = sidebarItems.find(item =>
@@ -485,13 +485,13 @@ export default function AppLayout({ children, title }) {
                     )}
 
                     {/* Admin sub-nav (visible only on /admin/*) */}
-                    {user?.is_super_admin && currentPath.startsWith('/admin') && (
+                    {user?.is_super_admin && currentPath.startsWith('/super-admin') && (
                         <nav className="mb-5 flex gap-1.5 flex-wrap p-1.5 bg-rose-50 rounded-2xl border border-rose-100 w-fit">
                             {[
-                                { href: '/admin',               label: 'Dashboard',   exact: true },
-                                { href: '/admin/users',         label: 'Utilizatori' },
-                                { href: '/admin/agencies',      label: 'Agenții' },
-                                { href: '/admin/subscriptions', label: 'Abonamente' },
+                                { href: route('super-admin.dashboard'), label: 'Dashboard', exact: true },
+                                { href: route('super-admin.users.index'), label: 'Utilizatori' },
+                                { href: route('super-admin.agencies.index'), label: 'Agenții' },
+                                { href: route('super-admin.plans.index'), label: 'Abonamente' },
                             ].map(item => {
                                 const active = item.exact ? currentPath === item.href : currentPath.startsWith(item.href);
                                 return (

@@ -113,7 +113,7 @@ export default function Dashboard({ stats, planBreakdown = {}, userTrend = [], r
                     <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5">
                         <div className="flex items-center justify-between mb-3">
                             <h3 className="text-sm font-bold text-slate-900">Utilizatori recenți</h3>
-                            <Link href="/admin/users" className="text-xs font-semibold text-blue-700 hover:underline">
+                            <Link href={route('super-admin.users.index')} className="text-xs font-semibold text-blue-700 hover:underline">
                                 Vezi toți →
                             </Link>
                         </div>
@@ -134,7 +134,7 @@ export default function Dashboard({ stats, planBreakdown = {}, userTrend = [], r
                     <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5">
                         <div className="flex items-center justify-between mb-3">
                             <h3 className="text-sm font-bold text-slate-900">Agenții recente</h3>
-                            <Link href="/admin/agencies" className="text-xs font-semibold text-blue-700 hover:underline">
+                            <Link href={route('super-admin.agencies.index')} className="text-xs font-semibold text-blue-700 hover:underline">
                                 Vezi toate →
                             </Link>
                         </div>

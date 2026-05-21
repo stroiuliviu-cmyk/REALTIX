@@ -364,7 +364,7 @@ Artisan::command('ai:valuate-scraped {--all : Re-valuate everything, not just ne
         ->whereNotNull('price')->where('price', '>', 0)
         ->whereNotNull('area')->where('area', '>', 0)
         ->groupBy('type', 'transaction_type', 'city')
-        ->having('sample_size', '>=', 3)
+        ->havingRaw('COUNT(*) >= 3')
         ->get();
 
     $medians = [];

@@ -5,27 +5,29 @@ import { Head, router } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import { MOLDOVA_LOCALITIES, CHISINAU_DISTRICTS } from '@/Constants/moldova';
 import Combobox from '@/Components/Combobox';
+import {
+    Camera, MapPin, Calendar, Phone, Star, Plus, Check,
+    Image as ImageIcon, Building2, User, ExternalLink,
+} from 'lucide-react';
 
 /* ─── Constants ─────────────────────────────────────────────────────────── */
-const AI_COLORS = {
-    cheap:     { badge: 'bg-emerald-100 text-emerald-700 border-emerald-200', label: '↓ Avantajos', dot: 'bg-emerald-500' },
-    average:   { badge: 'bg-amber-100 text-amber-700 border-amber-200',       label: '≈ Mediu',     dot: 'bg-amber-400' },
-    expensive: { badge: 'bg-red-100 text-red-600 border-red-200',             label: '↑ Scump',     dot: 'bg-red-500' },
-};
-
 const SOURCE_LABELS = {
     '999md':          '999.md',
     'imobiliare_md':  'Imobiliare.md',
     'piata':          'Piata.md',
 };
-const SOURCE_COLORS = {
-    '999md':         'bg-blue-50 text-blue-700',
-    'imobiliare_md': 'bg-emerald-50 text-emerald-700',
-    'piata':         'bg-orange-50 text-orange-700',
-};
+
+const OWNER_LABELS = { owner: 'Proprietar', agency: 'Agenție' };
 
 const TYPE_LABELS  = { apartment: 'Apartament', house: 'Casă', commercial: 'Comercial', land: 'Teren' };
 const TRANS_LABELS = { sale: 'Vânzare', rent: 'Chirie', inchiriere_zilnica: 'Zilnică', new_build: 'Constr. nouă' };
+
+// AI valuation chip — only 'cheap' and 'expensive' surface; 'average' is the
+// neutral default and adds no visual signal.
+const AI_VALUATION_BADGE = {
+    cheap:     { label: 'Sub piață',   class: 'bg-green-50 text-green-700 border-green-200' },
+    expensive: { label: 'Peste piață', class: 'bg-amber-50 text-amber-700 border-amber-200' },
+};
 
 
 /* ─── Sidebar helpers ───────────────────────────────────────────────────── */
@@ -98,138 +100,168 @@ function resolveImg(path) {
 }
 
 function ListingRow({ l, isFavorite, isImported, onFav, onImport, onShowContact, lastHint }) {
-    const img  = resolveImg(l.images?.[0]);
-    const ai   = AI_COLORS[l.ai_valuation];
-    const srcLabel = SOURCE_LABELS[l.source] ?? l.source;
-    const srcColor = SOURCE_COLORS[l.source] ?? 'bg-slate-100 text-slate-600';
+    const imgUrl   = resolveImg(l.images?.[0]);
+    const imgCount = Array.isArray(l.images) ? l.images.length : 0;
+
+    // Reconstruct title from fields — scraped titles often duplicate location
+    // (e.g. "Apartament, Centru, Comrat, Comrat"). Sourcing from typed columns
+    // keeps the card consistent and prevents that bug surface.
+    const propLabel = TYPE_LABELS[l.type] ?? 'Imobil';
+    const roomsLabel = l.rooms != null
+        ? `${l.rooms} ${l.rooms === 1 ? 'cameră' : (l.rooms < 5 ? 'camere' : 'de camere')}`
+        : null;
+    const areaLabel  = l.area ? `${l.area} m²` : null;
+    const floorLabel = l.floor != null
+        ? `etaj ${l.floor}${l.floors_total ? `/${l.floors_total}` : ''}`
+        : null;
+    const titleString = [propLabel, roomsLabel, areaLabel, floorLabel].filter(Boolean).join(' · ');
+
+    const location = [l.city, l.district].filter(Boolean).join(', ');
+    const isAgency = l.owner_type === 'agency';
+
+    const pricePerSqm = l.price_per_m2
+        ?? (l.price && l.area > 0 ? Math.round(l.price / l.area) : null);
+    const priceUnit = l.transaction_type === 'inchiriere_zilnica' ? 'zi'
+                    : l.transaction_type === 'rent'               ? 'lună'
+                    : null;
+    const aiBadge = AI_VALUATION_BADGE[l.ai_valuation];
 
     const pubDate = l.published_at
         ? new Date(l.published_at).toLocaleDateString('ro', { day: 'numeric', month: 'short' })
         : null;
 
     return (
-        <div className={`group bg-white rounded-3xl border border-slate-100 hover:border-slate-200 hover:shadow-md transition-all px-4 py-3.5 flex items-center gap-3 ${isImported ? 'opacity-60' : ''}`}>
-            {/* Photo */}
-            <a href={l.external_url} target="_blank" rel="noopener" className="shrink-0">
-                <div className="w-20 h-16 rounded-2xl bg-slate-100 overflow-hidden relative">
-                    {img
-                        ? <img src={img} alt={l.title} className="w-full h-full object-cover" />
-                        : <div className="w-full h-full flex items-center justify-center text-2xl text-slate-300">🏠</div>
-                    }
-                </div>
-            </a>
-
-            {/* Info */}
-            <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${srcColor}`}>
-                        {srcLabel}
+        <article className={`bg-white border border-slate-200 rounded-xl overflow-hidden hover:border-slate-300 transition-colors mb-3 md:flex ${isImported ? 'opacity-60' : ''}`}>
+            {/* Image */}
+            <div className="relative w-full h-50 md:w-50 md:h-auto md:shrink-0 bg-slate-100">
+                {imgUrl ? (
+                    <img src={imgUrl} alt="" loading="lazy" className="w-full h-full object-cover" />
+                ) : (
+                    <div className="w-full h-full flex items-center justify-center text-slate-300">
+                        <ImageIcon className="w-12 h-12" />
+                    </div>
+                )}
+                {imgCount > 0 && (
+                    <span className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-0.5 rounded inline-flex items-center gap-1">
+                        <Camera className="w-3 h-3" />
+                        {imgCount}
                     </span>
-                    {l.owner_type && (
-                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                            l.owner_type === 'owner' ? 'bg-violet-100 text-violet-700' : 'bg-slate-100 text-slate-600'
-                        }`}>
-                            {l.owner_type === 'owner' ? '👤 Proprietar' : '🏢 Agenție'}
-                        </span>
-                    )}
-                    {pubDate && <span className="text-xs text-slate-400">{pubDate}</span>}
-                </div>
-
-                <a
-                    href={l.external_url} target="_blank" rel="noopener"
-                    className="font-bold text-slate-900 text-sm line-clamp-1 hover:text-blue-700 transition-colors block"
-                >
-                    {l.title}
-                </a>
-
-                <div className="text-xs text-slate-400 truncate mb-1.5">
-                    {[l.city, l.district].filter(Boolean).join(' · ')}
-                </div>
-
-                <div className="flex items-center flex-wrap gap-1.5">
-                    {l.type && (
-                        <span className="text-xs bg-slate-800 text-white font-semibold px-2 py-0.5 rounded-full">
-                            {TYPE_LABELS[l.type] ?? l.type}
-                        </span>
-                    )}
-                    {l.transaction_type && (
-                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                            l.transaction_type === 'rent' ? 'bg-violet-100 text-violet-700' : 'bg-blue-100 text-blue-700'
-                        }`}>
-                            {TRANS_LABELS[l.transaction_type] ?? l.transaction_type}
-                        </span>
-                    )}
-                    {l.rooms    && <span className="text-xs text-slate-400">{l.rooms} cam.</span>}
-                    {l.area     && <span className="text-xs text-slate-400">{l.area} m²</span>}
-                </div>
-
-                <div className="mt-1.5 flex items-center gap-2 flex-wrap">
-                    <button
-                        onClick={() => onShowContact(l.id)}
-                        className="inline-flex items-center gap-1 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold px-3 py-1 transition-colors"
+                )}
+                {l.external_url && (
+                    <a
+                        href={l.external_url} target="_blank" rel="noopener noreferrer"
+                        className="absolute top-2 right-2 w-7 h-7 bg-white/90 hover:bg-white rounded flex items-center justify-center text-slate-600"
+                        aria-label="Vezi pe sursă" title="Vezi pe sursă"
                     >
-                        📞 Arată contact
-                    </button>
-                    <LastInteractionHint hint={lastHint} />
-                </div>
-            </div>
-
-            {/* Price + AI */}
-            <div className="shrink-0 text-right min-w-28 hidden sm:block">
-                <div className="text-base font-black text-blue-700">
-                    {l.price
-                        ? `${l.currency === 'EUR' ? '€' : (l.currency ?? '€')} ${Number(l.price).toLocaleString('ro')}`
-                        : '—'
-                    }
-                </div>
-                {(() => {
-                    // Prefer scraped €/m²; fall back to deterministic price/area
-                    // when missing (e.g. older rows from before the column existed).
-                    const ppm2 = l.price_per_m2
-                        ?? (l.price && l.area > 0 ? l.price / l.area : null);
-                    return ppm2 ? (
-                        <div className="text-[11px] text-slate-400 mt-0.5">
-                            {Number(ppm2).toLocaleString('ro', { maximumFractionDigits: 0 })} €/m²
-                        </div>
-                    ) : null;
-                })()}
-                {ai && (
-                    <span className={`inline-block text-xs font-bold px-2 py-0.5 rounded-full border mt-1 ${ai.badge}`}>
-                        {ai.label}
-                    </span>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
                 )}
             </div>
 
-            {/* Actions */}
-            <div className="shrink-0 flex items-center gap-2">
-                {/* Favorite */}
-                <button
-                    onClick={() => onFav(l.id)}
-                    title={isFavorite ? 'Elimină din favorite' : 'Adaugă la favorite'}
-                    className={`text-xl transition-colors ${isFavorite ? 'text-amber-400' : 'text-slate-200 hover:text-amber-300'}`}
-                >★</button>
-
-                {/* External link */}
-                <a
-                    href={l.external_url} target="_blank" rel="noopener"
-                    className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-blue-600 transition-colors text-base"
-                    title="Deschide sursa"
-                >↗</a>
-
-                {/* Import */}
-                <button
-                    onClick={() => !isImported && onImport(l.id)}
-                    disabled={isImported}
-                    className={`rounded-2xl px-3 py-1.5 text-xs font-bold transition-colors whitespace-nowrap ${
-                        isImported
-                            ? 'bg-emerald-100 text-emerald-700 cursor-default'
-                            : 'bg-emerald-600 text-white hover:bg-emerald-700'
-                    }`}
-                >
-                    {isImported ? '✓ Adăugat' : '+ Adaugă'}
-                </button>
+            {/* Body */}
+            <div className="flex-1 min-w-0 p-3 md:p-4 flex flex-col justify-between gap-2.5">
+                <div>
+                    <div className="flex gap-1.5 flex-wrap mb-2">
+                        <span className="text-xs font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                            {SOURCE_LABELS[l.source] ?? l.source}
+                        </span>
+                        {l.owner_type && (
+                            <span className={`text-xs font-medium px-2 py-0.5 rounded inline-flex items-center gap-1 border ${
+                                isAgency
+                                    ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                    : 'bg-green-50 text-green-700 border-green-200'
+                            }`}>
+                                {isAgency ? <Building2 className="w-3 h-3" /> : <User className="w-3 h-3" />}
+                                {OWNER_LABELS[l.owner_type] ?? l.owner_type}
+                            </span>
+                        )}
+                        {l.transaction_type && (
+                            <span className="text-xs font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                                {TRANS_LABELS[l.transaction_type] ?? l.transaction_type}
+                            </span>
+                        )}
+                    </div>
+                    <h3 className="text-base font-medium leading-snug text-slate-900">
+                        {titleString}
+                    </h3>
+                </div>
+                <div>
+                    <div className="flex gap-3 flex-wrap text-xs text-slate-500">
+                        {location && (
+                            <span className="inline-flex items-center gap-1">
+                                <MapPin className="w-3.5 h-3.5" />{location}
+                            </span>
+                        )}
+                        {pubDate && (
+                            <span className="inline-flex items-center gap-1">
+                                <Calendar className="w-3.5 h-3.5" />{pubDate}
+                            </span>
+                        )}
+                    </div>
+                    {lastHint && <LastInteractionHint hint={lastHint} />}
+                </div>
             </div>
-        </div>
+
+            {/* Price + actions */}
+            <div className="px-3.5 py-3 flex items-center justify-between gap-2.5 border-t border-slate-200 md:border-t-0 md:border-l md:flex-col md:items-end md:justify-between md:w-45 md:shrink-0">
+                <div className="text-right space-y-1">
+                    <div className="text-lg font-medium leading-tight text-slate-900">
+                        {l.price != null
+                            ? <>{Number(l.price).toLocaleString('ro-MD')} {l.currency || '€'}{priceUnit && <span className="text-sm text-slate-500 font-normal">/{priceUnit}</span>}</>
+                            : '—'
+                        }
+                    </div>
+                    {pricePerSqm != null && (
+                        <div className="text-xs text-slate-500">
+                            {Number(pricePerSqm).toLocaleString('ro-MD')} €/m²
+                        </div>
+                    )}
+                    {aiBadge && (
+                        <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded border ${aiBadge.class}`}>
+                            {aiBadge.label}
+                        </span>
+                    )}
+                </div>
+                <div className="flex gap-1.5 items-center">
+                    <button
+                        type="button"
+                        aria-label={isFavorite ? 'Scoate din favorite' : 'Adaugă la favorite'}
+                        title={isFavorite ? 'Scoate din favorite' : 'Adaugă la favorite'}
+                        onClick={() => onFav(l.id)}
+                        className={`w-8 h-8 border rounded flex items-center justify-center transition-colors ${
+                            isFavorite
+                                ? 'bg-amber-50 border-amber-300 text-amber-600'
+                                : 'border-slate-200 text-slate-500 hover:bg-slate-50'
+                        }`}
+                    >
+                        <Star className="w-4 h-4" fill={isFavorite ? 'currentColor' : 'none'} />
+                    </button>
+                    <button
+                        type="button"
+                        aria-label="Arată contact"
+                        title={lastHint || 'Arată contact'}
+                        onClick={() => onShowContact(l.id)}
+                        className="w-8 h-8 border border-slate-200 rounded flex items-center justify-center text-slate-500 hover:bg-slate-50 transition-colors"
+                    >
+                        <Phone className="w-4 h-4" />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => !isImported && onImport(l.id)}
+                        disabled={isImported}
+                        className={`px-3 py-1.5 rounded text-xs font-medium inline-flex items-center gap-1 transition-colors ${
+                            isImported
+                                ? 'bg-slate-100 text-slate-500 cursor-default'
+                                : 'bg-green-600 hover:bg-green-700 text-white'
+                        }`}
+                    >
+                        {isImported
+                            ? <><Check className="w-3.5 h-3.5" />Adăugat</>
+                            : <><Plus className="w-3.5 h-3.5" />Adaugă</>}
+                    </button>
+                </div>
+            </div>
+        </article>
     );
 }
 

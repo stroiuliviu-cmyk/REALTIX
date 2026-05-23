@@ -206,8 +206,13 @@ from selenium.webdriver.support.ui import WebDriverWait
 BASE_URL = "https://999.md"
 CDN_PREFIX = "https://i.simpalsmedia.com/999.md/"
 
-# Local image storage (relative to REALTIX storage/app/public)
-IMAGES_DIR = Path(__file__).resolve().parent.parent / "storage" / "app" / "public" / "scraped"
+# Use Forge SHARED storage path (NOT release-local), so files survive deploys
+# and are served by Laravel's public/storage symlink.
+# Falls back to relative path for local dev environments.
+import os
+_DEFAULT_SHARED = "/home/forge/realtix.eu/storage/app/public/scraped"
+_FALLBACK_LOCAL = Path(__file__).resolve().parent.parent / "storage" / "app" / "public" / "scraped"
+IMAGES_DIR = Path(os.getenv("SCRAPER_IMAGES_DIR", _DEFAULT_SHARED if os.path.exists(_DEFAULT_SHARED) else str(_FALLBACK_LOCAL)))
 
 # Global flag: fast bulk mode disables expensive UI interactions
 _FAST_MODE = False

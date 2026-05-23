@@ -133,7 +133,7 @@ function ListingRow({ l, isFavorite, isImported, onFav, onImport, onShowContact,
     return (
         <article className={`bg-white border border-slate-200 rounded-xl overflow-hidden hover:border-slate-300 transition-colors mb-3 md:flex ${isImported ? 'opacity-60' : ''}`}>
             {/* Image */}
-            <div className="relative w-full h-50 md:w-50 md:h-auto md:shrink-0 bg-slate-100">
+            <div className="relative w-full h-[200px] md:w-[200px] md:h-auto md:shrink-0 bg-slate-100">
                 {imgUrl ? (
                     <img src={imgUrl} alt="" loading="lazy" className="w-full h-full object-cover" />
                 ) : (

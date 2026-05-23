@@ -1300,7 +1300,7 @@ def _download_image(url: str, ext_id: str, idx: int) -> str | None:
     """Download an image to IMAGES_DIR/{ext_id}/{idx}.jpg, compressed.
     Returns the relative path (e.g. 'scraped/12345/01.jpg') or None if download failed.
 
-    Compression: max 1600px on the long side, JPEG quality 82, progressive,
+    Compression: max 800px on the long side, JPEG quality 80, progressive,
     EXIF stripped. Reduces ~60-70% vs raw source while staying visually lossless
     at card resolution (200px) and modal viewer (max ~1200px on most screens).
     """
@@ -1334,16 +1334,20 @@ def _download_image(url: str, ext_id: str, idx: int) -> str | None:
         if img.mode != "RGB":
             img = img.convert("RGB")
 
-        # Resize if larger than 1600px on long side (preserves aspect ratio)
-        MAX_SIZE = 1600
+        # Resize to 800px on long side — cards show 200px, modal max ~1200px.
+        # 800px covers Retina 4x at card resolution + decent gallery quality.
+        # Source from 999.md is typically 900-1280px, so resize always triggers.
+        MAX_SIZE = 800
         if max(img.size) > MAX_SIZE:
             img.thumbnail((MAX_SIZE, MAX_SIZE), Image.Resampling.LANCZOS)
 
-        # Save with aggressive but safe compression
+        # Save with balanced compression
+        # Quality alone doesn't help (source is pre-compressed by 999.md);
+        # the resize is what actually reduces file size ~60%.
         img.save(
             dest,
             format="JPEG",
-            quality=82,
+            quality=80,
             optimize=True,
             progressive=True,
         )

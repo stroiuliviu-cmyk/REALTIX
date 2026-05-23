@@ -1297,28 +1297,70 @@ def _extract_amenities(features_text: str, soup: BeautifulSoup) -> dict:
 
 
 def _download_image(url: str, ext_id: str, idx: int) -> str | None:
-    """Download an image to storage/app/public/scraped/{ext_id}/{idx}.jpg.
-    Returns the relative path (e.g. 'scraped/12345/01.jpg') or None if download failed."""
+    """Download an image to IMAGES_DIR/{ext_id}/{idx}.jpg, compressed.
+    Returns the relative path (e.g. 'scraped/12345/01.jpg') or None if download failed.
+
+    Compression: max 1600px on the long side, JPEG quality 82, progressive,
+    EXIF stripped. Reduces ~60-70% vs raw source while staying visually lossless
+    at card resolution (200px) and modal viewer (max ~1200px on most screens).
+    """
     try:
+        from PIL import Image
+        import io
+
         target_dir = IMAGES_DIR / str(ext_id)
         target_dir.mkdir(parents=True, exist_ok=True)
         filename = f"{idx:02d}.jpg"
         dest = target_dir / filename
 
+        # Skip if already exists and looks good (size > 1KB)
         if dest.exists() and dest.stat().st_size > 1000:
             return f"scraped/{ext_id}/{filename}"
 
+        # Fetch raw bytes from CDN
         req = urllib.request.Request(url, headers={
             "User-Agent": "Mozilla/5.0 REALTIX-Scraper/1.0",
             "Accept": "image/*,*/*;q=0.8",
         })
         with urllib.request.urlopen(req, timeout=15) as resp:
-            data = resp.read()
-            if len(data) < 1000:
+            raw = resp.read()
+            if len(raw) < 1000:
                 return None
-            dest.write_bytes(data)
+
+        # Process with Pillow: decode, resize if needed, re-encode as compressed JPEG
+        img = Image.open(io.BytesIO(raw))
+
+        # Convert RGBA/P/etc to RGB (JPEG doesn't support alpha)
+        if img.mode != "RGB":
+            img = img.convert("RGB")
+
+        # Resize if larger than 1600px on long side (preserves aspect ratio)
+        MAX_SIZE = 1600
+        if max(img.size) > MAX_SIZE:
+            img.thumbnail((MAX_SIZE, MAX_SIZE), Image.Resampling.LANCZOS)
+
+        # Save with aggressive but safe compression
+        img.save(
+            dest,
+            format="JPEG",
+            quality=82,
+            optimize=True,
+            progressive=True,
+        )
+
+        # Sanity check: must be at least 5KB (sub asta înseamnă encoding broken)
+        if dest.stat().st_size < 5000:
+            dest.unlink(missing_ok=True)
+            return None
+
         return f"scraped/{ext_id}/{filename}"
-    except Exception:
+    except Exception as e:
+        # Cleanup partial file dacă crapă mid-save
+        try:
+            if 'dest' in locals() and dest.exists():
+                dest.unlink(missing_ok=True)
+        except:
+            pass
         return None
 
 

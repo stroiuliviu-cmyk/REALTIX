@@ -48,6 +48,7 @@ import time
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 try:
     import psycopg2  # type: ignore
@@ -615,8 +616,8 @@ def _extract_date_from_next_payload(page_source: str) -> datetime | None:
       "resetedRedesign":"24 mai. 2026, 21:37"   (preferred — last activity, with year)
       "posted":"30 apr. 2026, 17:37"            (fallback — original posting)
 
-    Returns naive datetime in Europe/Chisinau local time (caller treats as UTC,
-    but consistent with existing pub_str = now() behavior).
+    Returns naive datetime in UTC (source times are in Europe/Chișinău and are
+    converted before return so downstream storage matches wall-clock UTC).
     """
     import re
 
@@ -632,7 +633,11 @@ def _extract_date_from_next_payload(page_source: str) -> datetime | None:
             month_num = _RO_MONTHS.get(month_abbr.lower()[:3])
             if month_num:
                 try:
-                    return datetime(int(year), month_num, int(day), int(hour), int(minute))
+                    # 999.md displays times in Europe/Chișinău (UTC+3 summer, +2 winter).
+                    # Localize then convert to UTC for consistent storage.
+                    local_dt = datetime(int(year), month_num, int(day), int(hour), int(minute), tzinfo=ZoneInfo("Europe/Chisinau"))
+                    utc_dt = local_dt.astimezone(ZoneInfo("UTC"))
+                    return utc_dt.replace(tzinfo=None)  # naive datetime for consistent DB save
                 except (ValueError, TypeError):
                     continue
     return None

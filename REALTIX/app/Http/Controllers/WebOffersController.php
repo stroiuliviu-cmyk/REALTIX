@@ -8,7 +8,6 @@ use App\Models\ScrapedListing;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -305,7 +304,21 @@ class WebOffersController extends Controller
             $filename     = sprintf('%02d.%s', $idx, $ext);
             $relativePath = "properties/{$propertyId}/{$filename}";
 
-            Storage::disk('public')->put($relativePath, $body);
+            // Forge: storage/ is shared between releases. Storage::disk('public')
+            // resolves to release-local on agentic deploys, breaking URLs.
+            // Write absolute path to shared storage, with local-dev fallback.
+            $shared = '/home/forge/realtix.eu/storage/app/public';
+            $absoluteBase = is_dir($shared) ? $shared : storage_path('app/public');
+            $absolutePath = $absoluteBase . '/' . $relativePath;
+
+            if (! is_dir(dirname($absolutePath))) {
+                @mkdir(dirname($absolutePath), 0775, true);
+            }
+
+            if (file_put_contents($absolutePath, $body) === false) {
+                return null;
+            }
+
             return $relativePath;
         } catch (\Throwable) {
             return null;

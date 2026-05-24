@@ -388,19 +388,46 @@ export default function Show({ property, contracts = [], viewings = [], availabl
                                 </div>
                             )}
 
-                            <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-4">
-                                {[
-                                    { label: 'Suprafață', value: property.area_total ? `${property.area_total} m²` : '—' },
-                                    { label: 'Camere',    value: property.rooms ?? '—' },
-                                    { label: 'Etaj',      value: property.floor ? `${property.floor}/${property.floors_total ?? '?'}` : '—' },
-                                    { label: 'Tranzacție',value: property.transaction_type === 'sale' ? 'Vânzare' : 'Chirie' },
-                                ].map(item => (
-                                    <div key={item.label} className="bg-slate-50 rounded-2xl p-4 text-center">
-                                        <div className="text-xs text-slate-500 mb-1">{item.label}</div>
-                                        <div className="font-bold text-slate-900">{item.value}</div>
+                            {(() => {
+                                // Build cards array — skip cards with null/empty values.
+                                // Tranzacția afișează mereu (e mereu setată: sale/rent).
+                                // Astea care pot fi NULL (area_total, rooms, floor) se ascund când lipsesc.
+                                const cards = [
+                                    property.area_total && {
+                                        label: 'Suprafață',
+                                        value: `${property.area_total} m²`,
+                                    },
+                                    property.rooms && {
+                                        label: 'Camere',
+                                        value: property.rooms,
+                                    },
+                                    property.floor && {
+                                        label: 'Etaj',
+                                        value: `${property.floor}/${property.floors_total ?? '?'}`,
+                                    },
+                                    {
+                                        label: 'Tranzacție',
+                                        value: property.transaction_type === 'sale' ? 'Vânzare' : 'Chirie',
+                                    },
+                                ].filter(Boolean);
+
+                                // Adapt grid columns to number of visible cards (2-4)
+                                const gridCols = cards.length === 4 ? 'sm:grid-cols-4'
+                                               : cards.length === 3 ? 'sm:grid-cols-3'
+                                               : cards.length === 2 ? 'sm:grid-cols-2'
+                                               : 'sm:grid-cols-1';
+
+                                return (
+                                    <div className={`mt-6 grid grid-cols-2 ${gridCols} gap-4`}>
+                                        {cards.map(item => (
+                                            <div key={item.label} className="bg-slate-50 rounded-2xl p-4 text-center">
+                                                <div className="text-xs text-slate-500 mb-1">{item.label}</div>
+                                                <div className="font-bold text-slate-900">{item.value}</div>
+                                            </div>
+                                        ))}
                                     </div>
-                                ))}
-                            </div>
+                                );
+                            })()}
 
                             {/* Descriptions */}
                             {['ro', 'ru'].map(lang => {

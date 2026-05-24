@@ -610,7 +610,10 @@ def _extract_date_from_next_payload(page_source: str) -> datetime | None:
 
     # Try resetedRedesign first (most recent activity), then posted
     for key in ("resetedRedesign", "posted"):
-        pattern = rf'"{key}":"(\d{{1,2}})\s+([a-zA-Z]+)\.?\s+(\d{{4}}),?\s+(\d{{1,2}}):(\d{{2}})"'
+        # Match both escaped (Selenium) and unescaped (curl) JSON formats.
+        # Selenium: \"posted\":\"30 apr. 2026, 17:37\"
+        # Curl:     "posted":"30 apr. 2026, 17:37"
+        pattern = rf'\\?"{key}\\?":\\?"(\d{{1,2}})\s+([a-zA-Z]+)\.?\s+(\d{{4}}),?\s+(\d{{1,2}}):(\d{{2}})\\?"'
         m = re.search(pattern, page_source)
         if m:
             day, month_abbr, year, hour, minute = m.groups()

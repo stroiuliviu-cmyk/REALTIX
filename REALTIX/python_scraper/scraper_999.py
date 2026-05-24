@@ -1758,18 +1758,29 @@ def main() -> int:
             print(f"  → {len(ad_urls)} unique ad URLs collected")
 
             consecutive_old = 0  # shared counter for --today-only and --scope-hours early-exit
+            consecutive_recent = 0  # for early-exit when we hit already-processed zone
 
             for url in ad_urls:
                 if args.max_ads and stats["processed"] >= args.max_ads:
                     print(f"\n🛑 Hit max-ads limit ({args.max_ads})")
                     raise KeyboardInterrupt()
 
-                # Skip recently-updated ads
+                # Skip recently-updated ads. 999.md sorts pages desc by date, so
+                # 5 in a row already in our DB means we've reached the
+                # already-processed zone — safe to skip the rest. Used as a
+                # date-independent fallback because 999.md removed datePosted from
+                # JSON-LD, breaking --scope-hours. Skipped for mode=morning
+                # (catch-up run must scan everything regardless of DB state).
                 m = re.search(r"/ro/(\d+)", url)
                 ext_id = m.group(1) if m else None
                 if ext_id and ext_id in recently_updated:
+                    consecutive_recent += 1
+                    if consecutive_recent >= 5 and _MODE != "morning":
+                        print(f"  ⏭️  Early-exit: 5 consecutive ads already processed in last {args.skip_recent_hours}h — skipping rest of {cat['slug']}")
+                        break
                     stats["skipped"] += 1
                     continue
+                consecutive_recent = 0
 
                 # Periodic heartbeat (every minute) so the watchdog can tell the worker is alive.
                 if time.time() - last_heartbeat > 60:

@@ -1757,7 +1757,7 @@ def main() -> int:
             ad_urls = collect_ad_urls(driver, cat["slug"], max_pages=pages_arg)
             print(f"  → {len(ad_urls)} unique ad URLs collected")
 
-            consecutive_old = 0  # for --today-only stop logic
+            consecutive_old = 0  # shared counter for --today-only and --scope-hours early-exit
 
             for url in ad_urls:
                 if args.max_ads and stats["processed"] >= args.max_ads:
@@ -1784,7 +1784,9 @@ def main() -> int:
                         continue
 
                     # --scope-hours: skip ads published outside the time window.
-                    # For hourly mode, 5 consecutive out-of-scope ads end the category early.
+                    # 5 consecutive out-of-scope ads end the category early — applies
+                    # regardless of --mode (was previously gated on hourly only, which
+                    # left morning runs scanning all pages until the watchdog timeout).
                     if scope_cutoff is not None:
                         pub = ad.get("published_at")
                         if pub is None:
@@ -1793,8 +1795,8 @@ def main() -> int:
                             pub_naive = pub.replace(tzinfo=None) if pub.tzinfo else pub
                             if pub_naive < scope_cutoff:
                                 consecutive_old += 1
-                                if _MODE == "hourly" and consecutive_old >= 5:
-                                    print(f"  🛑 hourly early-exit: 5 consecutive ads older than {_SCOPE_HOURS}h cutoff")
+                                if consecutive_old >= 5:
+                                    print(f"  ⏭️  Early-exit: 5 consecutive ads older than {_SCOPE_HOURS}h — skipping rest")
                                     break
                                 continue
                             else:

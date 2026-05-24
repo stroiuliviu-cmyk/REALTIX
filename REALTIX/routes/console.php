@@ -122,7 +122,7 @@ Artisan::command('portal:999:scrape:morning {--agency=1}', function () {
         '--pages=all',
         '--agency=' . $this->option('agency'),
         '--skip-recent-hours=0',
-        '--scope-hours=7',
+        '--scope-hours=2',
         '--download-images',
         '--mode=morning',
     ];
@@ -179,7 +179,6 @@ Artisan::command('portal:999:scrape:hourly {--agency=1}', function () {
         '--agency=' . $this->option('agency'),
         '--skip-recent-hours=0',
         '--scope-hours=1',
-        '--max-ads=50',
         '--download-images',
         '--mode=hourly',
     ];

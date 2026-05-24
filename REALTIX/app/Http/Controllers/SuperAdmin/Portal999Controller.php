@@ -62,6 +62,31 @@ class Portal999Controller extends Controller
             ->selectRaw("DATE(created_at) as day, COUNT(*) as cnt")
             ->groupBy('day')->orderBy('day')->get();
 
+        // Daily breakdown by type for last 30 days. Pivots to one row per day
+        // with all 4 types as columns. Missing days/types default to 0.
+        $byTypeDailyRaw = DB::table('scraped_listings')
+            ->where('created_at', '>=', $monthAgo)
+            ->whereNotNull('type')
+            ->selectRaw("DATE(created_at) as day, type, COUNT(*) as cnt")
+            ->groupBy('day', 'type')
+            ->orderBy('day')
+            ->get();
+
+        $byTypeDaily = [];
+        foreach ($byTypeDailyRaw as $row) {
+            if (! isset($byTypeDaily[$row->day])) {
+                $byTypeDaily[$row->day] = [
+                    'day'        => $row->day,
+                    'apartment'  => 0,
+                    'house'      => 0,
+                    'commercial' => 0,
+                    'land'       => 0,
+                ];
+            }
+            $byTypeDaily[$row->day][$row->type] = (int) $row->cnt;
+        }
+        $byTypeDaily = array_values($byTypeDaily);
+
         $syncLogs = ActivityLog::query()
             ->where(function ($q) {
                 $q->where('action', 'like', 'scrape.%')
@@ -73,11 +98,12 @@ class Portal999Controller extends Controller
             ->get(['id', 'action', 'description', 'created_at', 'properties']);
 
         return Inertia::render('SuperAdmin/Portal999/Index', [
-            'stats'    => $stats,
-            'byType'   => $byType,
-            'byCity'   => $byCity,
-            'byDay'    => $byDay,
-            'syncLogs' => $syncLogs,
+            'stats'        => $stats,
+            'byType'       => $byType,
+            'byCity'       => $byCity,
+            'byDay'        => $byDay,
+            'byTypeDaily'  => $byTypeDaily,
+            'syncLogs'     => $syncLogs,
         ]);
     }
 }

@@ -18,16 +18,26 @@ function MetricCard({ label, value, accent = 'slate' }) {
     );
 }
 
-function MiniBars({ data }) {
+function MiniBars({ data, color, height = 'h-30' }) {
     if (!data || data.length === 0) return <div className="text-center py-8 text-xs text-slate-400">Nu sunt date.</div>;
     const max = Math.max(...data.map(d => Number(d.cnt)), 1);
+    // When a hex color is passed, switch to inline gradient (Tailwind can't
+    // template arbitrary hex into class names). Default keeps the original
+    // blue gradient classes so the existing chart at line ~72 is unaffected.
+    const useCustom = !!color;
+    const barClass = useCustom
+        ? 'flex-1 rounded-t group relative cursor-pointer transition-opacity hover:opacity-80'
+        : 'flex-1 bg-linear-to-t from-blue-600 to-blue-400 rounded-t hover:from-blue-700 group relative cursor-pointer';
     return (
-        <div className="flex items-end gap-1 h-30">
+        <div className={`flex items-end gap-1 ${height}`}>
             {data.map((d, i) => (
                 <div
                     key={i}
-                    className="flex-1 bg-linear-to-t from-blue-600 to-blue-400 rounded-t hover:from-blue-700 group relative cursor-pointer"
-                    style={{ height: `${Math.max((Number(d.cnt) / max) * 100, 2)}px` }}
+                    className={barClass}
+                    style={{
+                        height: `${Math.max((Number(d.cnt) / max) * 100, 2)}px`,
+                        ...(useCustom && { background: `linear-gradient(to top, ${color}, ${color}cc)` }),
+                    }}
                     title={`${d.day}: ${d.cnt}`}
                 >
                     <div className="absolute -top-7 left-1/2 -translate-x-1/2 hidden group-hover:block bg-slate-900 text-white text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap">
@@ -39,7 +49,21 @@ function MiniBars({ data }) {
     );
 }
 
-export default function Index({ stats, byType, byCity, byDay, syncLogs }) {
+const TYPE_LABELS = {
+    apartment:  'Apartamente',
+    house:      'Case',
+    commercial: 'Comercial',
+    land:       'Terenuri',
+};
+
+const TYPE_COLORS = {
+    apartment:  '#3b82f6', // blue-500
+    house:      '#10b981', // emerald-500
+    commercial: '#f59e0b', // amber-500
+    land:       '#8b5cf6', // violet-500
+};
+
+export default function Index({ stats, byType, byCity, byDay, byTypeDaily = [], syncLogs }) {
     const triggerSync = () => {
         if (!confirm('Pornește sync manual 999.md acum? Va dispatcha job-ul în background.')) return;
         router.post(route('super-admin.portal-999.sync'), {}, { preserveScroll: true });
@@ -70,6 +94,47 @@ export default function Index({ stats, byType, byCity, byDay, syncLogs }) {
                         </span>
                     </div>
                     <MiniBars data={byDay} />
+                </div>
+
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-sm font-bold text-slate-900">Pe categorii (30 zile)</h3>
+                        <span className="text-xs text-slate-400">Total cumulativ · ultimele 30 zile</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {Object.keys(TYPE_LABELS).map((type) => {
+                            const total = byType?.[type] ?? 0;
+                            const data = byTypeDaily.map(d => ({ day: d.day, cnt: d[type] ?? 0 }));
+                            const recentSum = data.reduce((acc, d) => acc + d.cnt, 0);
+
+                            return (
+                                <div
+                                    key={type}
+                                    className="bg-slate-50 rounded-lg p-4 border border-slate-100"
+                                    title={`${TYPE_LABELS[type]} — total: ${total.toLocaleString('ro')} · ultimele 30 zile: ${recentSum.toLocaleString('ro')}`}
+                                >
+                                    <div className="flex items-start justify-between mb-3">
+                                        <div>
+                                            <div className="text-xs font-bold text-slate-600 uppercase tracking-wide">
+                                                {TYPE_LABELS[type]}
+                                            </div>
+                                            <div className="text-2xl font-black text-slate-900 mt-1">
+                                                {total.toLocaleString('ro')}
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="text-[10px] text-slate-400 uppercase tracking-widest">30z</div>
+                                            <div className="text-sm font-bold" style={{ color: TYPE_COLORS[type] }}>
+                                                +{recentSum.toLocaleString('ro')}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <MiniBars data={data} color={TYPE_COLORS[type]} height="h-16" />
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">

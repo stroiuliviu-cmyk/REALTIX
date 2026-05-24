@@ -490,9 +490,12 @@ def extract_ad(driver, url: str) -> dict | None:
         if isinstance(addr, dict):
             address = addr.get("streetAddress")
 
-    # Published_at — try to read from JSON-LD or detail page
-    published_at = None
-    if json_ld:
+    # Published_at — Next.js SSR payload is now authoritative (999.md removed
+    # datePosted/datePublished from JSON-LD in May 2026). JSON-LD kept as
+    # secondary fallback for any pages still serving the legacy format.
+    published_at = _extract_date_from_next_payload(driver.page_source)
+
+    if not published_at and json_ld:
         pub = _json_ld_find(json_ld, "datePosted", "datePublished")
         if pub:
             try:
@@ -584,6 +587,40 @@ def _try_open_gallery(driver):
                     continue
         except Exception:
             continue
+
+
+# Map RO month abbreviations to numbers (999.md format)
+_RO_MONTHS = {
+    'ian': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'mai': 5, 'iun': 6,
+    'iul': 7, 'aug': 8, 'sept': 9, 'sep': 9, 'oct': 10, 'noi': 11, 'dec': 12,
+}
+
+
+def _extract_date_from_next_payload(page_source: str) -> datetime | None:
+    """Extract published date from Next.js __next_f.push JSON payload.
+
+    999.md embeds dates in formats like:
+      "resetedRedesign":"24 mai. 2026, 21:37"   (preferred — last activity, with year)
+      "posted":"30 apr. 2026, 17:37"            (fallback — original posting)
+
+    Returns naive datetime in Europe/Chisinau local time (caller treats as UTC,
+    but consistent with existing pub_str = now() behavior).
+    """
+    import re
+
+    # Try resetedRedesign first (most recent activity), then posted
+    for key in ("resetedRedesign", "posted"):
+        pattern = rf'"{key}":"(\d{{1,2}})\s+([a-zA-Z]+)\.?\s+(\d{{4}}),?\s+(\d{{1,2}}):(\d{{2}})"'
+        m = re.search(pattern, page_source)
+        if m:
+            day, month_abbr, year, hour, minute = m.groups()
+            month_num = _RO_MONTHS.get(month_abbr.lower()[:3])
+            if month_num:
+                try:
+                    return datetime(int(year), month_num, int(day), int(hour), int(minute))
+                except (ValueError, TypeError):
+                    continue
+    return None
 
 
 def _parse_json_ld(soup: BeautifulSoup) -> list[dict]:

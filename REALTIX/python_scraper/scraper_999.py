@@ -425,6 +425,18 @@ def extract_ad(driver, url: str) -> dict | None:
     except TimeoutException:
         pass
 
+    # Wait for Next.js to hydrate the SSR payload containing date fields.
+    # Without this, page_source has the h1 but lacks "resetedRedesign":"..." JSON,
+    # causing _extract_date_from_next_payload to return None for most listings.
+    # Max 3 sec wait — old-format listings without this key are caught by the
+    # function's existing None fallback.
+    try:
+        WebDriverWait(driver, 3).until(
+            lambda d: 'resetedRedesign' in d.page_source or 'posted' in d.page_source
+        )
+    except TimeoutException:
+        pass
+
     if _FAST_MODE:
         # Minimal wait, no scroll/gallery — but still reveal phone (essential
         # for call-tracking features; visible-text reveal is fast on 999.md).

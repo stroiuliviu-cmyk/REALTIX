@@ -18,7 +18,7 @@ class Property extends Model
         'agency_id',
         'user_id',
         'source',
-        'external_id',
+        'scraped_listing_id',
         'title',
         'description_ro',
         'description_ru',
@@ -100,6 +100,11 @@ class Property extends Model
     public function notes(): HasMany
     {
         return $this->hasMany(PropertyNote::class)->latest();
+    }
+
+    public function scrapedListing(): BelongsTo
+    {
+        return $this->belongsTo(ScrapedListing::class);
     }
 
     protected static function booted(): void

@@ -42,9 +42,11 @@ class PropertyController extends Controller
             ->when($request->search, fn ($q, $s) => $q->where(function ($q) use ($s) {
                 $q->where('title',    'like', "%{$s}%")
                   ->orWhere('address', 'like', "%{$s}%")
-                  ->orWhere('district','like', "%{$s}%")
-                  ->orWhere('external_id', 'like', "%{$s}%")
-                  ->orWhere('id', is_numeric($s) ? (int) $s : -1);
+                  ->orWhere('district','like', "%{$s}%");
+                if (ctype_digit((string) $s)) {
+                    $q->orWhere('id', (int) $s)
+                      ->orWhere('scraped_listing_id', (int) $s);
+                }
             }))
             ->when($request->filled('types') && is_array($request->types), fn ($q) => $q->whereIn('type', $request->types))
             ->when($request->transaction_type, fn ($q, $t) => $q->where('transaction_type', $t))

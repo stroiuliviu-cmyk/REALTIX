@@ -192,12 +192,12 @@ function PropertyRow({ p, isFavorite, isSelected, isAdmin, authUserId, onFav, on
                         <span className="text-xs font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
                             #{p.id}
                         </span>
-                        {p.external_id && p.source && (
+                        {p.scraped_listing_id && (
                             <span
-                                className="text-xs font-mono font-medium px-2 py-0.5 rounded bg-slate-800 text-white border border-slate-800"
-                                title={`Importat din ${p.source}`}
+                                className="text-xs font-mono font-medium px-2 py-0.5 rounded bg-slate-600 text-white border border-slate-600"
+                                title={`Importat din ${p.source ?? 'sursă externă'}`}
                             >
-                                {p.source}#{p.external_id}
+                                scraped #{p.scraped_listing_id}
                             </span>
                         )}
                         <span className="text-xs font-medium px-2 py-0.5 rounded bg-slate-800 text-white">

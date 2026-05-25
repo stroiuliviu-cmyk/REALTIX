@@ -56,8 +56,10 @@ class WebOffersController extends Controller
                     $q->where('title',    'like', "%{$s}%")
                       ->orWhere('city',   'like', "%{$s}%")
                       ->orWhere('district','like', "%{$s}%")
-                      ->orWhere('phone',  'like', "%{$s}%")
-                      ->orWhere('external_id', 'like', "%{$s}%");
+                      ->orWhere('phone',  'like', "%{$s}%");
+                    if (ctype_digit((string) $s)) {
+                        $q->orWhere('id', (int) $s);
+                    }
                 }))
                 ->when($request->city,     fn ($q, $c) => $q->where('city',     'like', "%{$c}%"))
                 ->when($request->district, fn ($q, $d) => $q->where('district', 'like', "%{$d}%"))
@@ -216,11 +218,11 @@ class WebOffersController extends Controller
         }
 
         $property = Property::create([
-            'agency_id'        => $user->agency_id,
-            'user_id'          => $user->id,
-            'source'           => $scrapedListing->source,
-            'external_id'      => $scrapedListing->external_id,
-            'title'            => $scrapedListing->title,
+            'agency_id'           => $user->agency_id,
+            'user_id'             => $user->id,
+            'source'              => $scrapedListing->source,
+            'scraped_listing_id'  => $scrapedListing->id,
+            'title'               => $scrapedListing->title,
             'description_ro'   => $scrapedListing->description,
             'type'             => $scrapedListing->type ?? 'apartment',
             'transaction_type' => $scrapedListing->transaction_type ?? 'sale',

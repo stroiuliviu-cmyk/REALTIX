@@ -373,7 +373,9 @@ def _extract_card_price(anchor) -> tuple[int | None, str | None]:
         text = el.get_text(separator=' ', strip=True)
         if not text or len(text) > 2000:  # skip overly broad ancestors
             continue
-        m = re.search(r'(\d[\d\s ]{2,12}\d)\s*(€|EUR|MDL|lei)', text, re.IGNORECASE)
+        # Match: 3+ digits with optional internal spaces (e.g. "250", "199 900", "1 234 567")
+        # followed by currency. Stricter format avoids false positives like "year 2026" or "5 m²".
+        m = re.search(r'(\d{1,3}(?:[\s ]\d{3})*|\d{3,})\s*(€|EUR|MDL|lei)', text, re.IGNORECASE)
         if m:
             digits = m.group(1).replace(' ', '').replace(' ', '')
             try:

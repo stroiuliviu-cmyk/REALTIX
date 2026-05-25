@@ -112,6 +112,7 @@ Route::middleware(['auth', 'verified', 'onboarded'])->group(function () {
     Route::delete('contacts/{contact}/properties/{property}', [ContactController::class, 'detachProperty'])->name('contacts.properties.detach');
     Route::post('properties/{property}/contacts',             [PropertyController::class, 'attachContact'])->name('properties.contacts.attach');
     Route::delete('properties/{property}/contacts/{contact}', [PropertyController::class, 'detachContact'])->name('properties.contacts.detach');
+    Route::post('properties/{property}/notes',                [PropertyController::class, 'storeNote'])->name('properties.notes.store');
 
     // Deals
     Route::resource('deals', DealController::class)->only(['index', 'store', 'update']);

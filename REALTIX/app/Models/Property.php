@@ -95,6 +95,11 @@ class Property extends Model
         return $this->morphMany(PhoneInteraction::class, 'subject')->latest();
     }
 
+    public function notes(): HasMany
+    {
+        return $this->hasMany(PropertyNote::class)->latest();
+    }
+
     protected static function booted(): void
     {
         static::deleting(function (Property $property) {

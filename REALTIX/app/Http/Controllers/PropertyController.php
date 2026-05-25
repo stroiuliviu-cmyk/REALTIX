@@ -276,6 +276,7 @@ class PropertyController extends Controller
         $property->load([
             'media',
             'user',
+            'notes.user',
             'contacts' => fn ($q) => $q->select('contacts.id', 'first_name', 'last_name', 'phone', 'email', 'type'),
         ]);
 
@@ -321,6 +322,22 @@ class PropertyController extends Controller
             'ownerContactId'     => $ownerContact?->id,
             'ownerNotes'         => $ownerNotes,
         ]);
+    }
+
+    public function storeNote(Request $request, Property $property)
+    {
+        Gate::authorize('view', $property);
+
+        $data = $request->validate([
+            'body' => 'required|string|max:5000',
+        ]);
+
+        $property->notes()->create([
+            'user_id' => $request->user()->id,
+            'body'    => $data['body'],
+        ]);
+
+        return back()->with('success', 'Comentariu adăugat.');
     }
 
     public function attachContact(Request $request, Property $property)

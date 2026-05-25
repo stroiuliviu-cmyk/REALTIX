@@ -203,15 +203,14 @@ function ActionRow({ iconPath, label, href, onClick, external = false, danger = 
     return <button type="button" onClick={onClick} className={cls}>{body}</button>;
 }
 
-function InternalNotesCard({ ownerContactId, notes = [] }) {
+function InternalNotesCard({ propertyId, notes = [] }) {
     const [text, setText] = useState('');
     const [posting, setPosting] = useState(false);
 
     const submit = () => {
-        if (!ownerContactId || !text.trim()) return;
+        if (!text.trim()) return;
         setPosting(true);
-        router.post(route('contacts.interactions.store', ownerContactId), {
-            type: 'note',
+        router.post(route('properties.notes.store', propertyId), {
             body: text.trim(),
         }, {
             preserveScroll: true,
@@ -228,13 +227,7 @@ function InternalNotesCard({ ownerContactId, notes = [] }) {
                 <span className="text-xs text-slate-400 ml-auto">{notes.length}</span>
             </div>
 
-            {!ownerContactId && (
-                <p className="text-xs text-slate-400">
-                    Asociază un client cu relația <strong>Proprietar</strong> din „Clienți asociați" pentru a adăuga comentarii.
-                </p>
-            )}
-
-            {ownerContactId && notes.length === 0 && (
+            {notes.length === 0 && (
                 <p className="text-xs text-slate-400">Niciun comentariu încă.</p>
             )}
 
@@ -259,24 +252,20 @@ function InternalNotesCard({ ownerContactId, notes = [] }) {
                 </div>
             )}
 
-            {ownerContactId && (
-                <>
-                    <textarea
-                        value={text}
-                        onChange={e => setText(e.target.value)}
-                        rows={2}
-                        placeholder="Adaugă un comentariu intern…"
-                        className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:outline-none focus:border-slate-400 resize-none"
-                    />
-                    <button
-                        onClick={submit}
-                        disabled={posting || !text.trim()}
-                        className="block w-full text-center rounded-2xl bg-slate-900 py-2 text-white text-xs font-bold hover:bg-slate-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                        {posting ? 'Se salvează…' : 'Salvează comentariu'}
-                    </button>
-                </>
-            )}
+            <textarea
+                value={text}
+                onChange={e => setText(e.target.value)}
+                rows={2}
+                placeholder="Adaugă un comentariu intern…"
+                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:outline-none focus:border-slate-400 resize-none"
+            />
+            <button
+                onClick={submit}
+                disabled={posting || !text.trim()}
+                className="block w-full text-center rounded-2xl bg-slate-900 py-2 text-white text-xs font-bold hover:bg-slate-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+                {posting ? 'Se salvează…' : 'Salvează comentariu'}
+            </button>
         </div>
     );
 }
@@ -565,8 +554,8 @@ export default function Show({ property, contracts = [], viewings = [], availabl
                         </div>
 
 
-                        {/* Internal comments about the owner-client */}
-                        <InternalNotesCard ownerContactId={ownerContactId} notes={ownerNotes} />
+                        {/* Internal notes about this property listing */}
+                        <InternalNotesCard propertyId={property.id} notes={property.notes ?? []} />
 
                         {/* Quick AI stats */}
                         {(property.meta?.ai_price_min || property.ai_valuation) && (

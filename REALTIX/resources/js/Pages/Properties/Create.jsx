@@ -153,7 +153,7 @@ export default function Create({ authUser = {} }) {
         area_total: '', area_living: '',
         rooms: '', floor: '', floors_total: '',
         address: '', city: 'Chișinău', district: '',
-        description_ro: '', status: 'active',
+        description_ro: '', description_ru: '', status: 'active',
         meta: {
             ...EMPTY_META,
             contact_phone: authUser.phone ?? '',
@@ -523,12 +523,39 @@ export default function Create({ authUser = {} }) {
 
                     {/* Section 3 — Description + AI */}
                     <SectionCard title="Descriere">
+                        {/* Toggle RO/RU above textarea — drives which description field is shown/edited */}
+                        <div className="flex items-center gap-2 mb-2">
+                            <span className="text-xs font-bold text-slate-600 uppercase">Limbă:</span>
+                            <div className="flex gap-1">
+                                {AI_LOCALES.map(o => (
+                                    <button
+                                        key={o.v}
+                                        type="button"
+                                        onClick={() => setAiLocale(o.v)}
+                                        className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${
+                                            aiLocale === o.v
+                                                ? 'bg-blue-600 text-white'
+                                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                        }`}
+                                    >
+                                        {o.l}
+                                    </button>
+                                ))}
+                            </div>
+                            <span className="text-xs text-slate-400 ml-2">
+                                {aiLocale === 'ro' ? '🇷🇴 Editezi descriere română' : '🇷🇺 Editezi descriere rusă'}
+                            </span>
+                        </div>
+
                         <textarea
-                            value={data.description_ro}
-                            onChange={e => setData('description_ro', e.target.value)}
+                            value={aiLocale === 'ro' ? data.description_ro : data.description_ru}
+                            onChange={e => setData(
+                                aiLocale === 'ro' ? 'description_ro' : 'description_ru',
+                                e.target.value
+                            )}
                             rows={5}
                             className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-blue-600 resize-none"
-                            placeholder="Descriere proprietate în română…"
+                            placeholder={aiLocale === 'ro' ? 'Descriere proprietate în română…' : 'Описание недвижимости на русском…'}
                         />
 
                         {/* AI Tools inline */}
@@ -539,22 +566,6 @@ export default function Create({ authUser = {} }) {
 
                             {/* Selectors */}
                             <div className="flex flex-wrap gap-3">
-                                <div>
-                                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Limbă</p>
-                                    <div className="flex gap-1">
-                                        {AI_LOCALES.map(o => (
-                                            <button
-                                                key={o.v} type="button"
-                                                onClick={() => setAiLocale(o.v)}
-                                                className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition-colors ${
-                                                    aiLocale === o.v
-                                                        ? 'bg-blue-700 text-white border-blue-700'
-                                                        : 'bg-white text-slate-500 border-slate-200 hover:border-blue-400'
-                                                }`}
-                                            >{o.l}</button>
-                                        ))}
-                                    </div>
-                                </div>
                                 <div>
                                     <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Stil</p>
                                     <div className="flex flex-wrap gap-1">

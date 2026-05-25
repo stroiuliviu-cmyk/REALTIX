@@ -72,10 +72,24 @@ class AiService
         $sourceBlock = '';
         if ($sourceDescription !== '') {
             $trimmed = mb_substr($sourceDescription, 0, 2000);
-            $sourceBlock = "\nDescriere existentă (folosește ca referință pentru detalii suplimentare — extrage doar informații utile, dar rescrie complet, fără copy-paste):\n\"\"\"\n{$trimmed}\n\"\"\"\n";
+            $sourceBlock = "\n=== DESCRIERE EXISTENTĂ (sursă principală) ===\n"
+                . "Folosește detaliile, faptele specifice (etaj concret, dotări menționate, vecinătăți, etc.) "
+                . "DIN această descriere. Păstrează informațiile factuale. Doar îmbunătățește stilistic "
+                . "și adaptează tonul conform stilului cerut. NU inventa detalii noi, NU ignora detaliile din această sursă:\n\n"
+                . "\"\"\"\n{$trimmed}\n\"\"\"\n";
         }
 
-        $prompt = "Ești expert imobiliar din Moldova. Generează text de promovare în limba {$lang}.\n\n"
+        // Strong language enforcement — repeat instruction in TARGET language too
+        $langInstructions = [
+            'ro' => "RĂSPUNDE EXCLUSIV ÎN LIMBA ROMÂNĂ.",
+            'ru' => "ОТВЕЧАЙ ИСКЛЮЧИТЕЛЬНО НА РУССКОМ ЯЗЫКЕ. Не используй румынский язык. Все названия районов, улиц, особенностей описывай по-русски (например 'Ботаника', 'центр', 'мебелированная').",
+            'en' => "RESPOND EXCLUSIVELY IN ENGLISH.",
+        ];
+        $langStrict = $langInstructions[$locale] ?? $langInstructions['ro'];
+
+        $prompt = "Ești expert imobiliar din Moldova. Generează text de promovare ÎN LIMBA {$lang}.\n\n"
+            . "🔴 LIMBĂ OBLIGATORIE: {$langStrict}\n\n"
+            . "=== DATE PROPRIETATE ===\n"
             . 'Tip: '      . ($typeMap[$data['type'] ?? ''] ?? ($data['type'] ?? 'necunoscut')) . "\n"
             . 'Operație: ' . ($txMap[$data['transaction_type'] ?? ''] ?? ($data['transaction_type'] ?? '')) . "\n"
             . 'Oraș: '     . ($data['city'] ?? '') . "\n"
@@ -90,12 +104,16 @@ class AiService
             . (count($features)              ? 'Dotări: ' . implode(', ', $features) . "\n" : '')
             . (!empty($data['price'])        ? "Preț: {$data['price']} " . ($data['currency'] ?? 'EUR') . "\n" : '')
             . $sourceBlock
-            . "\nReguli stricte:\n"
-            . "- Folosește EXACT numărul de camere din 'Număr camere' — ignoră eventuale discrepanțe din titlu sau descriere.\n"
-            . "- Sector/Raion (ex: Botanica, Centru, Aeroport) NU este nume de stradă; nu scrie 'strada {sector}'. Dacă există 'Stradă/Adresă', folosește-o pentru locație concretă.\n"
-            . "- Nu inventa detalii care nu sunt în date (vecinătăți, an construcție, dotări nelistate).\n"
-            . "\nStil: " . ($styleMap[$style] ?? $styleMap['detailed']) . "\n"
-            . "\nRăspunde EXCLUSIV în JSON valid (fără markdown, fără text înainte sau după):\n"
+            . "\n=== REGULI STRICTE ===\n"
+            . "1. {$langStrict}\n"
+            . "2. Folosește EXACT numărul de camere din 'Număr camere' — ignoră eventuale discrepanțe.\n"
+            . "3. Sector/Raion (ex: Botanica, Centru, Aeroport) NU este nume de stradă; nu scrie 'strada {sector}'. Dacă există 'Stradă/Adresă', folosește-o pentru locație concretă.\n"
+            . "4. Nu inventa detalii care nu sunt în date (vecinătăți, an construcție, dotări nelistate).\n"
+            . "5. Dacă există DESCRIERE EXISTENTĂ, folosește detaliile specifice din ea ca sursă principală.\n"
+            . "\n=== STIL ===\n" . ($styleMap[$style] ?? $styleMap['detailed']) . "\n"
+            . "\n=== OUTPUT ===\n"
+            . "Răspunde EXCLUSIV în JSON valid (fără markdown, fără text înainte sau după).\n"
+            . "Toate cele 3 câmpuri (title, description, seo_tags) trebuie să fie ÎN LIMBA {$lang}.\n\n"
             . '{"title":"titlu atractiv 60-80 caractere","description":"corpul descrierii","seo_tags":["tag1","tag2","tag3","tag4","tag5"]}';
 
         $raw     = $this->complete($prompt, 'generate_description');

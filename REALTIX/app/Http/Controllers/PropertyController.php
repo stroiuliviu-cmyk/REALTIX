@@ -43,6 +43,7 @@ class PropertyController extends Controller
                 $q->where('title',    'like', "%{$s}%")
                   ->orWhere('address', 'like', "%{$s}%")
                   ->orWhere('district','like', "%{$s}%")
+                  ->orWhere('external_id', 'like', "%{$s}%")
                   ->orWhere('id', is_numeric($s) ? (int) $s : -1);
             }))
             ->when($request->filled('types') && is_array($request->types), fn ($q) => $q->whereIn('type', $request->types))

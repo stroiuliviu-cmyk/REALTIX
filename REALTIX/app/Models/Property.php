@@ -17,6 +17,8 @@ class Property extends Model
     protected $fillable = [
         'agency_id',
         'user_id',
+        'source',
+        'external_id',
         'title',
         'description_ro',
         'description_ru',

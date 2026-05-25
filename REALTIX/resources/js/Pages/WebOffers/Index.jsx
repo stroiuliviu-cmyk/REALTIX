@@ -162,6 +162,11 @@ function ListingRow({ l, isFavorite, isImported, onFav, onImport, onShowContact,
             <div className="flex-1 min-w-0 p-3 md:p-4 flex flex-col justify-between gap-2.5">
                 <div>
                     <div className="flex gap-1.5 flex-wrap mb-2">
+                        {l.external_id && (
+                            <span className="text-xs font-mono font-medium px-2 py-0.5 rounded bg-slate-800 text-white border border-slate-800">
+                                #{l.external_id}
+                            </span>
+                        )}
                         <span className="text-xs font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
                             {SOURCE_LABELS[l.source] ?? l.source}
                         </span>

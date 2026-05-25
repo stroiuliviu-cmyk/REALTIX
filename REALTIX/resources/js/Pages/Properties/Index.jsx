@@ -192,6 +192,14 @@ function PropertyRow({ p, isFavorite, isSelected, isAdmin, authUserId, onFav, on
                         <span className="text-xs font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
                             #{p.id}
                         </span>
+                        {p.external_id && p.source && (
+                            <span
+                                className="text-xs font-mono font-medium px-2 py-0.5 rounded bg-slate-800 text-white border border-slate-800"
+                                title={`Importat din ${p.source}`}
+                            >
+                                {p.source}#{p.external_id}
+                            </span>
+                        )}
                         <span className="text-xs font-medium px-2 py-0.5 rounded bg-slate-800 text-white">
                             {TYPE_LABELS[p.type] ?? p.type}
                         </span>

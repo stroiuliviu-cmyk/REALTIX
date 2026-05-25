@@ -189,15 +189,16 @@ function PropertyRow({ p, isFavorite, isSelected, isAdmin, authUserId, onFav, on
             <div className="flex-1 min-w-0 p-3 md:p-4 flex flex-col justify-between gap-2.5">
                 <div>
                     <div className="flex gap-1.5 flex-wrap mb-2">
-                        <span className="text-xs font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
-                            #{p.id}
-                        </span>
-                        {p.scraped_listing_id && (
+                        {p.scraped_listing_id ? (
                             <span
-                                className="text-xs font-mono font-medium px-2 py-0.5 rounded bg-slate-600 text-white border border-slate-600"
-                                title={`Importat din ${p.source ?? 'sursă externă'}`}
+                                className="text-xs font-mono font-medium px-2 py-0.5 rounded bg-slate-800 text-white border border-slate-800"
+                                title={`Importat din ${p.source ?? 'sursă externă'} (property #${p.id})`}
                             >
-                                scraped #{p.scraped_listing_id}
+                                #{p.scraped_listing_id}
+                            </span>
+                        ) : (
+                            <span className="text-xs font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                                #{p.id}
                             </span>
                         )}
                         <span className="text-xs font-medium px-2 py-0.5 rounded bg-slate-800 text-white">

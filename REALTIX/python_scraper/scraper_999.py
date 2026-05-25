@@ -1685,21 +1685,6 @@ def upsert_listing(conn, dialect: str, ad: dict, category: dict, agency_id: int)
     transaction_type = ad.get("transaction_type_override") or category["transaction_type"]
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
-    # Type override based on title — only for commercial-real-estate, where
-    # users frequently miscategorize apartments/lands/houses to gain visibility.
-    # Other categories don't have this problem (apartments → apartments etc.).
-    final_type = category["type"]
-    if category["slug"] == "commercial-real-estate":
-        title_lower = (ad.get("title") or "").lower()
-        if any(kw in title_lower for kw in ("apartament", "квартир")):
-            final_type = "apartment"
-        elif any(kw in title_lower for kw in ("teren", "участок")):
-            final_type = "land"
-        elif any(kw in title_lower for kw in ("cas", "villa", "вилл", "дом")):
-            final_type = "house"
-        if final_type != category["type"]:
-            print(f"  ⚠️  Reclassified #{ad.get('external_id')}: {category['type']} → {final_type} (from title)")
-
     raw_data = {
         "scraped_at":    datetime.now(timezone.utc).isoformat(timespec="seconds") + "Z",
         "description":   ad.get("description"),
@@ -1745,7 +1730,7 @@ def upsert_listing(conn, dialect: str, ad: dict, category: dict, agency_id: int)
         "phone":             ad.get("phone"),
         "owner_type":        ad.get("owner_type") or "agency",
         "published_at":      pub_str,
-        "type":              final_type,
+        "type":              category["type"],
         "transaction_type":  transaction_type,
         "raw_data":          json.dumps(raw_data, ensure_ascii=False),
         "updated_at":        now,

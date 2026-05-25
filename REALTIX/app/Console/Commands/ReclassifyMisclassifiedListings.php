@@ -8,41 +8,42 @@ use App\Models\ScrapedListing;
 class ReclassifyMisclassifiedListings extends Command
 {
     protected $signature = 'scraped:reclassify {--dry-run : Show changes without applying}';
-    protected $description = 'Detect and reclassify scraped_listings where type contradicts the title';
+    protected $description = 'Reclassify listings posted to wrong 999.md category (garages-and-parking)';
 
     public function handle()
     {
         $dryRun = $this->option('dry-run');
         $this->info($dryRun ? 'DRY RUN — no changes will be made' : 'APPLYING changes');
 
-        $rules = [
-            // Title regex => new type
-            'apartament|apartamente|квартир|квартира'  => 'apartment',
-            'teren|teren agricol|teren pentru|участок' => 'land',
-            'cas[aă]|villa|вилл|дом'                   => 'house',
-            'comercial|spațiu comercial|офис|магазин'  => 'commercial',
-        ];
+        // Only fix listings from garages-and-parking that obviously aren't garages
+        // (users post apartments/lands there for extra visibility)
+        $candidates = ScrapedListing::query()
+            ->where('source', '999md')
+            ->where(function ($q) {
+                $q->whereRaw("raw_data->>'category_slug' = ?", ['garages-and-parking']);
+            })
+            ->get();
+
+        $this->info("Found {$candidates->count()} listings from garages-and-parking category");
 
         $changed = 0;
         $skipped = 0;
         $details = [];
 
-        $listings = ScrapedListing::where('source', '999md')->get();
-
-        foreach ($listings as $l) {
-            $title   = mb_strtolower((string) $l->title);
+        foreach ($candidates as $l) {
+            $title  = trim((string) $l->title);
+            $titleLower = mb_strtolower($title);
             $oldType = $l->type;
             $newType = null;
 
-            // Check each rule, first match wins
-            foreach ($rules as $pattern => $type) {
-                if (preg_match("/({$pattern})/iu", $title)) {
-                    $newType = $type;
-                    break;
-                }
+            // Match by prefix only (first word)
+            if (preg_match('/^apartament/iu', $titleLower)) {
+                $newType = 'apartment';
+            } elseif (preg_match('/^teren/iu', $titleLower)) {
+                $newType = 'land';
             }
+            // Anything else (garaj, parcare, auto, etc.) stays as commercial
 
-            // Skip if no match or already correct
             if (! $newType || $newType === $oldType) {
                 $skipped++;
                 continue;
@@ -52,7 +53,7 @@ class ReclassifyMisclassifiedListings extends Command
                 'id'       => $l->id,
                 'old_type' => $oldType,
                 'new_type' => $newType,
-                'title'    => mb_substr($l->title, 0, 60),
+                'title'    => mb_substr($title, 0, 60),
             ];
 
             if (! $dryRun) {
@@ -62,7 +63,7 @@ class ReclassifyMisclassifiedListings extends Command
             $changed++;
         }
 
-        $this->info("Total listings: " . $listings->count());
+        $this->newLine();
         $this->info("Skipped (no rule match or already correct): {$skipped}");
         $this->info(($dryRun ? "Would change: " : "Changed: ") . $changed);
 

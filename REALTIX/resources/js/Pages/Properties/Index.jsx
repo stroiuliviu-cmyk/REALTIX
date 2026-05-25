@@ -14,7 +14,7 @@ const STATUS_COLORS = {
 };
 const STATUS_LABELS = { active: 'Activ', inactive: 'Inactiv', sold: 'Vândut', rented: 'Închiriat' };
 const TYPE_LABELS   = { apartment: 'Apartament', house: 'Casă', commercial: 'Comercial', land: 'Teren' };
-const TRANS_LABELS  = { sale: 'Vânzare', rent: 'Chirie' };
+const TRANS_LABELS  = { sale: 'Vânzare', rent: 'Chirie', inchiriere_zilnica: 'Închiriere zilnică' };
 
 
 /* ─── Sidebar helpers ───────────────────────────────────────────────────── */
@@ -149,9 +149,9 @@ function PropertyRow({ p, isFavorite, isSelected, isAdmin, authUserId, onFav, on
     const mediaCount = p.media_count ?? p.media?.length ?? 0;
 
     return (
-        <article className="bg-white border border-slate-200 rounded-xl overflow-hidden hover:border-slate-300 transition-colors mb-3 md:flex">
+        <article className="bg-white border border-slate-200 rounded-xl hover:border-slate-300 transition-colors mb-3 md:flex">
             {/* Image */}
-            <div className="relative w-full h-[200px] md:w-[200px] md:h-auto md:shrink-0 bg-slate-100">
+            <div className="relative w-full h-[200px] md:w-[200px] md:h-auto md:shrink-0 bg-slate-100 overflow-hidden">
                 <Link href={route('properties.show', p.id)} className="block w-full h-full">
                     {cover ? (
                         <img src={cover} alt={p.title} loading="lazy" className="w-full h-full object-cover" />

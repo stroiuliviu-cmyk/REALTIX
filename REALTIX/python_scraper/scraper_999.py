@@ -318,13 +318,84 @@ def get_recently_updated_ids(conn, dialect: str, hours: int = 4) -> set[str]:
     return {row[0] for row in rows}
 
 
-# ── List page → ad URLs ───────────────────────────────────────────────────────
-def collect_ad_urls(driver, category_slug: str, max_pages: int | None = 2) -> list[str]:
-    """Return unique ad URLs from a category, paginated.
+def check_db_listing_state(conn, dialect: str, external_id: str) -> dict | None:
+    """Returns DB state for a listing or None if not in DB.
 
-    If max_pages is None, paginate until no new ads are found on a page (end of results).
+    Used by the main loop to decide whether the expensive detail-page fetch
+    is needed (NEW listing or missing phone) or skippable (price-only update).
     """
-    urls: set[str] = set()
+    cur = conn.cursor()
+    cur.execute(
+        _ph("SELECT id, price, currency, phone FROM scraped_listings WHERE source = ? AND external_id = ?", dialect),
+        ("999md", external_id),
+    )
+    row = cur.fetchone()
+    cur.close()
+    if not row:
+        return None
+    return {
+        "id":        row[0],
+        "price":     float(row[1]) if row[1] is not None else None,
+        "currency":  row[2],
+        "has_phone": bool(row[3] and str(row[3]).strip()),
+    }
+
+
+def update_price_only(conn, dialect: str, listing_id: int, price: float | None, currency: str | None) -> None:
+    """Lightweight update: bump updated_at, and price/currency if provided.
+    No detail-page fetch required — call when the list-page card is enough."""
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    cur = conn.cursor()
+    if price is not None:
+        cur.execute(
+            _ph('UPDATE scraped_listings SET price = ?, currency = ?, updated_at = ? WHERE id = ?', dialect),
+            (price, currency or 'EUR', now, listing_id),
+        )
+    else:
+        cur.execute(
+            _ph('UPDATE scraped_listings SET updated_at = ? WHERE id = ?', dialect),
+            (now, listing_id),
+        )
+    cur.close()
+
+
+# ── List page → ad URLs ───────────────────────────────────────────────────────
+def _extract_card_price(anchor) -> tuple[int | None, str | None]:
+    """Walk up to ~4 ancestors looking for the listing card's price text.
+    Handles discount cards ("199 900 € 209 900 € −5%") by taking the FIRST
+    price (the current offer, smaller of the two). Returns (price, currency).
+    """
+    el = anchor
+    for _ in range(4):
+        el = el.parent
+        if el is None:
+            return (None, None)
+        text = el.get_text(separator=' ', strip=True)
+        if not text or len(text) > 2000:  # skip overly broad ancestors
+            continue
+        m = re.search(r'(\d[\d\s ]{2,12}\d)\s*(€|EUR|MDL|lei)', text, re.IGNORECASE)
+        if m:
+            digits = m.group(1).replace(' ', '').replace(' ', '')
+            try:
+                price = int(digits)
+            except ValueError:
+                continue
+            cur_raw = m.group(2).upper()
+            currency = 'EUR' if cur_raw in ('€', 'EUR') else 'MDL'
+            return (price, currency)
+    return (None, None)
+
+
+def collect_ad_urls(driver, category_slug: str, max_pages: int | None = 2) -> list[dict]:
+    """Return ad metadata from a category, paginated (deduped by external_id).
+
+    Each dict: { url, external_id, price (int|None), currency ('EUR'|'MDL'|None) }
+    Price/currency are extracted from the list-page card so callers can skip
+    the expensive detail fetch when only price has changed (or nothing has).
+
+    If max_pages is None, paginate until no new ads are found (end of results).
+    """
+    seen: dict[str, dict] = {}  # ext_id → card metadata
     base = f"{BASE_URL}/ro/list/real-estate/{category_slug}"
 
     page = 1
@@ -335,7 +406,7 @@ def collect_ad_urls(driver, category_slug: str, max_pages: int | None = 2) -> li
             break
 
         url = base + (f"?page={page}" if page > 1 else "")
-        prev_count = len(urls)
+        prev_count = len(seen)
 
         try:
             driver.get(url)
@@ -362,13 +433,23 @@ def collect_ad_urls(driver, category_slug: str, max_pages: int | None = 2) -> li
             for a in soup.find_all("a", href=True):
                 href = a["href"]
                 m = re.match(r"^/ro/(\d{6,})(?:[/?].*)?$", href)
-                if m:
-                    urls.add(f"{BASE_URL}/ro/{m.group(1)}")
+                if not m:
+                    continue
+                ext_id = m.group(1)
+                if ext_id in seen:
+                    continue  # other anchors on same card (image, title, ...) → first one wins
+                price, currency = _extract_card_price(a)
+                seen[ext_id] = {
+                    "url":         f"{BASE_URL}/ro/{ext_id}",
+                    "external_id": ext_id,
+                    "price":       price,
+                    "currency":    currency,
+                }
 
-            new_on_page = len(urls) - prev_count
-            print(f"    page {page}: +{new_on_page} new (cumulative {len(urls)})")
+            new_on_page = len(seen) - prev_count
+            print(f"    page {page}: +{new_on_page} new (cumulative {len(seen)})")
 
-            if not urls and page == 1:
+            if not seen and page == 1:
                 print(f"    [warn] no ads found on first page — possible block or selector change")
                 break
 
@@ -395,7 +476,7 @@ def collect_ad_urls(driver, category_slug: str, max_pages: int | None = 2) -> li
             print(f"    [error] page {page}: {e}")
             break
 
-    return sorted(urls)
+    return sorted(seen.values(), key=lambda d: d["external_id"])
 
 
 # ── Detail page → structured ad data ──────────────────────────────────────────
@@ -1811,26 +1892,27 @@ def main() -> int:
             stats["by_category"][cat["slug"]] = cat_stats
 
             print(f"📂 {cat['label']} ({cat['slug']})")
-            ad_urls = collect_ad_urls(driver, cat["slug"], max_pages=pages_arg)
-            print(f"  → {len(ad_urls)} unique ad URLs collected")
+            cards = collect_ad_urls(driver, cat["slug"], max_pages=pages_arg)
+            print(f"  → {len(cards)} unique cards collected")
 
             consecutive_old = 0  # shared counter for --today-only and --scope-hours early-exit
             consecutive_recent = 0  # for early-exit when we hit already-processed zone
 
-            for url in ad_urls:
+            for card in cards:
+                url           = card["url"]
+                external_id   = card["external_id"]
+                list_price    = card.get("price")
+                list_currency = card.get("currency")
+
                 if args.max_ads and stats["processed"] >= args.max_ads:
                     print(f"\n🛑 Hit max-ads limit ({args.max_ads})")
                     raise KeyboardInterrupt()
 
                 # Skip recently-updated ads. 999.md sorts pages desc by date, so
                 # 5 in a row already in our DB means we've reached the
-                # already-processed zone — safe to skip the rest. Used as a
-                # date-independent fallback because 999.md removed datePosted from
-                # JSON-LD, breaking --scope-hours. Skipped for mode=morning
-                # (catch-up run must scan everything regardless of DB state).
-                m = re.search(r"/ro/(\d+)", url)
-                ext_id = m.group(1) if m else None
-                if ext_id and ext_id in recently_updated:
+                # already-processed zone — safe to skip the rest. Skipped for
+                # mode=morning (catch-up run must scan everything).
+                if external_id in recently_updated:
                     consecutive_recent += 1
                     if consecutive_recent >= 5 and _MODE != "morning":
                         print(f"  ⏭️  Early-exit: 5 consecutive ads already processed in last {args.skip_recent_hours}h — skipping rest of {cat['slug']}")
@@ -1844,62 +1926,96 @@ def main() -> int:
                     _write_heartbeat()
                     last_heartbeat = time.time()
 
-                try:
-                    ad = extract_ad(driver, url)
-                    # Anti-rate-limit preventive delay (3-5s between ads)
-                    time.sleep(random.uniform(3, 5))
-                    if not ad:
-                        continue
+                # Check DB state up front — most listings hit the SKIP/PRICE
+                # fast path (~0.1s) instead of a full Selenium detail fetch (~12s).
+                db_state = check_db_listing_state(conn, dialect, external_id)
 
-                    # --scope-hours: skip ads published outside the time window.
-                    # 5 consecutive out-of-scope ads end the category early — applies
-                    # regardless of --mode (was previously gated on hourly only, which
-                    # left morning runs scanning all pages until the watchdog timeout).
-                    if scope_cutoff is not None:
-                        pub = ad.get("published_at")
-                        if pub is None:
-                            print(f"    [warn] no published_at for #{ad.get('external_id')} — processing anyway")
-                        else:
+                try:
+                    if db_state is None:
+                        # NEW listing — full extraction (only branch that fetches the detail page)
+                        ad = extract_ad(driver, url)
+                        time.sleep(random.uniform(3, 5))  # anti-rate-limit between detail fetches
+                        if not ad:
+                            stats["errors"] += 1
+                            cat_stats["errors"] += 1
+                            continue
+
+                        # --scope-hours: skip ads published outside the time window.
+                        # 5 consecutive out-of-scope ads end the category early.
+                        if scope_cutoff is not None:
+                            pub = ad.get("published_at")
+                            if pub is None:
+                                print(f"    [warn] no published_at for #{ad.get('external_id')} — processing anyway")
+                            else:
+                                pub_naive = pub.replace(tzinfo=None) if pub.tzinfo else pub
+                                if pub_naive < scope_cutoff:
+                                    consecutive_old += 1
+                                    if consecutive_old >= 5:
+                                        print(f"  ⏭️  Early-exit: 5 consecutive ads older than {_SCOPE_HOURS}h — skipping rest")
+                                        break
+                                    continue
+                                else:
+                                    consecutive_old = 0
+
+                        # --today-only: stop category if ad is older than today
+                        if _TODAY_ONLY and ad.get("published_at"):
+                            pub = ad["published_at"]
                             pub_naive = pub.replace(tzinfo=None) if pub.tzinfo else pub
-                            if pub_naive < scope_cutoff:
+                            if pub_naive < today_start:
                                 consecutive_old += 1
                                 if consecutive_old >= 5:
-                                    print(f"  ⏭️  Early-exit: 5 consecutive ads older than {_SCOPE_HOURS}h — skipping rest")
+                                    print(f"  🛑 today-only: 5 consecutive ads older than today, switching to next category")
                                     break
                                 continue
                             else:
                                 consecutive_old = 0
 
-                    # --today-only: stop category if ad is older than today
-                    if _TODAY_ONLY and ad.get("published_at"):
-                        pub = ad["published_at"]
-                        pub_naive = pub.replace(tzinfo=None) if pub.tzinfo else pub
-                        if pub_naive < today_start:
-                            consecutive_old += 1
-                            if consecutive_old >= 5:
-                                print(f"  🛑 today-only: 5 consecutive ads older than today, switching to next category")
-                                break
-                            continue
-                        else:
-                            consecutive_old = 0
-
-                    is_new = upsert_listing(conn, dialect, ad, cat, args.agency)
-                    conn.commit()
-                    stats["processed"] += 1
-
-                    if is_new:
+                        upsert_listing(conn, dialect, ad, cat, args.agency)
+                        conn.commit()
                         stats["new"] += 1
                         cat_stats["new"] += 1
-                        marker = "✅ NEW"
-                    else:
+                        title = (ad.get("title") or "")[:45]
+                        price = ad.get("price")
+                        price_str = f"{int(price):,} {ad['currency']}" if price else "—"
+                        print(f"  ✅ NEW #{ad['external_id']:>9} | {title:<45} | {price_str:>12} | imgs={len(ad['images']):2} ph={'y' if ad['phone'] else 'n'}")
+
+                    elif not db_state["has_phone"]:
+                        # Existing but missing phone — retry detail fetch to capture it.
+                        ad = extract_ad(driver, url)
+                        time.sleep(random.uniform(3, 5))
+                        if not ad:
+                            # Detail failed — at least bump price + updated_at so we don't
+                            # re-attempt within skip-recent-hours.
+                            update_price_only(conn, dialect, db_state["id"], list_price, list_currency)
+                            conn.commit()
+                            cur_str = list_currency or '—'
+                            print(f"  ↻ UPD-light (no detail) #{external_id} | (list price: {list_price} {cur_str})")
+                        else:
+                            upsert_listing(conn, dialect, ad, cat, args.agency)
+                            conn.commit()
+                            title = (ad.get("title") or "")[:45]
+                            price = ad.get("price")
+                            price_str = f"{int(price):,} {ad['currency']}" if price else "—"
+                            print(f"  📞 RETRY-phone #{ad['external_id']:>9} | {title:<45} | {price_str:>12} | imgs={len(ad['images']):2} ph={'y' if ad['phone'] else 'n'}")
                         stats["updated"] += 1
                         cat_stats["updated"] += 1
-                        marker = "↻ UPD"
 
-                    title = (ad.get("title") or "")[:45]
-                    price = ad.get("price")
-                    price_str = f"{int(price):,} {ad['currency']}" if price else "—"
-                    print(f"  {marker} #{ad['external_id']:>9} | {title:<45} | {price_str:>12} | imgs={len(ad['images']):2} ph={'y' if ad['phone'] else 'n'}")
+                    else:
+                        # Existing + has phone → SKIP detail. Bump updated_at, sync price if changed.
+                        price_changed = (
+                            list_price is not None
+                            and db_state["price"] is not None
+                            and abs(list_price - db_state["price"]) > 0.01
+                        )
+                        update_price_only(conn, dialect, db_state["id"], list_price, list_currency)
+                        conn.commit()
+                        marker = "💲 PRICE" if price_changed else "⏭️  SKIP"
+                        cur_str = list_currency or '—'
+                        print(f"  {marker} #{external_id} | (list price: {list_price} {cur_str})")
+                        stats["updated"] += 1
+                        cat_stats["updated"] += 1
+
+                    stats["processed"] += 1
 
                 except Exception as e:
                     stats["errors"] += 1

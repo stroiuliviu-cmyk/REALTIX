@@ -39,7 +39,6 @@ export default function PhoneInteractionModal({ subjectType, subjectId, onClose,
     const [phone,   setPhone]     = useState(null);
     const [owner,   setOwner]     = useState(null);
     const [history, setHistory]   = useState([]);
-    const [note,    setNote]      = useState('');
     const [posting, setPosting]   = useState(null); // outcome currently being submitted
     const [error,   setError]     = useState('');
 
@@ -76,10 +75,9 @@ export default function PhoneInteractionModal({ subjectType, subjectId, onClose,
                 subject_type: subjectType,
                 subject_id:   subjectId,
                 outcome,
-                note: note || null,
+                note: null,
             });
             setHistory(res.data.history ?? []);
-            setNote('');
             onLogged?.(res.data.interaction);
             // Mandatory mode: choosing an outcome is the only way out — close now.
             if (mandatory) onClose?.();
@@ -142,18 +140,6 @@ export default function PhoneInteractionModal({ subjectType, subjectId, onClose,
                                     {owner.first_name} {owner.last_name ?? ''}
                                 </div>
                             )}
-                        </div>
-
-                        {/* Note (only used when logging) */}
-                        <div>
-                            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Notiță (opțional)</label>
-                            <textarea
-                                value={note}
-                                onChange={e => setNote(e.target.value)}
-                                rows={2}
-                                placeholder="Detalii despre apel…"
-                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-slate-400"
-                            />
                         </div>
 
                         {/* Action buttons — always enabled (parity with Web Offers). */}

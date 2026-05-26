@@ -3,6 +3,7 @@ import { Head, router, Link } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import Combobox from '@/Components/Combobox';
 import { MOLDOVA_LOCALITIES, CHISINAU_DISTRICTS } from '@/Constants/moldova';
+import { TYPE_OPTIONS, TRANSACTION_OPTIONS } from '@/lib/propertyLabels';
 
 // ── styles ─────────────────────────────────────────────────────────────────
 const inputCls =
@@ -10,17 +11,8 @@ const inputCls =
 const selectCls = inputCls;
 
 // ── constants ───────────────────────────────────────────────────────────────
-const TYPES = [
-    { value: 'apartment', label: 'Apartament', icon: '🏢' },
-    { value: 'house',     label: 'Casă',       icon: '🏠' },
-    { value: 'commercial',label: 'Comercial',  icon: '🏪' },
-    { value: 'land',      label: 'Teren',      icon: '🌿' },
-];
-const TRANSACTIONS = [
-    { value: 'sale',               label: 'Vânzare' },
-    { value: 'rent',               label: 'Chirie' },
-    { value: 'inchiriere_zilnica', label: 'Zilnică' },
-];
+// Labels centralized in @/lib/propertyLabels. Icons kept local for visual flair.
+const TYPE_ICONS = { apartment: '🏢', house: '🏠', cottage: '🏡', land: '🌿', garage: '🚗', commercial: '🏪' };
 const CONDITIONS = [
     { value: '',                label: '— Nedefinit —' },
     { value: 'new',             label: 'Nou / fără renovare' },
@@ -330,8 +322,8 @@ export default function Create({ authUser = {} }) {
     }, [data.city, data.type, data.transaction_type, data.district, data.area_total, data.rooms, data.price, data.currency, data.description_ro, data.description_ru, data.meta]);
 
     const { filled, total, pct } = completion(data, photoFiles.length);
-    const typeLabel = TYPES.find(t => t.value === data.type)?.label ?? '';
-    const txLabel   = TRANSACTIONS.find(t => t.value === data.transaction_type)?.label ?? '';
+    const typeLabel = TYPE_OPTIONS.find(t => t.value === data.type)?.label ?? '';
+    const txLabel   = TRANSACTION_OPTIONS.find(t => t.value === data.transaction_type)?.label ?? '';
     const isRent    = data.transaction_type === 'rent' || data.transaction_type === 'inchiriere_zilnica';
 
     return (
@@ -363,9 +355,9 @@ export default function Create({ authUser = {} }) {
                         <div>
                             <label className="block text-xs font-semibold text-slate-500 mb-2">Tip proprietate</label>
                             <div className="flex flex-wrap gap-2">
-                                {TYPES.map(t => (
+                                {TYPE_OPTIONS.map(t => (
                                     <PillBtn key={t.value} active={data.type === t.value} onClick={() => setData('type', t.value)}>
-                                        {t.icon} {t.label}
+                                        {TYPE_ICONS[t.value] ?? '🏢'} {t.label}
                                     </PillBtn>
                                 ))}
                             </div>
@@ -375,7 +367,7 @@ export default function Create({ authUser = {} }) {
                         <div>
                             <label className="block text-xs font-semibold text-slate-500 mb-2">Tip operație</label>
                             <div className="flex flex-wrap gap-2">
-                                {TRANSACTIONS.map(t => (
+                                {TRANSACTION_OPTIONS.map(t => (
                                     <PillBtn key={t.value} active={data.transaction_type === t.value} onClick={() => setData('transaction_type', t.value)}>
                                         {t.label}
                                     </PillBtn>

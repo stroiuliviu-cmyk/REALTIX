@@ -123,14 +123,43 @@ class AutoPostController extends Controller
     public function publishNow(AutoPostRequest $autoPost, ?array $platforms = null): void
     {
         $platforms ??= $autoPost->getPlatformsList();
+        $results    = $autoPost->platform_results ?? [];
+        $property   = $autoPost->property;
+        $agency     = $autoPost->agency ?? $property?->agency;
+        $hasFailure = false;
 
-        $results = $autoPost->platform_results ?? [];
         foreach ($platforms as $platform) {
-            $results[$platform] = [
-                'status' => 'posted',
-                'url'    => $this->simulatePlatformUrl($platform, $autoPost->property),
-                'error'  => null,
-            ];
+            if ($platform === '999md' && $property && $agency) {
+                try {
+                    $service    = app(\App\Services\Portals\Portal999Service::class);
+                    $response   = $service->createAd($property, $agency);
+                    $externalId = data_get($response, 'advert.id');
+                    $url        = $externalId ? "https://999.md/ro/{$externalId}" : null;
+
+                    $results[$platform] = [
+                        'status'      => 'posted',
+                        'url'         => $url,
+                        'external_id' => $externalId,
+                        'error'       => null,
+                        'posted_at'   => now()->toIso8601String(),
+                    ];
+                } catch (\Throwable $e) {
+                    \Log::error("999.md publish failed property {$property->id}: " . $e->getMessage());
+                    $results[$platform] = [
+                        'status' => 'failed',
+                        'url'    => null,
+                        'error'  => $e->getMessage(),
+                    ];
+                    $hasFailure = true;
+                }
+            } else {
+                // Facebook, Imobiliare.md — încă simulate
+                $results[$platform] = [
+                    'status' => 'posted',
+                    'url'    => $this->simulatePlatformUrl($platform, $property),
+                    'error'  => null,
+                ];
+            }
         }
 
         $autoPost->update([
@@ -139,6 +168,7 @@ class AutoPostController extends Controller
             'platform_results' => $results,
             'posted_at'        => now(),
             'scheduled_at'     => null,
+            'admin_note'       => $hasFailure ? 'Unele platforme au eșuat — vezi platform_results' : null,
         ]);
     }
 

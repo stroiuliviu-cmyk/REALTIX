@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { MOLDOVA_LOCALITIES, CHISINAU_DISTRICTS } from '@/Constants/moldova';
 import Combobox from '@/Components/Combobox';
 import { MapPin, Camera, Star, Image as ImageIcon } from 'lucide-react';
+import { getTypeLabel, getTransactionLabel } from '@/lib/propertyLabels';
 
 /* ─── Constants ─────────────────────────────────────────────────────────── */
 const STATUS_COLORS = {
@@ -13,8 +14,8 @@ const STATUS_COLORS = {
     rented:   { badge: 'bg-violet-100 text-violet-700',   dot: 'bg-violet-500' },
 };
 const STATUS_LABELS = { active: 'Activ', inactive: 'Inactiv', sold: 'Vândut', rented: 'Închiriat' };
-const TYPE_LABELS   = { apartment: 'Apartament', house: 'Casă', commercial: 'Comercial', land: 'Teren' };
-const TRANS_LABELS  = { sale: 'Vânzare', rent: 'Chirie', inchiriere_zilnica: 'Închiriere zilnică' };
+// Type/transaction labels centralized in @/lib/propertyLabels (imported below).
+// Use getTypeLabel(p.type) / getTransactionLabel(p.transaction_type) at call sites.
 
 
 /* ─── Sidebar helpers ───────────────────────────────────────────────────── */
@@ -202,13 +203,13 @@ function PropertyRow({ p, isFavorite, isSelected, isAdmin, authUserId, onFav, on
                             </span>
                         )}
                         <span className="text-xs font-medium px-2 py-0.5 rounded bg-slate-800 text-white">
-                            {TYPE_LABELS[p.type] ?? p.type}
+                            {getTypeLabel(p.type)}
                         </span>
                         {p.transaction_type && (
                             <span className={`text-xs font-medium px-2 py-0.5 rounded ${
                                 p.transaction_type === 'rent' ? 'bg-violet-100 text-violet-700' : 'bg-blue-100 text-blue-700'
                             }`}>
-                                {TRANS_LABELS[p.transaction_type] ?? p.transaction_type}
+                                {getTransactionLabel(p.transaction_type)}
                             </span>
                         )}
                     </div>

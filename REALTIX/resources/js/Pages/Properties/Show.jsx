@@ -3,6 +3,7 @@ import TransferOwnershipModal from '@/Components/TransferOwnershipModal';
 import PhoneInteractionModal from '@/Components/PhoneInteractionModal';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
+import { getTransactionLabel } from '@/lib/propertyLabels';
 
 // ── constants ────────────────────────────────────────────────────────────────
 const VALUATION_CONFIG = {
@@ -396,7 +397,7 @@ export default function Show({ property, contracts = [], viewings = [], availabl
                                     },
                                     {
                                         label: 'Tranzacție',
-                                        value: property.transaction_type === 'sale' ? 'Vânzare' : 'Chirie',
+                                        value: getTransactionLabel(property.transaction_type),
                                     },
                                 ].filter(Boolean);
 

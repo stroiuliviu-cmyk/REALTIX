@@ -9,6 +9,7 @@ import {
     Camera, MapPin, Calendar, Phone, Star, Plus, Check,
     Image as ImageIcon, Building2, User, ExternalLink,
 } from 'lucide-react';
+import { getTypeLabel, getTransactionLabel } from '@/lib/propertyLabels';
 
 /* ─── Constants ─────────────────────────────────────────────────────────── */
 const SOURCE_LABELS = {
@@ -19,8 +20,7 @@ const SOURCE_LABELS = {
 
 const OWNER_LABELS = { owner: 'Proprietar', agency: 'Agenție' };
 
-const TYPE_LABELS  = { apartment: 'Apartament', house: 'Casă', commercial: 'Comercial', land: 'Teren' };
-const TRANS_LABELS = { sale: 'Vânzare', rent: 'Chirie', inchiriere_zilnica: 'Zilnică', new_build: 'Constr. nouă' };
+// Type/transaction labels centralized in @/lib/propertyLabels (imported below).
 
 // AI valuation chip — only 'cheap' and 'expensive' surface; 'average' is the
 // neutral default and adds no visual signal.
@@ -106,7 +106,7 @@ function ListingRow({ l, isFavorite, isImported, onFav, onImport, onShowContact,
     // Reconstruct title from fields — scraped titles often duplicate location
     // (e.g. "Apartament, Centru, Comrat, Comrat"). Sourcing from typed columns
     // keeps the card consistent and prevents that bug surface.
-    const propLabel = TYPE_LABELS[l.type] ?? 'Imobil';
+    const propLabel = getTypeLabel(l.type) || 'Imobil';
     const roomsLabel = l.rooms != null
         ? `${l.rooms} ${l.rooms === 1 ? 'cameră' : (l.rooms < 5 ? 'camere' : 'de camere')}`
         : null;
@@ -180,7 +180,7 @@ function ListingRow({ l, isFavorite, isImported, onFav, onImport, onShowContact,
                         )}
                         {l.transaction_type && (
                             <span className="text-xs font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
-                                {TRANS_LABELS[l.transaction_type] ?? l.transaction_type}
+                                {getTransactionLabel(l.transaction_type)}
                             </span>
                         )}
                     </div>

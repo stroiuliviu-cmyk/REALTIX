@@ -11,27 +11,82 @@ class Portal999Service
 {
     const BASE_URL = 'https://partners-api.999.md';
 
-    // Universal feature IDs (from 999.md API docs examples)
-    const F_PRICE       = 2;
-    const F_TITLE       = 12;
-    const F_DESCRIPTION = 13;
-    const F_IMAGES      = 14;
-    const F_CONTACTS    = 16;
+    // Feature IDs (confirmed via /categories/270/features endpoint)
+    const F_PRICE        = 2;
+    const F_AUTHOR       = 795;
+    const F_ROOMS        = 241;
+    const F_AREA         = 244;
+    const F_FUND         = 852;
+    const F_FLOOR        = 248;
+    const F_FLOORS_TOTAL = 249;
+    const F_REGION       = 7;
+    const F_LOCALITY     = 8;
+    const F_SECTOR       = 9;
+    const F_STREET       = 10;
+    const F_BUILDING     = 11;
+    const F_DESCRIPTION  = 13;
+    const F_IMAGES       = 14;
+    const F_CONTACTS     = 16;
 
-    // Property type → 999.md subcategory key in agency settings
-    const TYPE_SETTINGS_KEY = [
-        'apartment' => 'p999_subcat_apartment',
-        'house'     => 'p999_subcat_house',
-        'commercial'=> 'p999_subcat_commercial',
-        'land'      => 'p999_subcat_land',
+    const CATEGORY_IMOBILIARE = 270;
+
+    const TYPE_TO_SUBCATEGORY = [
+        'apartment'  => 1404,
+        'house'      => 1406,
+        'cottage'    => 6678,
+        'land'       => 1407,
+        'garage'     => 1408,
+        'commercial' => 1405,
     ];
 
-    const TRANSACTION_SETTINGS_KEY = [
-        'sale'       => 'p999_offer_sale',
-        'rent'       => 'p999_offer_rent',
-        'inchiriere_zilnica' => 'p999_offer_rent_short',
-        'new_build'  => 'p999_offer_sale',
+    const TRANSACTION_TO_OFFER_TYPE = [
+        'sale'               => 776,
+        'rent'               => 912,
+        'inchiriere_zilnica' => 903,
+        'new_build'          => 776,
+        'exchange'           => 778,
+        'buy'                => 777,
     ];
+
+    const ROOMS_MAP = [
+        1 => '893', 2 => '894', 3 => '902', 4 => '904', 5 => '20442',
+    ];
+
+    const FLOOR_MAP = [
+        1 => '918',  2 => '935',  3 => '905',  4 => '929',  5 => '909',
+        6 => '955',  7 => '895',  8 => '921',  9 => '934',  10 => '947',
+        11 => '970', 12 => '965', 13 => '958', 14 => '913', 15 => '1016',
+        16 => '1019',17 => '940', 18 => '1021',19 => '1015',20 => '1681',
+        21 => '1679',22 => '12484',23 => '12485',24 => '1661',25 => '1014',
+    ];
+
+    const FLOORS_TOTAL_MAP = [
+        1 => '956',  2 => '964',  3 => '906',  4 => '936',  5 => '910',
+        6 => '919',  7 => '971',  8 => '975',  9 => '896',  10 => '951',
+        11 => '948', 12 => '954', 13 => '966', 14 => '959', 15 => '979',
+        16 => '914', 17 => '1018',18 => '1017',19 => '982', 20 => '972',
+        21 => '963', 22 => '1020',23 => '1680',24 => '941', 25 => '1668',
+    ];
+
+    const SECTOR_MAP = [
+        'centru'      => '15664',
+        'botanica'    => '15665',
+        'buiucani'    => '15666',
+        'râșcani'     => '15667',
+        'riscani'     => '15667',
+        'telecentru'  => '15668',
+        'ciocana'     => '15669',
+        'poșta veche' => '15670',
+        'posta veche' => '15670',
+        'sculeni'     => '15671',
+        'aeroport'    => '15672',
+    ];
+
+    const REGION_CHISINAU   = '12900';
+    const LOCALITY_CHISINAU = '13859';
+    const AUTHOR_AGENCY     = '18894';
+    const FUND_SECONDARY    = '19109';
+    const FUND_NEW_BUILD    = '19108';
 
     // ── HTTP client ──────────────────────────────────────────────────────────
 
@@ -114,19 +169,23 @@ class Portal999Service
     {
         $property->load('media', 'user');
 
-        $settings = $agency->settings ?? [];
+        $type = $property->type;
+        $txn  = $property->transaction_type;
 
-        $categoryId    = (int) ($settings['p999_category_id'] ?? 0);
-        $subcategoryId = (int) ($settings[self::TYPE_SETTINGS_KEY[$property->type] ?? 'p999_subcat_apartment'] ?? 0);
-        $offerTypeId   = (int) ($settings[self::TRANSACTION_SETTINGS_KEY[$property->transaction_type] ?? 'p999_offer_sale'] ?? 0);
-
-        if (! $categoryId || ! $subcategoryId || ! $offerTypeId) {
-            throw new \RuntimeException('Categoriile 999.md nu sunt configurate în Settings → Portaluri.');
+        if (! isset(self::TYPE_TO_SUBCATEGORY[$type])) {
+            throw new \RuntimeException("Tipul de proprietate '{$type}' nu este suportat de 999.md");
+        }
+        if (! isset(self::TRANSACTION_TO_OFFER_TYPE[$txn])) {
+            throw new \RuntimeException("Tipul de tranzacție '{$txn}' nu este suportat de 999.md");
         }
 
-        // Upload images
+        $categoryId    = self::CATEGORY_IMOBILIARE;
+        $subcategoryId = self::TYPE_TO_SUBCATEGORY[$type];
+        $offerTypeId   = self::TRANSACTION_TO_OFFER_TYPE[$txn];
+
+        // Upload images (max 10 — limita 999.md fără Premium)
         $imageIds = [];
-        foreach ($property->media->take(20) as $media) {
+        foreach ($property->media->take(10) as $media) {
             try {
                 $id = $this->uploadImage($media->path, $agency);
                 if ($id) $imageIds[] = $id;
@@ -135,17 +194,26 @@ class Portal999Service
             }
         }
 
+        if (empty($imageIds)) {
+            throw new \RuntimeException('Nu s-au putut încărca imaginile pe 999.md. Cel puțin 1 imagine e necesară.');
+        }
+
+        $settings = $agency->settings ?? [];
         $payload = [
-            'category_id'    => $categoryId,
-            'subcategory_id' => $subcategoryId,
-            'offer_type'     => $offerTypeId,
+            'category_id'    => (string) $categoryId,
+            'subcategory_id' => (string) $subcategoryId,
+            'offer_type'     => (string) $offerTypeId,
             'features'       => $this->buildFeatures($property, $imageIds, $settings),
         ];
+
+        Log::info('999.md createAd payload', ['property_id' => $property->id, 'payload' => $payload]);
 
         $response = $this->client($agency)->post('/adverts', $payload);
 
         if (! $response->successful()) {
-            throw new \RuntimeException('createAd failed: ' . $response->body());
+            $error = $response->body();
+            Log::error('999.md createAd failed', ['status' => $response->status(), 'body' => $error]);
+            throw new \RuntimeException("createAd failed (HTTP {$response->status()}): {$error}");
         }
 
         return $response->json();
@@ -269,47 +337,102 @@ class Portal999Service
         $currencyMap = ['EUR' => 'eur', 'USD' => 'usd', 'MDL' => 'mdl'];
         $currency    = $currencyMap[$property->currency] ?? 'eur';
 
-        $fPrice = (int) ($settings['p999_feature_price']       ?? self::F_PRICE);
-        $fTitle = (int) ($settings['p999_feature_title']       ?? self::F_TITLE);
-        $fDesc  = (int) ($settings['p999_feature_description'] ?? self::F_DESCRIPTION);
-        $fImg   = (int) ($settings['p999_feature_images']      ?? self::F_IMAGES);
-        $fPhone = (int) ($settings['p999_feature_contacts']    ?? self::F_CONTACTS);
+        $features = [];
 
-        $description = $property->description_ro
-            ?? $property->description_ru
-            ?? $property->description_en
-            ?? $property->title;
+        // Required: Preț
+        $features[] = ['id' => (string) self::F_PRICE, 'value' => (int) $property->price, 'unit' => $currency];
 
-        $features = [
-            ['id' => (string) $fPrice, 'value' => (int) $property->price, 'unit' => $currency],
-            ['id' => (string) $fTitle, 'value' => $property->title],
-            ['id' => (string) $fDesc,  'value' => $description],
-        ];
+        // Required: Author = Agenție
+        $features[] = ['id' => (string) self::F_AUTHOR, 'value' => self::AUTHOR_AGENCY];
 
-        if ($property->user?->phone) {
-            $features[] = ['id' => (string) $fPhone, 'value' => [$property->user->phone]];
-        }
-
-        if (! empty($imageIds)) {
-            $features[] = ['id' => (string) $fImg, 'value' => $imageIds];
-        }
-
-        if ($property->latitude && $property->longitude) {
-            $fLocation = (int) ($settings['p999_feature_location'] ?? 0);
-            if ($fLocation) {
-                $features[] = [
-                    'id'    => (string) $fLocation,
-                    'value' => [
-                        'lat'     => (float) $property->latitude,
-                        'lon'     => (float) $property->longitude,
-                        'bearing' => 0,
-                        'pitch'   => 0,
-                        'zoom'    => 15,
-                    ],
-                ];
+        // Required pentru apartment / cottage: Număr camere
+        if (in_array($property->type, ['apartment', 'cottage']) && $property->rooms) {
+            $roomsKey = $property->rooms >= 5 ? 5 : $property->rooms;
+            if (isset(self::ROOMS_MAP[$roomsKey])) {
+                $features[] = ['id' => (string) self::F_ROOMS, 'value' => self::ROOMS_MAP[$roomsKey]];
             }
         }
 
+        // Required: Suprafață totală
+        if ($property->area_total) {
+            $features[] = ['id' => (string) self::F_AREA, 'value' => (int) $property->area_total, 'unit' => 'm2'];
+        }
+
+        // Required pentru apartment: Fond locativ
+        if ($property->type === 'apartment') {
+            $isNewBuild = data_get($property->meta, 'is_new_build')
+                || $property->transaction_type === 'new_build';
+            $fund = $isNewBuild ? self::FUND_NEW_BUILD : self::FUND_SECONDARY;
+            $features[] = ['id' => (string) self::F_FUND, 'value' => $fund];
+        }
+
+        // Required pentru apartment: Etaj
+        if ($property->type === 'apartment' && $property->floor && isset(self::FLOOR_MAP[$property->floor])) {
+            $features[] = ['id' => (string) self::F_FLOOR, 'value' => self::FLOOR_MAP[$property->floor]];
+        }
+
+        // Required pentru apartment: Număr etaje
+        if ($property->type === 'apartment' && $property->floors_total && isset(self::FLOORS_TOTAL_MAP[$property->floors_total])) {
+            $features[] = ['id' => (string) self::F_FLOORS_TOTAL, 'value' => self::FLOORS_TOTAL_MAP[$property->floors_total]];
+        }
+
+        // Required: Regiune Chișinău (hardcoded pentru moment)
+        $features[] = ['id' => (string) self::F_REGION, 'value' => self::REGION_CHISINAU];
+
+        // Required: Localitate Chișinău
+        $features[] = ['id' => (string) self::F_LOCALITY, 'value' => self::LOCALITY_CHISINAU];
+
+        // Required: Sector (mapat din district)
+        $districtKey = strtolower(trim($property->district ?? ''));
+        $sectorId    = self::SECTOR_MAP[$districtKey] ?? self::SECTOR_MAP['centru'];
+        $features[]  = ['id' => (string) self::F_SECTOR, 'value' => $sectorId];
+
+        // Required: Stradă + Casă (split din address)
+        $address = trim($property->address ?? '');
+        [$street, $building] = $this->splitAddress($address);
+        $features[] = ['id' => (string) self::F_STREET,   'value' => $street ?: 'Nedeterminat'];
+        $features[] = ['id' => (string) self::F_BUILDING, 'value' => $building ?: '0'];
+
+        // Optional: Description
+        $description = $property->description_ro ?? $property->description_ru ?? $property->title;
+        if ($description) {
+            $description = preg_replace('/^https?:\/\/\S+\s*\n+/', '', $description);
+            $features[]  = ['id' => (string) self::F_DESCRIPTION, 'value' => trim($description)];
+        }
+
+        // Required: Imagini
+        if (! empty($imageIds)) {
+            $features[] = ['id' => (string) self::F_IMAGES, 'value' => $imageIds];
+        }
+
+        // Optional: Contacte (phone)
+        $phone = $this->normalizePhone(
+            $settings['contact_phone'] ?? $property->user?->phone ?? null
+        );
+        if ($phone) {
+            $features[] = ['id' => (string) self::F_CONTACTS, 'value' => [$phone]];
+        }
+
         return $features;
+    }
+
+    private function splitAddress(string $address): array
+    {
+        if (empty($address)) return ['', ''];
+        if (preg_match('/^(.+?)\s+(\d+\w*)$/', $address, $m)) {
+            return [trim($m[1]), trim($m[2])];
+        }
+        return [$address, ''];
+    }
+
+    private function normalizePhone(?string $phone): ?string
+    {
+        if (! $phone) return null;
+        $clean = preg_replace('/[^0-9]/', '', $phone);
+        if (empty($clean)) return null;
+        if (strlen($clean) === 8) return '373' . $clean;
+        if (strlen($clean) === 9 && str_starts_with($clean, '0')) return '373' . substr($clean, 1);
+        if (strlen($clean) === 11 && str_starts_with($clean, '373')) return $clean;
+        return $clean;
     }
 }

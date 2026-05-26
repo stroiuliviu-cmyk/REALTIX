@@ -175,8 +175,8 @@ class PropertyController extends Controller
 
         $validated = $request->validate([
             'title'            => 'required|string|max:255',
-            'type'             => 'required|in:apartment,house,commercial,land',
-            'transaction_type' => 'required|in:sale,rent,inchiriere_zilnica,new_build',
+            'type'             => 'required|in:apartment,house,cottage,land,garage,commercial',
+            'transaction_type' => 'required|in:sale,rent,inchiriere_zilnica,new_build,exchange,buy',
             'price'            => 'nullable|numeric|min:0',
             'currency'         => 'required|in:EUR,USD,MDL',
             'area_total'       => 'nullable|numeric|min:0',
@@ -393,8 +393,8 @@ class PropertyController extends Controller
 
         $validated = $request->validate([
             'title'              => 'required|string|max:255',
-            'type'               => 'required|in:apartment,house,commercial,land',
-            'transaction_type'   => 'required|in:sale,rent,inchiriere_zilnica,new_build',
+            'type'               => 'required|in:apartment,house,cottage,land,garage,commercial',
+            'transaction_type'   => 'required|in:sale,rent,inchiriere_zilnica,new_build,exchange,buy',
             'price'              => 'nullable|numeric|min:0',
             'currency'           => 'required|in:EUR,USD,MDL',
             'area_total'         => 'nullable|numeric|min:0',

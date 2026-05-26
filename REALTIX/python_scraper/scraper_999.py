@@ -226,13 +226,77 @@ _SCOPE_HOURS = 0
 # Process ID heartbeat is written here every minute by the worker loop.
 HEARTBEAT_PATH = Path(__file__).resolve().parent.parent / "storage" / "app" / "scraper_heartbeat.txt"
 
+# Sub-categorii 999.md (alese după opțiunea B — minim funcțional)
+# Total 14 subtypes + 1 extra_flag (new_build pentru apartment)
 CATEGORIES = [
-    {"slug": "apartments-and-rooms",   "type": "apartment",  "transaction_type": "sale", "label": "Apartamente"},
-    {"slug": "house-and-garden",       "type": "house",      "transaction_type": "sale", "label": "Case"},
-    {"slug": "cottage",                "type": "cottage",    "transaction_type": "sale", "label": "Vile/Cabane"},
-    {"slug": "land",                   "type": "land",       "transaction_type": "sale", "label": "Terenuri"},
-    {"slug": "garages-and-parking",    "type": "garage",     "transaction_type": "sale", "label": "Garaje/parcări"},
-    {"slug": "commercial-real-estate", "type": "commercial", "transaction_type": "sale", "label": "Comercial"},
+    {
+        "slug": "apartments-and-rooms",
+        "type": "apartment",
+        "transaction_type": "sale",
+        "label": "Apartamente",
+        "subtypes": [
+            {"key": "1_camera", "exo_param": "exo_241=893", "label": "1 cameră"},
+            {"key": "2_camere", "exo_param": "exo_241=894", "label": "2 camere"},
+            {"key": "3_camere", "exo_param": "exo_241=902", "label": "3 camere"},
+            {"key": "4plus",    "exo_param": "exo_241=904", "label": "4+ camere"},
+        ],
+        "extra_flags": [
+            {"key": "new_build", "exo_param": "exo_852=19108", "label": "Bloc nou"},
+        ],
+    },
+    {
+        "slug": "house-and-garden",
+        "type": "house",
+        "transaction_type": "sale",
+        "label": "Case",
+        "subtypes": [],
+        "extra_flags": [],
+    },
+    {
+        "slug": "cottage",
+        "type": "cottage",
+        "transaction_type": "sale",
+        "label": "Vile/Cabane",
+        "subtypes": [],
+        "extra_flags": [],
+    },
+    {
+        "slug": "land",
+        "type": "land",
+        "transaction_type": "sale",
+        "label": "Terenuri",
+        "subtypes": [
+            {"key": "constructii", "exo_param": "exo_258=1039",  "label": "Pentru construcții"},
+            {"key": "agricol",     "exo_param": "exo_258=1040",  "label": "Agricol"},
+            {"key": "lac",         "exo_param": "exo_258=24342", "label": "Lângă lac"},
+        ],
+        "extra_flags": [],
+    },
+    {
+        "slug": "garages-and-parking",
+        "type": "garage",
+        "transaction_type": "sale",
+        "label": "Garaje/parcări",
+        "subtypes": [
+            {"key": "garaj",       "exo_param": "exo_259=1041", "label": "Garaj"},
+            {"key": "loc_parcare", "exo_param": "exo_259=1042", "label": "Loc parcare"},
+            {"key": "subterana",   "exo_param": "exo_259=1043", "label": "Parcare subterană"},
+        ],
+        "extra_flags": [],
+    },
+    {
+        "slug": "commercial-real-estate",
+        "type": "commercial",
+        "transaction_type": "sale",
+        "label": "Comercial",
+        "subtypes": [
+            {"key": "birou",      "exo_param": "exo_257=1026", "label": "Spațiu birou"},
+            {"key": "comercial",  "exo_param": "exo_257=1030", "label": "Spațiu comercial"},
+            {"key": "depozit",    "exo_param": "exo_257=1027", "label": "Depozit"},
+            {"key": "industrial", "exo_param": "exo_257=1029", "label": "Spațiu industrial"},
+        ],
+        "extra_flags": [],
+    },
 ]
 
 REALTIX_DB_DEFAULT = Path(__file__).resolve().parent.parent / "database" / "database.sqlite"
@@ -341,21 +405,66 @@ def check_db_listing_state(conn, dialect: str, external_id: str) -> dict | None:
     }
 
 
-def update_price_only(conn, dialect: str, listing_id: int, price: float | None, currency: str | None) -> None:
-    """Lightweight update: bump updated_at, and price/currency if provided.
-    No detail-page fetch required — call when the list-page card is enough."""
+def update_price_only(
+    conn,
+    dialect: str,
+    listing_id: int,
+    price: float | None,
+    currency: str | None,
+    subtype: str | None = None,
+    extra_flags: dict | None = None,
+) -> None:
+    """Lightweight update: bump updated_at, sync price/currency if provided.
+    Also COALESCE-update subtype (first-write-wins) and JSON-merge extra_flags,
+    so listings discovered through a subtype-filtered URL get tagged even when
+    the detail page is skipped.
+    """
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     cur = conn.cursor()
-    if price is not None:
+
+    # Read existing subtype + extra_flags to do COALESCE/merge in Python
+    # (cross-dialect: sqlite has no JSONB || operator).
+    if subtype is not None or extra_flags is not None:
         cur.execute(
-            _ph('UPDATE scraped_listings SET price = ?, currency = ?, updated_at = ? WHERE id = ?', dialect),
-            (price, currency or 'EUR', now, listing_id),
+            _ph('SELECT subtype, extra_flags FROM scraped_listings WHERE id = ?', dialect),
+            (listing_id,),
         )
+        row = cur.fetchone()
+        existing_subtype = row[0] if row else None
+        existing_flags = row[1] if row else None
+        if isinstance(existing_flags, str):
+            try:
+                existing_flags = json.loads(existing_flags) if existing_flags else None
+            except Exception:
+                existing_flags = None
+
+        # COALESCE: keep existing subtype if already set
+        final_subtype = subtype if existing_subtype is None and subtype is not None else existing_subtype
+        # Merge extra_flags
+        if extra_flags:
+            base = dict(existing_flags) if isinstance(existing_flags, dict) else {}
+            base.update(extra_flags)
+            final_flags = json.dumps(base, ensure_ascii=False)
+        else:
+            final_flags = json.dumps(existing_flags, ensure_ascii=False) if isinstance(existing_flags, dict) else None
     else:
-        cur.execute(
-            _ph('UPDATE scraped_listings SET updated_at = ? WHERE id = ?', dialect),
-            (now, listing_id),
-        )
+        final_subtype = None
+        final_flags = None
+
+    sets = ["updated_at = ?"]
+    params: list = [now]
+    if price is not None:
+        sets += ["price = ?", "currency = ?"]
+        params += [price, currency or 'EUR']
+    if subtype is not None or extra_flags is not None:
+        sets += ["subtype = ?", "extra_flags = ?"]
+        params += [final_subtype, final_flags]
+    params.append(listing_id)
+
+    cur.execute(
+        _ph(f'UPDATE scraped_listings SET {", ".join(sets)} WHERE id = ?', dialect),
+        params,
+    )
     cur.close()
 
 
@@ -388,17 +497,21 @@ def _extract_card_price(anchor) -> tuple[int | None, str | None]:
     return (None, None)
 
 
-def collect_ad_urls(driver, category_slug: str, max_pages: int | None = 2) -> list[dict]:
-    """Return ad metadata from a category, paginated (deduped by external_id).
+def collect_ad_urls(driver, category_slug: str, exo_param: str | None = None, max_pages: int | None = 2) -> list[dict]:
+    """Return ad metadata from a category (optionally filtered by sub-category).
 
     Each dict: { url, external_id, price (int|None), currency ('EUR'|'MDL'|None) }
     Price/currency are extracted from the list-page card so callers can skip
     the expensive detail fetch when only price has changed (or nothing has).
 
     If max_pages is None, paginate until no new ads are found (end of results).
+    If exo_param is set (e.g. "exo_241=893"), the listing URL becomes
+    /ro/list/real-estate/{slug}?{exo_param}&page=N — used to scrape per-subtype.
     """
     seen: dict[str, dict] = {}  # ext_id → card metadata
     base = f"{BASE_URL}/ro/list/real-estate/{category_slug}"
+    if exo_param:
+        base = f"{base}?{exo_param}"
 
     page = 1
     consecutive_empty = 0
@@ -407,7 +520,10 @@ def collect_ad_urls(driver, category_slug: str, max_pages: int | None = 2) -> li
         if max_pages is not None and page > max_pages:
             break
 
-        url = base + (f"?page={page}" if page > 1 else "")
+        if exo_param:
+            url = f"{base}&page={page}" if page > 1 else base
+        else:
+            url = base + (f"?page={page}" if page > 1 else "")
         prev_count = len(seen)
 
         try:
@@ -1681,8 +1797,20 @@ def _try_reveal_phone(driver) -> bool:
 
 
 # ── Database writer ───────────────────────────────────────────────────────────
-def upsert_listing(conn, dialect: str, ad: dict, category: dict, agency_id: int) -> bool:
-    """Returns True if newly inserted, False if updated."""
+def upsert_listing(
+    conn,
+    dialect: str,
+    ad: dict,
+    category: dict,
+    agency_id: int,
+    subtype: str | None = None,
+    extra_flags: dict | None = None,
+) -> bool:
+    """Returns True if newly inserted, False if updated.
+
+    subtype is first-write-wins (preserved across re-scrapes); extra_flags
+    JSON-merge with whatever already lives on the row.
+    """
     transaction_type = ad.get("transaction_type_override") or category["transaction_type"]
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
@@ -1739,14 +1867,39 @@ def upsert_listing(conn, dialect: str, ad: dict, category: dict, agency_id: int)
 
     cur = conn.cursor()
     cur.execute(
-        _ph("SELECT id FROM scraped_listings WHERE source = ? AND external_id = ?", dialect),
+        _ph("SELECT id, subtype, extra_flags FROM scraped_listings WHERE source = ? AND external_id = ?", dialect),
         ("999md", ad["external_id"]),
     )
     existing = cur.fetchone()
 
+    # COALESCE subtype + merge extra_flags in Python (cross-dialect safe).
+    if existing:
+        existing_id, existing_subtype, existing_flags = existing[0], existing[1], existing[2]
+        if isinstance(existing_flags, str):
+            try:
+                existing_flags = json.loads(existing_flags) if existing_flags else None
+            except Exception:
+                existing_flags = None
+        # subtype: first-write-wins
+        final_subtype = subtype if existing_subtype is None and subtype is not None else existing_subtype
+        # extra_flags: merge new on top of existing
+        if extra_flags:
+            base_flags = dict(existing_flags) if isinstance(existing_flags, dict) else {}
+            base_flags.update(extra_flags)
+            final_flags = json.dumps(base_flags, ensure_ascii=False)
+        else:
+            final_flags = json.dumps(existing_flags, ensure_ascii=False) if isinstance(existing_flags, dict) else None
+    else:
+        existing_id = None
+        final_subtype = subtype
+        final_flags = json.dumps(extra_flags, ensure_ascii=False) if extra_flags else None
+
+    fields["subtype"]     = final_subtype
+    fields["extra_flags"] = final_flags
+
     if existing:
         sets = ", ".join(f'"{k}" = ?' for k in fields.keys())
-        params = list(fields.values()) + [existing[0]]
+        params = list(fields.values()) + [existing_id]
         cur.execute(_ph(f'UPDATE scraped_listings SET {sets} WHERE id = ?', dialect), params)
         cur.close()
         return False
@@ -1791,6 +1944,10 @@ def main() -> int:
     parser.add_argument("--mode", type=str, default="manual",
                         choices=["morning", "hourly", "manual"],
                         help="Operating mode — affects logging, delays, warmup and early-exit behaviour")
+    parser.add_argument("--subtype-only", action="store_true",
+                        help="Skip the main (un-filtered) category pass, iterate only subtypes + extra_flags")
+    parser.add_argument("--single-subtype", type=str, default=None,
+                        help="Test mode: scrape ONE subtype only, format 'category_slug:subtype_key' (e.g. 'land:agricol')")
     args = parser.parse_args()
 
     # Fast mode: tighter timing
@@ -1850,6 +2007,25 @@ def main() -> int:
             print(f"[FATAL] Unknown category '{args.category}'. Valid: {[c['slug'] for c in CATEGORIES]}", file=sys.stderr)
             return 1
 
+    # --single-subtype takes precedence: scrape ONE subtype only (test mode)
+    single_subtype_filter: tuple[str, str] | None = None
+    if args.single_subtype:
+        try:
+            cat_slug, sub_key = args.single_subtype.split(":", 1)
+        except ValueError:
+            print(f"[FATAL] --single-subtype must be 'category_slug:subtype_key' (got '{args.single_subtype}')", file=sys.stderr)
+            return 1
+        cats = [c for c in CATEGORIES if c["slug"] == cat_slug]
+        if not cats:
+            print(f"[FATAL] Unknown category '{cat_slug}' in --single-subtype", file=sys.stderr)
+            return 1
+        all_keys = [s["key"] for s in cats[0].get("subtypes", [])] + [f["key"] for f in cats[0].get("extra_flags", [])]
+        if sub_key not in all_keys:
+            print(f"[FATAL] Unknown subtype/flag '{sub_key}' in '{cat_slug}'. Valid: {all_keys}", file=sys.stderr)
+            return 1
+        single_subtype_filter = (cat_slug, sub_key)
+        print(f"🎯 Single-subtype test mode: {cat_slug} → {sub_key}")
+
     print(f"🦊 Starting Firefox (headless={not args.no_headless})...")
     print(f"📁 DB: {db_path}")
     print(f"🏢 Agency ID: {args.agency}")
@@ -1896,137 +2072,178 @@ def main() -> int:
             stats["by_category"][cat["slug"]] = cat_stats
 
             print(f"📂 {cat['label']} ({cat['slug']})")
-            cards = collect_ad_urls(driver, cat["slug"], max_pages=pages_arg)
-            print(f"  → {len(cards)} unique cards collected")
 
-            consecutive_old = 0  # shared counter for --today-only and --scope-hours early-exit
-            consecutive_recent = 0  # for early-exit when we hit already-processed zone
-
-            for card in cards:
-                url           = card["url"]
-                external_id   = card["external_id"]
-                list_price    = card.get("price")
-                list_currency = card.get("currency")
-
-                if args.max_ads and stats["processed"] >= args.max_ads:
-                    print(f"\n🛑 Hit max-ads limit ({args.max_ads})")
-                    raise KeyboardInterrupt()
-
-                # Skip recently-updated ads. 999.md sorts pages desc by date, so
-                # 5 in a row already in our DB means we've reached the
-                # already-processed zone — safe to skip the rest. Skipped for
-                # mode=morning (catch-up run must scan everything).
-                if external_id in recently_updated:
-                    consecutive_recent += 1
-                    if consecutive_recent >= 5 and _MODE != "morning":
-                        print(f"  ⏭️  Early-exit: 5 consecutive ads already processed in last {args.skip_recent_hours}h — skipping rest of {cat['slug']}")
-                        break
-                    stats["skipped"] += 1
+            # Build the list of passes to run for this category.
+            # Each pass = (exo_param URL filter, subtype tag, extra_flags merge).
+            # --single-subtype: only that one pass.
+            # --subtype-only: skip the un-filtered main pass.
+            passes: list[dict] = []
+            if not args.subtype_only and not single_subtype_filter:
+                passes.append({"exo": None, "subtype": None, "extra_flags": None, "label": "main"})
+            for sub in cat.get("subtypes", []):
+                if single_subtype_filter and (cat["slug"], sub["key"]) != single_subtype_filter:
                     continue
-                consecutive_recent = 0
+                passes.append({"exo": sub["exo_param"], "subtype": sub["key"], "extra_flags": None,
+                               "label": f"subtype:{sub['key']}"})
+            for flag in cat.get("extra_flags", []):
+                if single_subtype_filter and (cat["slug"], flag["key"]) != single_subtype_filter:
+                    continue
+                passes.append({"exo": flag["exo_param"], "subtype": None, "extra_flags": {flag["key"]: True},
+                               "label": f"flag:{flag['key']}"})
 
-                # Periodic heartbeat (every minute) so the watchdog can tell the worker is alive.
-                if time.time() - last_heartbeat > 60:
-                    _write_heartbeat()
-                    last_heartbeat = time.time()
+            if not passes:
+                print(f"  (no passes to run for {cat['slug']}, skipping)")
+                continue
 
-                # Check DB state up front — most listings hit the SKIP/PRICE
-                # fast path (~0.1s) instead of a full Selenium detail fetch (~12s).
-                db_state = check_db_listing_state(conn, dialect, external_id)
+            for pass_ in passes:
+                pass_subtype     = pass_["subtype"]
+                pass_extra_flags = pass_["extra_flags"]
 
-                try:
-                    if db_state is None:
-                        # NEW listing — full extraction (only branch that fetches the detail page)
-                        ad = extract_ad(driver, url)
-                        time.sleep(random.uniform(3, 5))  # anti-rate-limit between detail fetches
-                        if not ad:
-                            stats["errors"] += 1
-                            cat_stats["errors"] += 1
-                            continue
+                print(f"  ── pass {pass_['label']} ──")
+                cards = collect_ad_urls(driver, cat["slug"], exo_param=pass_["exo"], max_pages=pages_arg)
+                print(f"    → {len(cards)} unique cards collected")
 
-                        # --scope-hours: skip ads published outside the time window.
-                        # 5 consecutive out-of-scope ads end the category early.
-                        if scope_cutoff is not None:
-                            pub = ad.get("published_at")
-                            if pub is None:
-                                print(f"    [warn] no published_at for #{ad.get('external_id')} — processing anyway")
-                            else:
+                consecutive_old = 0  # shared counter for --today-only and --scope-hours early-exit
+                consecutive_recent = 0  # for early-exit when we hit already-processed zone
+
+                for card in cards:
+                    url           = card["url"]
+                    external_id   = card["external_id"]
+                    list_price    = card.get("price")
+                    list_currency = card.get("currency")
+
+                    if args.max_ads and stats["processed"] >= args.max_ads:
+                        print(f"\n🛑 Hit max-ads limit ({args.max_ads})")
+                        raise KeyboardInterrupt()
+
+                    # Skip recently-updated ads. 999.md sorts pages desc by date, so
+                    # 5 in a row already in our DB means we've reached the
+                    # already-processed zone — safe to skip the rest. Skipped for
+                    # mode=morning (catch-up run must scan everything).
+                    if external_id in recently_updated:
+                        consecutive_recent += 1
+                        if consecutive_recent >= 5 and _MODE != "morning":
+                            print(f"  ⏭️  Early-exit: 5 consecutive ads already processed in last {args.skip_recent_hours}h — skipping rest of {cat['slug']}/{pass_['label']}")
+                            break
+                        stats["skipped"] += 1
+                        # Still tag subtype/extra_flags on skipped recent listings
+                        # so a subsequent pass can populate them without re-fetch.
+                        if pass_subtype is not None or pass_extra_flags is not None:
+                            db_state_quick = check_db_listing_state(conn, dialect, external_id)
+                            if db_state_quick is not None:
+                                update_price_only(conn, dialect, db_state_quick["id"], None, None,
+                                                  subtype=pass_subtype, extra_flags=pass_extra_flags)
+                                conn.commit()
+                        continue
+                    consecutive_recent = 0
+
+                    # Periodic heartbeat (every minute) so the watchdog can tell the worker is alive.
+                    if time.time() - last_heartbeat > 60:
+                        _write_heartbeat()
+                        last_heartbeat = time.time()
+
+                    # Check DB state up front — most listings hit the SKIP/PRICE
+                    # fast path (~0.1s) instead of a full Selenium detail fetch (~12s).
+                    db_state = check_db_listing_state(conn, dialect, external_id)
+
+                    try:
+                        if db_state is None:
+                            # NEW listing — full extraction (only branch that fetches the detail page)
+                            ad = extract_ad(driver, url)
+                            time.sleep(random.uniform(3, 5))  # anti-rate-limit between detail fetches
+                            if not ad:
+                                stats["errors"] += 1
+                                cat_stats["errors"] += 1
+                                continue
+
+                            # --scope-hours: skip ads published outside the time window.
+                            # 5 consecutive out-of-scope ads end the category early.
+                            if scope_cutoff is not None:
+                                pub = ad.get("published_at")
+                                if pub is None:
+                                    print(f"    [warn] no published_at for #{ad.get('external_id')} — processing anyway")
+                                else:
+                                    pub_naive = pub.replace(tzinfo=None) if pub.tzinfo else pub
+                                    if pub_naive < scope_cutoff:
+                                        consecutive_old += 1
+                                        if consecutive_old >= 5:
+                                            print(f"  ⏭️  Early-exit: 5 consecutive ads older than {_SCOPE_HOURS}h — skipping rest")
+                                            break
+                                        continue
+                                    else:
+                                        consecutive_old = 0
+
+                            # --today-only: stop category if ad is older than today
+                            if _TODAY_ONLY and ad.get("published_at"):
+                                pub = ad["published_at"]
                                 pub_naive = pub.replace(tzinfo=None) if pub.tzinfo else pub
-                                if pub_naive < scope_cutoff:
+                                if pub_naive < today_start:
                                     consecutive_old += 1
                                     if consecutive_old >= 5:
-                                        print(f"  ⏭️  Early-exit: 5 consecutive ads older than {_SCOPE_HOURS}h — skipping rest")
+                                        print(f"  🛑 today-only: 5 consecutive ads older than today, switching to next category")
                                         break
                                     continue
                                 else:
                                     consecutive_old = 0
 
-                        # --today-only: stop category if ad is older than today
-                        if _TODAY_ONLY and ad.get("published_at"):
-                            pub = ad["published_at"]
-                            pub_naive = pub.replace(tzinfo=None) if pub.tzinfo else pub
-                            if pub_naive < today_start:
-                                consecutive_old += 1
-                                if consecutive_old >= 5:
-                                    print(f"  🛑 today-only: 5 consecutive ads older than today, switching to next category")
-                                    break
-                                continue
-                            else:
-                                consecutive_old = 0
-
-                        upsert_listing(conn, dialect, ad, cat, args.agency)
-                        conn.commit()
-                        stats["new"] += 1
-                        cat_stats["new"] += 1
-                        title = (ad.get("title") or "")[:45]
-                        price = ad.get("price")
-                        price_str = f"{int(price):,} {ad['currency']}" if price else "—"
-                        print(f"  ✅ NEW #{ad['external_id']:>9} | {title:<45} | {price_str:>12} | imgs={len(ad['images']):2} ph={'y' if ad['phone'] else 'n'}")
-
-                    elif not db_state["has_phone"]:
-                        # Existing but missing phone — retry detail fetch to capture it.
-                        ad = extract_ad(driver, url)
-                        time.sleep(random.uniform(3, 5))
-                        if not ad:
-                            # Detail failed — at least bump price + updated_at so we don't
-                            # re-attempt within skip-recent-hours.
-                            update_price_only(conn, dialect, db_state["id"], list_price, list_currency)
+                            upsert_listing(conn, dialect, ad, cat, args.agency,
+                                           subtype=pass_subtype, extra_flags=pass_extra_flags)
                             conn.commit()
-                            cur_str = list_currency or '—'
-                            print(f"  ↻ UPD-light (no detail) #{external_id} | (list price: {list_price} {cur_str})")
-                        else:
-                            upsert_listing(conn, dialect, ad, cat, args.agency)
-                            conn.commit()
+                            stats["new"] += 1
+                            cat_stats["new"] += 1
                             title = (ad.get("title") or "")[:45]
                             price = ad.get("price")
                             price_str = f"{int(price):,} {ad['currency']}" if price else "—"
-                            print(f"  📞 RETRY-phone #{ad['external_id']:>9} | {title:<45} | {price_str:>12} | imgs={len(ad['images']):2} ph={'y' if ad['phone'] else 'n'}")
-                        stats["updated"] += 1
-                        cat_stats["updated"] += 1
+                            print(f"  ✅ NEW #{ad['external_id']:>9} | {title:<45} | {price_str:>12} | imgs={len(ad['images']):2} ph={'y' if ad['phone'] else 'n'}")
 
-                    else:
-                        # Existing + has phone → SKIP detail. Bump updated_at, sync price if changed.
-                        price_changed = (
-                            list_price is not None
-                            and db_state["price"] is not None
-                            and abs(list_price - db_state["price"]) > 0.01
-                        )
-                        update_price_only(conn, dialect, db_state["id"], list_price, list_currency)
-                        conn.commit()
-                        marker = "💲 PRICE" if price_changed else "⏭️  SKIP"
-                        cur_str = list_currency or '—'
-                        print(f"  {marker} #{external_id} | (list price: {list_price} {cur_str})")
-                        stats["updated"] += 1
-                        cat_stats["updated"] += 1
+                        elif not db_state["has_phone"]:
+                            # Existing but missing phone — retry detail fetch to capture it.
+                            ad = extract_ad(driver, url)
+                            time.sleep(random.uniform(3, 5))
+                            if not ad:
+                                # Detail failed — at least bump price + updated_at so we don't
+                                # re-attempt within skip-recent-hours.
+                                update_price_only(conn, dialect, db_state["id"], list_price, list_currency,
+                                                  subtype=pass_subtype, extra_flags=pass_extra_flags)
+                                conn.commit()
+                                cur_str = list_currency or '—'
+                                print(f"  ↻ UPD-light (no detail) #{external_id} | (list price: {list_price} {cur_str})")
+                            else:
+                                upsert_listing(conn, dialect, ad, cat, args.agency,
+                                               subtype=pass_subtype, extra_flags=pass_extra_flags)
+                                conn.commit()
+                                title = (ad.get("title") or "")[:45]
+                                price = ad.get("price")
+                                price_str = f"{int(price):,} {ad['currency']}" if price else "—"
+                                print(f"  📞 RETRY-phone #{ad['external_id']:>9} | {title:<45} | {price_str:>12} | imgs={len(ad['images']):2} ph={'y' if ad['phone'] else 'n'}")
+                            stats["updated"] += 1
+                            cat_stats["updated"] += 1
 
-                    stats["processed"] += 1
+                        else:
+                            # Existing + has phone → SKIP detail. Bump updated_at, sync price if changed,
+                            # tag subtype/extra_flags if we're in a subtype/flag pass.
+                            price_changed = (
+                                list_price is not None
+                                and db_state["price"] is not None
+                                and abs(list_price - db_state["price"]) > 0.01
+                            )
+                            update_price_only(conn, dialect, db_state["id"], list_price, list_currency,
+                                              subtype=pass_subtype, extra_flags=pass_extra_flags)
+                            conn.commit()
+                            marker = "💲 PRICE" if price_changed else "⏭️  SKIP"
+                            cur_str = list_currency or '—'
+                            print(f"  {marker} #{external_id} | (list price: {list_price} {cur_str})")
+                            stats["updated"] += 1
+                            cat_stats["updated"] += 1
 
-                except Exception as e:
-                    stats["errors"] += 1
-                    cat_stats["errors"] += 1
-                    print(f"  ❌ {url}: {type(e).__name__}: {str(e)[:80]}")
+                        stats["processed"] += 1
 
-                time.sleep(random.uniform(args.delay_min, args.delay_max))
+                    except Exception as e:
+                        stats["errors"] += 1
+                        cat_stats["errors"] += 1
+                        print(f"  ❌ {url}: {type(e).__name__}: {str(e)[:80]}")
+
+                    time.sleep(random.uniform(args.delay_min, args.delay_max))
 
             print()
 

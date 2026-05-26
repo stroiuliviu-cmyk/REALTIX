@@ -229,8 +229,9 @@ HEARTBEAT_PATH = Path(__file__).resolve().parent.parent / "storage" / "app" / "s
 CATEGORIES = [
     {"slug": "apartments-and-rooms",   "type": "apartment",  "transaction_type": "sale", "label": "Apartamente"},
     {"slug": "house-and-garden",       "type": "house",      "transaction_type": "sale", "label": "Case"},
-    {"slug": "cottage",                "type": "house",      "transaction_type": "sale", "label": "Cabane/vile"},
+    {"slug": "cottage",                "type": "cottage",    "transaction_type": "sale", "label": "Vile/Cabane"},
     {"slug": "land",                   "type": "land",       "transaction_type": "sale", "label": "Terenuri"},
+    {"slug": "garages-and-parking",    "type": "garage",     "transaction_type": "sale", "label": "Garaje/parcări"},
     {"slug": "commercial-real-estate", "type": "commercial", "transaction_type": "sale", "label": "Comercial"},
 ]
 

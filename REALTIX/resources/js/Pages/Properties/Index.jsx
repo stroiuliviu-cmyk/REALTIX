@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { MOLDOVA_LOCALITIES, CHISINAU_DISTRICTS } from '@/Constants/moldova';
 import Combobox from '@/Components/Combobox';
 import { MapPin, Camera, Star, Image as ImageIcon } from 'lucide-react';
-import { getTypeLabel, getTransactionLabel } from '@/lib/propertyLabels';
+import { getTypeLabel, getTransactionLabel, TYPE_OPTIONS } from '@/lib/propertyLabels';
 
 /* ─── Constants ─────────────────────────────────────────────────────────── */
 const STATUS_COLORS = {
@@ -379,7 +379,7 @@ export default function Index({ properties, filters = {}, isAdmin, authUserId, f
 
                         <CheckGroup
                             label="Tip proprietate"
-                            options={[['apartment','Apartament'],['house','Casă'],['commercial','Comercial'],['land','Teren']]}
+                            options={TYPE_OPTIONS.map(o => [o.value, o.label])}
                             values={f.types}
                             onChange={v => set('types', v)}
                         />

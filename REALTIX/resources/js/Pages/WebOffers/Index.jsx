@@ -9,7 +9,7 @@ import {
     Camera, MapPin, Calendar, Phone, Star, Plus, Check,
     Image as ImageIcon, Building2, User, ExternalLink,
 } from 'lucide-react';
-import { getTypeLabel, getTransactionLabel } from '@/lib/propertyLabels';
+import { getTypeLabel, getTransactionLabel, TYPE_OPTIONS } from '@/lib/propertyLabels';
 
 /* ─── Constants ─────────────────────────────────────────────────────────── */
 const SOURCE_LABELS = {
@@ -396,7 +396,7 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
 
                         <CheckGroup
                             label="Tip proprietate"
-                            options={[['apartment','Apartament'],['house','Casă'],['commercial','Comercial'],['land','Teren']]}
+                            options={TYPE_OPTIONS.map(o => [o.value, o.label])}
                             values={f.types}
                             onChange={v => set('types', v)}
                             counts={counts.by_type ?? {}}

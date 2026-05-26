@@ -82,8 +82,63 @@ class Portal999Service
         'aeroport'    => '15672',
     ];
 
-    const REGION_CHISINAU   = '12900';
+    const REGION_DEFAULT    = '12900';  // Chișinău mun. (fallback când orașul nu e mapat)
     const LOCALITY_CHISINAU = '13859';
+
+    // Mapping orașe Moldovenești → 999.md region IDs.
+    // Cheile sunt în lowercase (cu și fără diacritice) pentru match fuzzy.
+    const MD_REGION_MAP = [
+        // Municipii
+        'chișinău'       => '12900', 'chisinau'  => '12900',
+        'bălți'          => '12912', 'balti'     => '12912',
+        'tiraspol'       => '12885',
+        'bender'         => '12882', 'tighina'   => '12882',
+        'comrat'         => '12875',
+        // Raioane
+        'anenii noi'     => '12905',
+        'basarabeasca'   => '12901',
+        'briceni'        => '12898',
+        'cahul'          => '12908',
+        'camenca'        => '12874',
+        'cantemir'       => '12890',
+        'ciadîr-lunga'   => '12871', 'ciadir-lunga'  => '12871',
+        'cimișlia'       => '12889', 'cimislia'      => '12889',
+        'criuleni'       => '12888',
+        'călărași'       => '12907', 'calarasi'      => '12907',
+        'căușeni'        => '12903', 'causeni'       => '12903',
+        'dnestrovsk'     => '17475',
+        'dondușeni'      => '12896', 'donduseni'     => '12896',
+        'drochia'        => '12893',
+        'dubăsari'       => '12879', 'dubasari'      => '12879',
+        'edineț'         => '12895', 'edinet'        => '12895',
+        'florești'       => '12911', 'floresti'      => '12911',
+        'fălești'        => '12887', 'falesti'       => '12887',
+        'glodeni'        => '12904',
+        'grigoriopol'    => '12873',
+        'hîncești'       => '12876', 'hincesti'      => '12876',
+        'ialoveni'       => '12886',
+        'leova'          => '12881',
+        'nisporeni'      => '12877',
+        'ocnița'         => '12902', 'ocnita'        => '12902',
+        'orhei'          => '12909',
+        'rezina'         => '12891',
+        'rîbnița'        => '12883', 'ribnita'       => '12883',
+        'rîșcani'        => '12897', 'riscani'       => '12897',
+        'slobozia'       => '12884',
+        'soroca'         => '12899',
+        'strășeni'       => '12910', 'straseni'      => '12910',
+        'sîngerei'       => '12906', 'singerei'      => '12906',
+        'taraclia'       => '12894',
+        'telenești'      => '12892', 'telenesti'     => '12892',
+        'ungheni'        => '12870',
+        'vulcănești'     => '12878', 'vulcanesti'    => '12878',
+        'șoldănești'     => '12880', 'soldanesti'    => '12880',
+        'ștefan-vodă'    => '12872', 'stefan-voda'   => '12872',
+    ];
+
+    // Agency context for current createAd() call — used by detectLocality
+    // to make API calls without changing all build*Features signatures.
+    private ?Agency $currentAgency = null;
     const AUTHOR_AGENCY     = '18894';
     const FUND_SECONDARY    = '19109';
     const FUND_NEW_BUILD    = '19108';
@@ -248,6 +303,10 @@ class Portal999Service
 
     public function createAd(Property $property, Agency $agency): array
     {
+        // Cache agency for detectLocality (called from build*Features deeper in stack
+        // without having to thread $agency through every method signature).
+        $this->currentAgency = $agency;
+
         $property->load('media', 'user');
 
         $type = $property->type;
@@ -470,11 +529,13 @@ class Portal999Service
             $features[] = ['id' => (string) self::F_FLOORS_TOTAL, 'value' => self::FLOORS_TOTAL_MAP[$property->floors_total]];
         }
 
-        // Required: Regiune Chișinău (hardcoded pentru moment)
-        $features[] = ['id' => (string) self::F_REGION, 'value' => self::REGION_CHISINAU];
+        // Required: Regiune (detectat din property.city)
+        $regionId   = $this->detectRegion($property->city);
+        $features[] = ['id' => (string) self::F_REGION, 'value' => $regionId];
 
-        // Required: Localitate Chișinău
-        $features[] = ['id' => (string) self::F_LOCALITY, 'value' => self::LOCALITY_CHISINAU];
+        // Required: Localitate (lookup dinamic prin /dependent_options pentru non-Chișinău)
+        $localityId = $this->detectLocality($property, $regionId, $this->currentAgency);
+        $features[] = ['id' => (string) self::F_LOCALITY, 'value' => $localityId ?? self::LOCALITY_CHISINAU];
 
         // Required: Sector (mapat din district)
         $districtKey = strtolower(trim($property->district ?? ''));
@@ -629,9 +690,12 @@ class Portal999Service
         // Autor
         $features[] = ['id' => (string) self::F_AUTHOR, 'value' => self::AUTHOR_AGENCY];
 
-        // Locație
-        $features[] = ['id' => (string) self::F_REGION,   'value' => self::REGION_CHISINAU];
-        $features[] = ['id' => (string) self::F_LOCALITY, 'value' => self::LOCALITY_CHISINAU];
+        // Locație (regiune detectată din city, localitate lookup dinamic)
+        $regionId   = $this->detectRegion($property->city);
+        $features[] = ['id' => (string) self::F_REGION, 'value' => $regionId];
+
+        $localityId = $this->detectLocality($property, $regionId, $this->currentAgency);
+        $features[] = ['id' => (string) self::F_LOCALITY, 'value' => $localityId ?? self::LOCALITY_CHISINAU];
 
         $districtKey = strtolower(trim($property->district ?? 'centru'));
         $sectorId    = self::SECTOR_MAP[$districtKey] ?? self::SECTOR_MAP['centru'];
@@ -694,9 +758,12 @@ class Portal999Service
             $features[] = ['id' => (string) self::F_AUTHOR, 'value' => self::AUTHOR_AGENCY];
         }
 
-        // Locație
-        $features[] = ['id' => (string) self::F_REGION,   'value' => self::REGION_CHISINAU];
-        $features[] = ['id' => (string) self::F_LOCALITY, 'value' => self::LOCALITY_CHISINAU];
+        // Locație (regiune detectată din city, localitate lookup dinamic)
+        $regionId   = $this->detectRegion($property->city);
+        $features[] = ['id' => (string) self::F_REGION, 'value' => $regionId];
+
+        $localityId = $this->detectLocality($property, $regionId, $this->currentAgency);
+        $features[] = ['id' => (string) self::F_LOCALITY, 'value' => $localityId ?? self::LOCALITY_CHISINAU];
 
         $districtKey = strtolower(trim($property->district ?? 'centru'));
         $sectorId    = self::SECTOR_MAP[$districtKey] ?? self::SECTOR_MAP['centru'];
@@ -747,5 +814,92 @@ class Portal999Service
         if (strlen($clean) === 9 && str_starts_with($clean, '0')) return '373' . substr($clean, 1);
         if (strlen($clean) === 11 && str_starts_with($clean, '373')) return $clean;
         return $clean;
+    }
+
+    /**
+     * Map property.city to 999.md region_id via MD_REGION_MAP.
+     * Tries exact lowercase match first, then partial (handles "or. Bălți",
+     * "Bălți mun.", "sat. X r-nul Y"). Falls back to Chișinău if no match.
+     */
+    private function detectRegion(?string $city): string
+    {
+        if (! $city) return self::REGION_DEFAULT;
+
+        $normalized = mb_strtolower(trim($city));
+
+        // Direct match
+        if (isset(self::MD_REGION_MAP[$normalized])) {
+            return self::MD_REGION_MAP[$normalized];
+        }
+
+        // Partial match (city may contain prefix/suffix like "or. ", " mun.")
+        foreach (self::MD_REGION_MAP as $key => $id) {
+            if (str_contains($normalized, $key)) {
+                return $id;
+            }
+        }
+
+        return self::REGION_DEFAULT;
+    }
+
+    /**
+     * Resolve locality_id for a (region, city) pair via /dependent_options API.
+     * For Chișinău the locality is hardcoded (saves an API call). For other
+     * regions we list the localities under the region and match by name.
+     * Returns null if lookup fails — caller should fall back to a default.
+     */
+    private function detectLocality(Property $property, string $regionId, ?Agency $agency): ?string
+    {
+        // Chișinău: hardcoded to city center (region == 12900)
+        if ($regionId === self::REGION_DEFAULT) {
+            return self::LOCALITY_CHISINAU;
+        }
+
+        // No agency context (e.g. tinker test without createAd) — skip API call
+        if (! $agency) {
+            return null;
+        }
+
+        try {
+            $response = $this->client($agency)->get('/dependent_options', [
+                'subcategory_id'        => self::TYPE_TO_SUBCATEGORY[$property->type] ?? 1404,
+                'dependency_feature_id' => self::F_REGION,
+                'parent_option_id'      => $regionId,
+                'lang'                  => 'ro',
+            ]);
+
+            if (! $response->successful()) {
+                \Log::warning("999.md detectLocality: HTTP {$response->status()} for region {$regionId}");
+                return null;
+            }
+
+            $options = $response->json('Options') ?? $response->json('options') ?? [];
+
+            $cityLower = mb_strtolower(trim($property->city ?? ''));
+
+            // Exact match (case-insensitive)
+            foreach ($options as $opt) {
+                if (mb_strtolower($opt['title'] ?? '') === $cityLower) {
+                    return (string) $opt['id'];
+                }
+            }
+
+            // Partial match (city contains option title or vice-versa)
+            foreach ($options as $opt) {
+                $optLower = mb_strtolower($opt['title'] ?? '');
+                if ($optLower !== '' && (str_contains($cityLower, $optLower) || str_contains($optLower, $cityLower))) {
+                    return (string) $opt['id'];
+                }
+            }
+
+            // Fallback: first option in the region (usually county capital)
+            if (! empty($options)) {
+                return (string) $options[0]['id'];
+            }
+        } catch (\Throwable $e) {
+            \Log::error("999.md detectLocality failed: " . $e->getMessage());
+        }
+
+        return null;
     }
 }

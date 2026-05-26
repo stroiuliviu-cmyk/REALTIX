@@ -88,6 +88,87 @@ class Portal999Service
     const FUND_SECONDARY    = '19109';
     const FUND_NEW_BUILD    = '19108';
 
+    // ── Per-category feature IDs and maps ────────────────────────────────────
+
+    const F_TITLE           = 12;    // House/Vila/Garage — required title
+    const F_PARKING_TYPE    = 259;   // Garage
+    const F_HOUSE_TYPE      = 1311;  // House
+    const F_HOUSE_ROOMS     = 588;   // House/Cottage — rooms ca numeric
+    const F_BATHROOMS       = 252;   // House/Cottage
+    const F_SANITARY        = 1622;  // House/Cottage
+    const F_SEWAGE          = 1623;  // House/Cottage
+    const F_GAS             = 1624;  // House/Cottage
+    const F_LAND_TYPE       = 258;   // Land
+    const F_LAND_AREA       = 245;   // Land area (in ar or ha)
+    const F_COMMERCIAL_TYPE = 257;   // Commercial
+
+    // House — Tip casă
+    const HOUSE_TYPE_MAP = [
+        'casa'      => '23321',
+        'duplex'    => '43944',
+        'townhouse' => '23323',
+    ];
+
+    // House/Cottage — Floors_total cu 4 opțiuni (DIFERIT de apartament)
+    const HOUSE_FLOORS_MAP = [
+        1 => '1641',  // 1 etaj
+        2 => '1643',  // 2 etaje
+        3 => '1644',  // 3 etaje
+        4 => '1652',  // 4+ etaje
+    ];
+
+    // House/Cottage — Grup sanitar
+    const BATHROOMS_MAP = [
+        0 => '27756',  // Fără
+        1 => '900',    // 1
+        2 => '950',    // 2
+        3 => '967',    // 3
+        4 => '27763',  // 4
+        5 => '43566',  // 5
+    ];
+
+    // House/Cottage — Instalații sanitare / canalizare / gazificare (yes/no)
+    const SANITARY_WITH    = '27757';
+    const SANITARY_WITHOUT = '27758';
+    const SEWAGE_WITH      = '27759';
+    const SEWAGE_WITHOUT   = '27760';
+    const GAS_WITH         = '27761';
+    const GAS_WITHOUT      = '27762';
+
+    // Garage — Tip parcare
+    const PARKING_TYPE_MAP = [
+        'garaj'        => '1041',
+        'parking_spot' => '1042',
+        'underground'  => '1043',
+    ];
+
+    // Land — Tipul lotului
+    const LAND_TYPE_MAP = [
+        'constructii' => '1039',
+        'agricol'     => '1040',
+        'gradina'     => '37019',
+        'forestier'   => '37020',
+        'industrial'  => '37021',
+        'plantatii'   => '37022',
+        'lac'         => '24342',
+    ];
+
+    // Commercial — Tipul încăperii
+    const COMMERCIAL_TYPE_MAP = [
+        'birou'           => '1026',
+        'comercial'       => '1030',
+        'depozit'         => '1027',
+        'industrial'      => '1029',
+        'alimentatie'     => '1023',
+        'sala_conferinta' => '23212',
+        'salon_frumusete' => '23213',
+        'service_auto'    => '23214',
+        'hotel'           => '23215',
+        'universal'       => '23216',
+        'stomatologie'    => '44493',
+        'sport'           => '44494',
+    ];
+
     // ── HTTP client ──────────────────────────────────────────────────────────
 
     private function apiKey(Agency $agency): string
@@ -334,6 +415,19 @@ class Portal999Service
 
     private function buildFeatures(Property $property, array $imageIds, array $settings): array
     {
+        return match ($property->type) {
+            'apartment'  => $this->buildApartmentFeatures($property, $imageIds, $settings),
+            'house'      => $this->buildHouseFeatures($property, $imageIds, $settings),
+            'cottage'    => $this->buildCottageFeatures($property, $imageIds, $settings),
+            'garage'     => $this->buildGarageFeatures($property, $imageIds, $settings),
+            'land'       => $this->buildLandFeatures($property, $imageIds, $settings),
+            'commercial' => $this->buildCommercialFeatures($property, $imageIds, $settings),
+            default      => $this->buildApartmentFeatures($property, $imageIds, $settings),
+        };
+    }
+
+    private function buildApartmentFeatures(Property $property, array $imageIds, array $settings): array
+    {
         $currencyMap = ['EUR' => 'eur', 'USD' => 'usd', 'MDL' => 'mdl'];
         $currency    = $currencyMap[$property->currency] ?? 'eur';
 
@@ -409,6 +503,225 @@ class Portal999Service
         $phone = $this->normalizePhone(
             $settings['contact_phone'] ?? $property->user?->phone ?? null
         );
+        if ($phone) {
+            $features[] = ['id' => (string) self::F_CONTACTS, 'value' => [$phone]];
+        }
+
+        return $features;
+    }
+
+    // ── Type-specific builders (house / cottage / garage / land / commercial) ─
+
+    private function buildHouseFeatures(Property $property, array $imageIds, array $settings): array
+    {
+        $features = $this->commonFeatures($property, $imageIds, $settings);
+
+        // Title (required pentru house)
+        $features[] = ['id' => (string) self::F_TITLE, 'value' => $property->title ?: 'Casă de vânzare'];
+
+        // Tip casă (default: Casă)
+        $features[] = ['id' => (string) self::F_HOUSE_TYPE, 'value' => self::HOUSE_TYPE_MAP['casa']];
+
+        // Suprafață totală
+        if ($property->area_total) {
+            $features[] = ['id' => (string) self::F_AREA, 'value' => (int) $property->area_total, 'unit' => 'm2'];
+        }
+
+        // Număr camere (textbox_numeric, NU dropdown)
+        if ($property->rooms) {
+            $features[] = ['id' => (string) self::F_HOUSE_ROOMS, 'value' => (int) $property->rooms];
+        }
+
+        // Număr etaje (4 opțiuni: 1/2/3/4+)
+        $floorsKey = $property->floors_total ? min((int) $property->floors_total, 4) : 1;
+        if (isset(self::HOUSE_FLOORS_MAP[$floorsKey])) {
+            $features[] = ['id' => (string) self::F_FLOORS_TOTAL, 'value' => self::HOUSE_FLOORS_MAP[$floorsKey]];
+        }
+
+        // Grup sanitar — default 1
+        $bathrooms    = (int) data_get($property->meta, 'bathrooms', 1);
+        $bathroomsKey = min($bathrooms, 5);
+        $features[]   = ['id' => (string) self::F_BATHROOMS, 'value' => self::BATHROOMS_MAP[$bathroomsKey] ?? self::BATHROOMS_MAP[1]];
+
+        // Instalații sanitare — default CU
+        $features[] = ['id' => (string) self::F_SANITARY, 'value' => self::SANITARY_WITH];
+
+        // Canalizare — default CU
+        $features[] = ['id' => (string) self::F_SEWAGE, 'value' => self::SEWAGE_WITH];
+
+        // Gazificare — auto-detect din meta.gas sau meta.heating
+        $hasGas = (bool) data_get($property->meta, 'gas', false)
+            || str_contains(strtolower((string) data_get($property->meta, 'heating', '')), 'gas');
+        $features[] = ['id' => (string) self::F_GAS, 'value' => $hasGas ? self::GAS_WITH : self::GAS_WITHOUT];
+
+        return $features;
+    }
+
+    private function buildCottageFeatures(Property $property, array $imageIds, array $settings): array
+    {
+        $features = $this->commonFeatures($property, $imageIds, $settings);
+
+        // Title (required)
+        $features[] = ['id' => (string) self::F_TITLE, 'value' => $property->title ?: 'Vilă de vânzare'];
+
+        if ($property->area_total) {
+            $features[] = ['id' => (string) self::F_AREA, 'value' => (int) $property->area_total, 'unit' => 'm2'];
+        }
+
+        if ($property->rooms) {
+            $features[] = ['id' => (string) self::F_HOUSE_ROOMS, 'value' => (int) $property->rooms];
+        }
+
+        $floorsKey  = $property->floors_total ? min((int) $property->floors_total, 4) : 1;
+        $features[] = ['id' => (string) self::F_FLOORS_TOTAL, 'value' => self::HOUSE_FLOORS_MAP[$floorsKey] ?? self::HOUSE_FLOORS_MAP[1]];
+
+        $bathrooms  = (int) data_get($property->meta, 'bathrooms', 1);
+        $features[] = ['id' => (string) self::F_BATHROOMS, 'value' => self::BATHROOMS_MAP[min($bathrooms, 5)] ?? self::BATHROOMS_MAP[1]];
+
+        $features[] = ['id' => (string) self::F_SANITARY, 'value' => self::SANITARY_WITH];
+        $features[] = ['id' => (string) self::F_SEWAGE,   'value' => self::SEWAGE_WITH];
+
+        $hasGas     = (bool) data_get($property->meta, 'gas', false);
+        $features[] = ['id' => (string) self::F_GAS, 'value' => $hasGas ? self::GAS_WITH : self::GAS_WITHOUT];
+
+        return $features;
+    }
+
+    private function buildGarageFeatures(Property $property, array $imageIds, array $settings): array
+    {
+        // Garaj NU cere autor
+        $features = $this->commonFeatures($property, $imageIds, $settings, includeAuthor: false);
+
+        // Title (required)
+        $features[] = ['id' => (string) self::F_TITLE, 'value' => $property->title ?: 'Garaj de vânzare'];
+
+        // Tip parcare (default: Garaj)
+        $parkingType = data_get($property->meta, 'parking_type', 'garaj');
+        $parkingId   = self::PARKING_TYPE_MAP[$parkingType] ?? self::PARKING_TYPE_MAP['garaj'];
+        $features[]  = ['id' => (string) self::F_PARKING_TYPE, 'value' => $parkingId];
+
+        return $features;
+    }
+
+    private function buildLandFeatures(Property $property, array $imageIds, array $settings): array
+    {
+        // Land NU are stradă/clădire required, dar are sector
+        $features = [];
+
+        $currency   = ['EUR' => 'eur', 'USD' => 'usd', 'MDL' => 'mdl'][$property->currency] ?? 'eur';
+        $features[] = ['id' => (string) self::F_PRICE, 'value' => (int) $property->price, 'unit' => $currency];
+
+        // Tip lot (default: construcții)
+        $landType   = data_get($property->meta, 'land_type', 'constructii');
+        $landId     = self::LAND_TYPE_MAP[$landType] ?? self::LAND_TYPE_MAP['constructii'];
+        $features[] = ['id' => (string) self::F_LAND_TYPE, 'value' => $landId];
+
+        // Suprafață teren — în ari (100 m²) sau hectare (10000 m²), NU m²
+        if ($property->area_total) {
+            $m2 = (float) $property->area_total;
+            if ($m2 >= 10000) {
+                $features[] = ['id' => (string) self::F_LAND_AREA, 'value' => (int) round($m2 / 10000), 'unit' => 'ha'];
+            } else {
+                $features[] = ['id' => (string) self::F_LAND_AREA, 'value' => (int) round($m2 / 100), 'unit' => 'ar'];
+            }
+        }
+
+        // Autor
+        $features[] = ['id' => (string) self::F_AUTHOR, 'value' => self::AUTHOR_AGENCY];
+
+        // Locație
+        $features[] = ['id' => (string) self::F_REGION,   'value' => self::REGION_CHISINAU];
+        $features[] = ['id' => (string) self::F_LOCALITY, 'value' => self::LOCALITY_CHISINAU];
+
+        $districtKey = strtolower(trim($property->district ?? 'centru'));
+        $sectorId    = self::SECTOR_MAP[$districtKey] ?? self::SECTOR_MAP['centru'];
+        $features[]  = ['id' => (string) self::F_SECTOR, 'value' => $sectorId];
+
+        // Description
+        $description = $property->description_ro ?? $property->description_ru ?? $property->title;
+        if ($description) {
+            $description = preg_replace('/^https?:\/\/\S+\s*\n+/', '', $description);
+            $features[]  = ['id' => (string) self::F_DESCRIPTION, 'value' => trim($description)];
+        }
+
+        // Imagini
+        if (! empty($imageIds)) {
+            $features[] = ['id' => (string) self::F_IMAGES, 'value' => $imageIds];
+        }
+
+        // Contacte
+        $phone = $this->normalizePhone($settings['contact_phone'] ?? $property->user?->phone ?? null);
+        if ($phone) {
+            $features[] = ['id' => (string) self::F_CONTACTS, 'value' => [$phone]];
+        }
+
+        return $features;
+    }
+
+    private function buildCommercialFeatures(Property $property, array $imageIds, array $settings): array
+    {
+        // Commercial NU cere autor
+        $features = $this->commonFeatures($property, $imageIds, $settings, includeAuthor: false);
+
+        if ($property->area_total) {
+            $features[] = ['id' => (string) self::F_AREA, 'value' => (int) $property->area_total, 'unit' => 'm2'];
+        }
+
+        // Tipul încăperii (default: Spațiu comercial)
+        $commType   = data_get($property->meta, 'commercial_type', 'comercial');
+        $commId     = self::COMMERCIAL_TYPE_MAP[$commType] ?? self::COMMERCIAL_TYPE_MAP['comercial'];
+        $features[] = ['id' => (string) self::F_COMMERCIAL_TYPE, 'value' => $commId];
+
+        return $features;
+    }
+
+    /**
+     * Common features shared between house/cottage/garage/commercial builders.
+     * Land has its own (no street/building, area in ar/ha).
+     */
+    private function commonFeatures(
+        Property $property,
+        array $imageIds,
+        array $settings,
+        bool $includeAuthor = true
+    ): array {
+        $features = [];
+
+        $currency   = ['EUR' => 'eur', 'USD' => 'usd', 'MDL' => 'mdl'][$property->currency] ?? 'eur';
+        $features[] = ['id' => (string) self::F_PRICE, 'value' => (int) $property->price, 'unit' => $currency];
+
+        if ($includeAuthor) {
+            $features[] = ['id' => (string) self::F_AUTHOR, 'value' => self::AUTHOR_AGENCY];
+        }
+
+        // Locație
+        $features[] = ['id' => (string) self::F_REGION,   'value' => self::REGION_CHISINAU];
+        $features[] = ['id' => (string) self::F_LOCALITY, 'value' => self::LOCALITY_CHISINAU];
+
+        $districtKey = strtolower(trim($property->district ?? 'centru'));
+        $sectorId    = self::SECTOR_MAP[$districtKey] ?? self::SECTOR_MAP['centru'];
+        $features[]  = ['id' => (string) self::F_SECTOR, 'value' => $sectorId];
+
+        // Adresa
+        $address             = trim($property->address ?? '');
+        [$street, $building] = $this->splitAddress($address);
+        $features[]          = ['id' => (string) self::F_STREET,   'value' => $street ?: 'Nedeterminat'];
+        $features[]          = ['id' => (string) self::F_BUILDING, 'value' => $building ?: '0'];
+
+        // Description
+        $description = $property->description_ro ?? $property->description_ru ?? $property->title;
+        if ($description) {
+            $description = preg_replace('/^https?:\/\/\S+\s*\n+/', '', $description);
+            $features[]  = ['id' => (string) self::F_DESCRIPTION, 'value' => trim($description)];
+        }
+
+        // Imagini
+        if (! empty($imageIds)) {
+            $features[] = ['id' => (string) self::F_IMAGES, 'value' => $imageIds];
+        }
+
+        // Contacte
+        $phone = $this->normalizePhone($settings['contact_phone'] ?? $property->user?->phone ?? null);
         if ($phone) {
             $features[] = ['id' => (string) self::F_CONTACTS, 'value' => [$phone]];
         }

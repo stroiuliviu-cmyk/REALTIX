@@ -1781,8 +1781,10 @@ def main() -> int:
                         help="Fast bulk mode: skip lazyload/scroll/phone-click, minimal sleeps")
     parser.add_argument("--today-only", action="store_true",
                         help="Stop a category after 5 consecutive ads with published_at < today 00:00")
-    parser.add_argument("--download-images", action="store_true",
-                        help="Download each image locally (storage/app/public/scraped/{id}/) instead of storing CDN URLs")
+    parser.add_argument("--download-images", action="store_true", default=True,
+                        help="Descarcă imagini local (default ON)")
+    parser.add_argument("--no-download-images", dest="download_images", action="store_false",
+                        help="Skip image download (test mode)")
     parser.add_argument("--scope-hours", type=int, default=0,
                         help="Only keep ads published within last N hours (0 = no time filter)")
     parser.add_argument("--mode", type=str, default="manual",

@@ -219,7 +219,11 @@ Artisan::command('portal:999:scrape:hourly {--agency=1}', function () {
     $this->newLine();
 
     $process = new Process($command);
-    $process->setTimeout(15 * 60); // 15-minute hard timeout
+    // 1h timeout: at 6 categories × ~100 listings × ~5s = ~50 min worst case
+    // for a productive hourly run (see incident 2026-05-27 17:15, run #4
+    // killed by Symfony at exactly the old 900 s mark while still touching
+    // listings). 1 h gives slack for the slow-detail-fetch tail.
+    $process->setTimeout(3600);
     $process->run(function ($type, $buffer) {
         echo $buffer;
     });

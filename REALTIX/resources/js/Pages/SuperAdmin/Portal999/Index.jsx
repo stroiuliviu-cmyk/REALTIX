@@ -36,7 +36,11 @@ function MiniBars({ data, color, height = 'h-30' }) {
                     key={i}
                     className={barClass}
                     style={{
-                        height: `${Math.max((Number(d.cnt) / max) * 100, 2)}px`,
+                        // Percent height so bars respect the parent container's
+                        // height (h-10/h-12/h-30 etc.). Previously this used px,
+                        // making bars overflow upward into adjacent rows when the
+                        // container was shorter than 100px (sub-cards, type cards).
+                        height: `${Math.max((Number(d.cnt) / max) * 100, 4)}%`,
                         ...(useCustom && { background: `linear-gradient(to top, ${color}, ${color}cc)` }),
                     }}
                     title={`${d.day}: ${d.cnt}`}
@@ -304,22 +308,25 @@ export default function Index({
                                             : '—';
 
                                         return (
-                                            <div key={sub.subtype} className="bg-slate-50 rounded-lg border border-slate-200 p-3">
-                                                <div className="flex items-center justify-between mb-2">
+                                            <div key={sub.subtype} className="bg-slate-50 rounded-lg border border-slate-200 p-4 flex flex-col gap-2">
+                                                {/* Row 1: label left, count right */}
+                                                <div className="flex items-center justify-between">
                                                     <span className="text-xs font-bold text-slate-700">{subLabel}</span>
                                                     <span className="text-base font-black text-slate-900">
                                                         {Number(sub.cnt).toLocaleString('ro')}
                                                     </span>
                                                 </div>
-                                                <div className="mb-1.5">
+                                                {/* Row 2: sparkline full width */}
+                                                <div>
                                                     {subData.length > 0 ? (
-                                                        <MiniBars data={subData} color={TYPE_COLORS[type]} height="h-8" />
+                                                        <MiniBars data={subData} color={TYPE_COLORS[type]} height="h-10" />
                                                     ) : (
                                                         <div className="text-[10px] text-slate-300 py-2 text-center">
                                                             Fără date 7 zile
                                                         </div>
                                                     )}
                                                 </div>
+                                                {/* Row 3: last scrape timestamp */}
                                                 <div className="text-[10px] text-slate-400 text-right">
                                                     Ultim scrape: {lastScraped}
                                                 </div>

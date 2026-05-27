@@ -79,13 +79,69 @@ class Portal999Controller extends Controller
                     'day'        => $row->day,
                     'apartment'  => 0,
                     'house'      => 0,
-                    'commercial' => 0,
+                    'cottage'    => 0,
                     'land'       => 0,
+                    'garage'     => 0,
+                    'commercial' => 0,
                 ];
             }
             $byTypeDaily[$row->day][$row->type] = (int) $row->cnt;
         }
         $byTypeDaily = array_values($byTypeDaily);
+
+        // Sub-category breakdown — count + last_scraped per (type, subtype).
+        // COALESCE wraps NULL subtypes as '_none' so the frontend can render
+        // them as a synthetic "Nedefinit" bucket without losing the listings.
+        $bySubtype = DB::table('scraped_listings')
+            ->where('source', '999md')
+            ->whereNotNull('type')
+            ->selectRaw("type, COALESCE(subtype, '_none') as subtype, COUNT(*) as cnt, MAX(updated_at) as last_scraped_at")
+            ->groupBy('type', DB::raw("COALESCE(subtype, '_none')"))
+            ->orderBy('type')
+            ->orderByDesc('cnt')
+            ->get();
+
+        // Daily breakdown per subtype for last 7 days (sparkline data).
+        $bySubtypeDailyRaw = DB::table('scraped_listings')
+            ->where('source', '999md')
+            ->where('created_at', '>=', $weekAgo)
+            ->whereNotNull('type')
+            ->selectRaw("type, COALESCE(subtype, '_none') as subtype, DATE(created_at) as day, COUNT(*) as cnt")
+            ->groupBy('type', DB::raw("COALESCE(subtype, '_none')"), DB::raw('DATE(created_at)'))
+            ->orderBy('day')
+            ->get();
+
+        $bySubtypeDaily = [];
+        foreach ($bySubtypeDailyRaw as $row) {
+            $key = $row->type . ':' . $row->subtype;
+            if (! isset($bySubtypeDaily[$key])) {
+                $bySubtypeDaily[$key] = [];
+            }
+            $bySubtypeDaily[$key][] = [
+                'day' => $row->day,
+                'cnt' => (int) $row->cnt,
+            ];
+        }
+
+        // Coverage: how many listings per type have subtype populated vs NULL.
+        // FILTER (WHERE ...) is SQL-standard (PG 9.4+, SQLite 3.30+).
+        $coverageRaw = DB::table('scraped_listings')
+            ->where('source', '999md')
+            ->whereNotNull('type')
+            ->selectRaw("type, COUNT(*) as total, COUNT(*) FILTER (WHERE subtype IS NOT NULL) as with_subtype")
+            ->groupBy('type')
+            ->get();
+
+        $coverage = [];
+        foreach ($coverageRaw as $row) {
+            $coverage[$row->type] = [
+                'total'        => (int) $row->total,
+                'with_subtype' => (int) $row->with_subtype,
+                'pct'          => $row->total > 0
+                    ? round(($row->with_subtype / $row->total) * 100, 1)
+                    : 0,
+            ];
+        }
 
         $syncLogs = ActivityLog::query()
             ->where(function ($q) {
@@ -98,12 +154,15 @@ class Portal999Controller extends Controller
             ->get(['id', 'action', 'description', 'created_at', 'properties']);
 
         return Inertia::render('SuperAdmin/Portal999/Index', [
-            'stats'        => $stats,
-            'byType'       => $byType,
-            'byCity'       => $byCity,
-            'byDay'        => $byDay,
-            'byTypeDaily'  => $byTypeDaily,
-            'syncLogs'     => $syncLogs,
+            'stats'           => $stats,
+            'byType'          => $byType,
+            'byCity'          => $byCity,
+            'byDay'           => $byDay,
+            'byTypeDaily'     => $byTypeDaily,
+            'bySubtype'       => $bySubtype,
+            'bySubtypeDaily'  => $bySubtypeDaily,
+            'coverage'        => $coverage,
+            'syncLogs'        => $syncLogs,
         ]);
     }
 }

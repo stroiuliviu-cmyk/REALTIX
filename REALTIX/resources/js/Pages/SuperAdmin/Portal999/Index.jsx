@@ -1,5 +1,6 @@
 import SuperAdminLayout from '@/Layouts/SuperAdminLayout';
 import { Head, router } from '@inertiajs/react';
+import { useState, useEffect } from 'react';
 
 function MetricCard({ label, value, accent = 'slate' }) {
     const palette = {
@@ -52,22 +53,91 @@ function MiniBars({ data, color, height = 'h-30' }) {
 const TYPE_LABELS = {
     apartment:  'Apartamente',
     house:      'Case',
-    commercial: 'Comercial',
+    cottage:    'Vile/Cabane',
     land:       'Terenuri',
+    garage:     'Garaje',
+    commercial: 'Comercial',
 };
 
 const TYPE_COLORS = {
     apartment:  '#3b82f6', // blue-500
     house:      '#10b981', // emerald-500
-    commercial: '#f59e0b', // amber-500
+    cottage:    '#14b8a6', // teal-500
     land:       '#8b5cf6', // violet-500
+    garage:     '#64748b', // slate-500
+    commercial: '#f59e0b', // amber-500
 };
 
-export default function Index({ stats, byType, byCity, byDay, byTypeDaily = [], syncLogs }) {
+const TYPE_ICONS = {
+    apartment:  '🏢',
+    house:      '🏠',
+    cottage:    '🏡',
+    land:       '🌳',
+    garage:     '🚗',
+    commercial: '🏪',
+};
+
+// Sub-category labels per type — inline (propertyLabels.js has only type labels).
+// '_none' = synthetic bucket for rows with subtype IS NULL.
+const SUBTYPE_LABELS = {
+    apartment: {
+        '1_camera': '1 cameră',
+        '2_camere': '2 camere',
+        '3_camere': '3 camere',
+        '4plus':    '4+ camere',
+        '_none':    'Nedefinit',
+    },
+    land: {
+        'constructii': 'Construcții',
+        'agricol':     'Agricol',
+        'lac':         'Lângă lac',
+        '_none':       'Nedefinit',
+    },
+    garage: {
+        'garaj':       'Garaj',
+        'loc_parcare': 'Loc parcare',
+        'subterana':   'Subterană',
+        '_none':       'Nedefinit',
+    },
+    commercial: {
+        'birou':      'Birou',
+        'comercial':  'Spațiu comercial',
+        'depozit':    'Depozit',
+        'industrial': 'Spațiu industrial',
+        '_none':      'Nedefinit',
+    },
+    house:   { '_none': 'Toate' },
+    cottage: { '_none': 'Toate' },
+};
+
+export default function Index({
+    stats, byType, byCity, byDay, byTypeDaily = [],
+    bySubtype = [], bySubtypeDaily = {}, coverage = {},
+    syncLogs,
+}) {
     const triggerSync = () => {
         if (!confirm('Pornește sync manual 999.md acum? Va dispatcha job-ul în background.')) return;
         router.post(route('super-admin.portal-999.sync'), {}, { preserveScroll: true });
     };
+
+    const [expandedType, setExpandedType] = useState(null);
+    const [autoRefresh, setAutoRefresh]   = useState(true);
+    const [lastRefresh, setLastRefresh]   = useState(new Date());
+
+    // Partial reload of monitoring data every 30s — preserves scroll position
+    // and expandedType state since we don't touch the React tree, only props.
+    useEffect(() => {
+        if (!autoRefresh) return;
+        const interval = setInterval(() => {
+            router.reload({
+                only: ['stats', 'byType', 'byTypeDaily', 'bySubtype', 'bySubtypeDaily', 'coverage'],
+                preserveScroll: true,
+                preserveState: true,
+                onSuccess: () => setLastRefresh(new Date()),
+            });
+        }, 30000);
+        return () => clearInterval(interval);
+    }, [autoRefresh]);
 
     return (
         <SuperAdminLayout title="999.md Integration" breadcrumb="Super Admin · External Sync">
@@ -96,41 +166,121 @@ export default function Index({ stats, byType, byCity, byDay, byTypeDaily = [], 
                     <MiniBars data={byDay} />
                 </div>
 
+                {/* Pe categorii — 6 carduri (3x2), expandable to subtype sparklines */}
                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-sm font-bold text-slate-900">Pe categorii (30 zile)</h3>
-                        <span className="text-xs text-slate-400">Total cumulativ · ultimele 30 zile</span>
+                        <div className="flex items-center gap-3">
+                            <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={autoRefresh}
+                                    onChange={(e) => setAutoRefresh(e.target.checked)}
+                                    className="rounded"
+                                />
+                                Auto-refresh 30s
+                            </label>
+                            <span className="text-xs text-slate-400">
+                                Ultim refresh: {lastRefresh.toLocaleTimeString('ro-RO')}
+                            </span>
+                        </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                         {Object.keys(TYPE_LABELS).map((type) => {
                             const total = byType?.[type] ?? 0;
-                            const data = byTypeDaily.map(d => ({ day: d.day, cnt: d[type] ?? 0 }));
-                            const recentSum = data.reduce((acc, d) => acc + d.cnt, 0);
+                            const cov   = coverage?.[type] ?? { with_subtype: 0, total: 0, pct: 0 };
+                            const data  = (byTypeDaily ?? []).map(d => ({
+                                day: d.day,
+                                cnt: d[type] ?? 0,
+                            }));
+                            const isExpanded     = expandedType === type;
+                            const subtypesForType = (bySubtype ?? []).filter(s => s.type === type);
 
                             return (
-                                <div
-                                    key={type}
-                                    className="bg-slate-50 rounded-lg p-4 border border-slate-100"
-                                    title={`${TYPE_LABELS[type]} — total: ${total.toLocaleString('ro')} · ultimele 30 zile: ${recentSum.toLocaleString('ro')}`}
-                                >
-                                    <div className="flex items-start justify-between mb-3">
-                                        <div>
-                                            <div className="text-xs font-bold text-slate-600 uppercase tracking-wide">
-                                                {TYPE_LABELS[type]}
+                                <div key={type} className="rounded-xl border border-slate-200 overflow-hidden">
+                                    <button
+                                        onClick={() => setExpandedType(isExpanded ? null : type)}
+                                        className="w-full p-4 text-left hover:bg-slate-50 transition-colors"
+                                    >
+                                        <div className="flex items-start justify-between mb-2">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xl">{TYPE_ICONS[type]}</span>
+                                                <span
+                                                    className="text-[10px] font-bold uppercase tracking-widest"
+                                                    style={{ color: TYPE_COLORS[type] }}
+                                                >
+                                                    {TYPE_LABELS[type]}
+                                                </span>
                                             </div>
-                                            <div className="text-2xl font-black text-slate-900 mt-1">
-                                                {total.toLocaleString('ro')}
-                                            </div>
+                                            <span className="text-[10px] text-slate-400">
+                                                {isExpanded ? '▼' : '▶'}
+                                            </span>
                                         </div>
-                                        <div className="text-right">
-                                            <div className="text-[10px] text-slate-400 uppercase tracking-widest">30z</div>
-                                            <div className="text-sm font-bold" style={{ color: TYPE_COLORS[type] }}>
-                                                +{recentSum.toLocaleString('ro')}
-                                            </div>
+                                        <div className="text-2xl font-black text-slate-900">
+                                            {total.toLocaleString('ro')}
                                         </div>
-                                    </div>
-                                    <MiniBars data={data} color={TYPE_COLORS[type]} height="h-16" />
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <span className="text-[10px] text-slate-500">Coverage subtype:</span>
+                                            <span
+                                                className="text-[10px] font-bold"
+                                                style={{
+                                                    color: cov.pct >= 70 ? '#10b981'
+                                                         : cov.pct >= 30 ? '#f59e0b'
+                                                         : '#ef4444',
+                                                }}
+                                            >
+                                                {cov.pct}% ({cov.with_subtype}/{cov.total})
+                                            </span>
+                                        </div>
+                                        <div className="mt-3">
+                                            <MiniBars data={data} color={TYPE_COLORS[type]} height="h-12" />
+                                        </div>
+                                    </button>
+
+                                    {isExpanded && (
+                                        <div className="border-t border-slate-200 bg-slate-50 p-3 space-y-2">
+                                            {subtypesForType.length === 0 ? (
+                                                <div className="text-xs text-slate-400 text-center py-2">
+                                                    Nu sunt sub-categorii pentru acest tip.
+                                                </div>
+                                            ) : (
+                                                subtypesForType.map((sub) => {
+                                                    const subLabel   = SUBTYPE_LABELS[type]?.[sub.subtype] ?? sub.subtype;
+                                                    const subData    = bySubtypeDaily[`${type}:${sub.subtype}`] ?? [];
+                                                    const lastScraped = sub.last_scraped_at
+                                                        ? new Date(sub.last_scraped_at).toLocaleString('ro-RO', {
+                                                            day: '2-digit', month: '2-digit',
+                                                            hour: '2-digit', minute: '2-digit',
+                                                          })
+                                                        : '—';
+
+                                                    return (
+                                                        <div key={sub.subtype} className="bg-white rounded-lg border border-slate-200 px-3 py-2">
+                                                            <div className="flex items-center justify-between mb-1">
+                                                                <span className="text-xs font-bold text-slate-700">{subLabel}</span>
+                                                                <span className="text-xs font-black text-slate-900">
+                                                                    {Number(sub.cnt).toLocaleString('ro')}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex items-center justify-between gap-2">
+                                                                <div className="flex-1 min-w-0">
+                                                                    {subData.length > 0 ? (
+                                                                        <MiniBars data={subData} color={TYPE_COLORS[type]} height="h-6" />
+                                                                    ) : (
+                                                                        <div className="text-[10px] text-slate-300">Fără date 7 zile</div>
+                                                                    )}
+                                                                </div>
+                                                                <span className="text-[10px] text-slate-400 whitespace-nowrap">
+                                                                    {lastScraped}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             );
                         })}

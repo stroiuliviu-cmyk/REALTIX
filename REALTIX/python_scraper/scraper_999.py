@@ -38,15 +38,20 @@ Apelat din Laravel:
 from __future__ import annotations
 
 import argparse
+import atexit
 import json
+import logging
 import os
 import random
 import re
+import signal
 import sqlite3
+import subprocess
 import sys
 import time
 import urllib.request
 from datetime import datetime, timedelta, timezone
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -105,13 +110,17 @@ def _ph(sql: str, dialect: str) -> str:
 def _write_heartbeat() -> None:
     """Write current ISO timestamp + PID to the heartbeat file. The Laravel
     watchdog (`scraper:watchdog`) checks this file every 10 minutes — if it's
-    older than 15 minutes it considers the scraper stuck and kills the PID."""
+    older than 15 minutes it considers the scraper stuck and kills the PID.
+
+    Uses atomic write (tmp + rename) so the watchdog never sees a partial
+    file if our process dies mid-write.
+    """
     try:
         HEARTBEAT_PATH.parent.mkdir(parents=True, exist_ok=True)
-        HEARTBEAT_PATH.write_text(
-            f"{datetime.now(timezone.utc).isoformat(timespec='seconds')}|{os.getpid()}",
-            encoding="utf-8",
-        )
+        content = f"{datetime.now(timezone.utc).isoformat(timespec='seconds')}|{os.getpid()}"
+        tmp = HEARTBEAT_PATH.with_suffix(".txt.tmp")
+        tmp.write_text(content, encoding="utf-8")
+        tmp.replace(HEARTBEAT_PATH)
     except Exception:
         pass
 
@@ -122,6 +131,83 @@ def _clear_heartbeat() -> None:
             HEARTBEAT_PATH.unlink()
     except Exception:
         pass
+
+
+# ── Logging / shutdown / driver recovery ──────────────────────────────────────
+# Logger module-level; configured in setup_logging() from main().
+log = logging.getLogger("scraper_999")
+
+# Tracked globally so signal handlers + atexit can find the live driver
+# for cleanup even when execution is deep in a nested loop.
+_current_driver = None
+
+# Per-run driver restart budget (resets on each fresh `main()` invocation).
+MAX_DRIVER_RESTARTS = 3
+BACKOFF_SECONDS     = [5, 15, 45]
+
+
+def setup_logging(verbose: bool = False) -> None:
+    """Configure module logger with rotating file + stderr handlers.
+    Falls back to /tmp if storage/logs is not writable (sandboxed envs)."""
+    log_dir = Path(__file__).resolve().parent.parent / "storage" / "logs"
+    log_file: Path
+    try:
+        log_dir.mkdir(parents=True, exist_ok=True)
+        log_file = log_dir / "scraper_999.log"
+        log_file.touch(exist_ok=True)
+    except (OSError, PermissionError):
+        log_file = Path("/tmp/scraper_999.log")
+
+    level = logging.DEBUG if verbose else logging.INFO
+    fmt   = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
+
+    log.setLevel(level)
+    log.handlers.clear()
+    log.propagate = False  # avoid duplicate-to-root
+
+    fh = RotatingFileHandler(log_file, maxBytes=10 * 1024 * 1024, backupCount=3)
+    fh.setFormatter(fmt)
+    log.addHandler(fh)
+
+    ch = logging.StreamHandler(sys.stderr)
+    ch.setFormatter(fmt)
+    log.addHandler(ch)
+
+
+def safe_quit_driver(driver) -> None:
+    """Best-effort cleanup of a (possibly dead) Selenium driver. Never raises.
+    On crash recovery the driver may already be unresponsive — pkill the leftover
+    Firefox/geckodriver processes so we don't leak handles across restarts."""
+    if driver is None:
+        return
+    try:
+        driver.quit()
+    except Exception as e:
+        log.warning(f"driver.quit() failed: {e}")
+    try:
+        subprocess.run(["pkill", "-f", "firefox"],     timeout=5,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(["pkill", "-f", "geckodriver"], timeout=5,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception as e:
+        # pkill missing on Windows — non-fatal
+        log.debug(f"pkill cleanup skipped: {e}")
+
+
+def _cleanup_at_exit() -> None:
+    """atexit fallback for Python crashes that skip the main() finally block."""
+    global _current_driver
+    if _current_driver is not None:
+        safe_quit_driver(_current_driver)
+        _current_driver = None
+    _clear_heartbeat()
+
+
+def _signal_handler(signum, _frame):
+    """Graceful shutdown on SIGTERM / SIGINT — triggers finally + atexit."""
+    log.warning(f"Received signal {signum}, exiting gracefully")
+    # 128 + signal number convention
+    sys.exit(130 if signum == signal.SIGINT else 143)
 
 
 # ── Anti-ban: User-Agent pool + block detection ───────────────────────────────
@@ -317,6 +403,10 @@ def make_driver(headless: bool = True, user_agent: str | None = None) -> webdriv
     opts = FirefoxOptions()
     if headless:
         opts.add_argument("--headless")
+    # Don't wait for every sub-resource (font/analytics) before returning from
+    # driver.get() — we only need DOM + JSON-LD. Cuts page-load latency
+    # substantially and reduces hang-on-stuck-asset crashes.
+    opts.page_load_strategy = "eager"
 
     ua = user_agent or random.choice(USER_AGENTS)
 
@@ -338,7 +428,12 @@ def make_driver(headless: bool = True, user_agent: str | None = None) -> webdriv
     print(f"🦊 UA: {ua[:90]}{'…' if len(ua) > 90 else ''}")
 
     try:
-        return webdriver.Firefox(options=opts)
+        driver = webdriver.Firefox(options=opts)
+        # Hard ceiling on a single page load — prevents indefinite hangs that
+        # would silently rot the heartbeat. WebDriverException raised on timeout
+        # is caught by the per-card retry wrapper in main().
+        driver.set_page_load_timeout(60)
+        return driver
     except WebDriverException as e:
         print(f"[FATAL] Firefox failed to start: {e}", file=sys.stderr)
         print("  Asigură-te că Firefox + geckodriver sunt instalate și în PATH.", file=sys.stderr)
@@ -1948,7 +2043,16 @@ def main() -> int:
                         help="Skip the main (un-filtered) category pass, iterate only subtypes + extra_flags")
     parser.add_argument("--single-subtype", type=str, default=None,
                         help="Test mode: scrape ONE subtype only, format 'category_slug:subtype_key' (e.g. 'land:agricol')")
+    parser.add_argument("--verbose", action="store_true",
+                        help="Enable DEBUG logging to storage/logs/scraper_999.log")
     args = parser.parse_args()
+
+    # Setup logger + crash-safe shutdown hooks BEFORE any heavy lifting.
+    setup_logging(verbose=args.verbose)
+    signal.signal(signal.SIGTERM, _signal_handler)
+    signal.signal(signal.SIGINT,  _signal_handler)
+    atexit.register(_cleanup_at_exit)
+    log.info(f"Scraper starting: mode={args.mode}, category={args.category or 'all'}, pages={args.pages}, fast={args.fast}, single_subtype={args.single_subtype}")
 
     # Fast mode: tighter timing
     if args.fast:
@@ -2036,6 +2140,9 @@ def main() -> int:
     print()
 
     driver = make_driver(headless=not args.no_headless)
+    global _current_driver
+    _current_driver = driver
+    driver_restart_count = 0  # per-run budget for crash recovery
 
     # Session warmup — only worth the time for morning sync.
     if _MODE == "morning":
@@ -2100,7 +2207,27 @@ def main() -> int:
                 pass_extra_flags = pass_["extra_flags"]
 
                 print(f"  ── pass {pass_['label']} ──")
-                cards = collect_ad_urls(driver, cat["slug"], exo_param=pass_["exo"], max_pages=pages_arg)
+                try:
+                    cards = collect_ad_urls(driver, cat["slug"], exo_param=pass_["exo"], max_pages=pages_arg)
+                except WebDriverException as e:
+                    # List-page fetch crashed — try driver restart once, then skip pass.
+                    log.error(f"WebDriver crash on collect_ad_urls {cat['slug']}/{pass_['label']}: {e}")
+                    if driver_restart_count < MAX_DRIVER_RESTARTS:
+                        wait = BACKOFF_SECONDS[driver_restart_count]
+                        log.warning(f"Restarting driver after collect crash (#{driver_restart_count + 1}/{MAX_DRIVER_RESTARTS}), sleeping {wait}s")
+                        safe_quit_driver(driver)
+                        time.sleep(wait)
+                        try:
+                            driver = make_driver(headless=not args.no_headless)
+                            _current_driver = driver
+                        except Exception as init_err:
+                            log.critical(f"Driver re-init failed: {init_err}")
+                            raise
+                        driver_restart_count += 1
+                    else:
+                        log.critical(f"Driver restart budget exhausted ({MAX_DRIVER_RESTARTS}) — bailing")
+                        raise
+                    continue  # skip this pass; next pass uses fresh driver
                 print(f"    → {len(cards)} unique cards collected")
 
                 consecutive_old = 0  # shared counter for --today-only and --scope-hours early-exit
@@ -2238,6 +2365,28 @@ def main() -> int:
 
                         stats["processed"] += 1
 
+                    except WebDriverException as e:
+                        # Selenium / Firefox died mid-fetch. Skip this listing,
+                        # try to restart the driver under the global retry budget,
+                        # then continue with the next card.
+                        log.error(f"WebDriver crash on {external_id}: {type(e).__name__}: {str(e)[:120]}")
+                        stats["errors"] += 1
+                        cat_stats["errors"] += 1
+                        if driver_restart_count < MAX_DRIVER_RESTARTS:
+                            wait = BACKOFF_SECONDS[driver_restart_count]
+                            log.warning(f"Restarting driver (#{driver_restart_count + 1}/{MAX_DRIVER_RESTARTS}), sleeping {wait}s")
+                            safe_quit_driver(driver)
+                            time.sleep(wait)
+                            try:
+                                driver = make_driver(headless=not args.no_headless)
+                                _current_driver = driver
+                            except Exception as init_err:
+                                log.critical(f"Driver re-init failed: {init_err}")
+                                raise
+                            driver_restart_count += 1
+                        else:
+                            log.critical(f"Driver restart budget exhausted ({MAX_DRIVER_RESTARTS}) — bailing")
+                            raise
                     except Exception as e:
                         stats["errors"] += 1
                         cat_stats["errors"] += 1
@@ -2257,10 +2406,8 @@ def main() -> int:
             conn.close()
         except Exception:
             pass
-        try:
-            driver.quit()
-        except Exception:
-            pass
+        safe_quit_driver(driver)
+        _current_driver = None
         _clear_heartbeat()
 
     elapsed = time.time() - started

@@ -1,6 +1,6 @@
 import SuperAdminLayout from '@/Layouts/SuperAdminLayout';
 import { Head, router } from '@inertiajs/react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 function MetricCard({ label, value, accent = 'slate' }) {
     const palette = {
@@ -123,6 +123,15 @@ export default function Index({
     const [expandedType, setExpandedType] = useState(null);
     const [autoRefresh, setAutoRefresh]   = useState(true);
     const [lastRefresh, setLastRefresh]   = useState(new Date());
+    const detailsRef = useRef(null);
+
+    // Smooth-scroll the standalone details section into view when a card is expanded
+    // (lets the user see the expansion even when their viewport was below the grid).
+    useEffect(() => {
+        if (expandedType && detailsRef.current) {
+            detailsRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }, [expandedType]);
 
     // Partial reload of monitoring data every 30s — preserves scroll position
     // and expandedType state since we don't touch the React tree, only props.
@@ -194,98 +203,134 @@ export default function Index({
                                 day: d.day,
                                 cnt: d[type] ?? 0,
                             }));
-                            const isExpanded     = expandedType === type;
-                            const subtypesForType = (bySubtype ?? []).filter(s => s.type === type);
+                            const isExpanded = expandedType === type;
+                            // Subtle visual cue for the currently-expanded card (ring outline).
+                            const cardRing = isExpanded
+                                ? 'ring-2 ring-offset-1'
+                                : 'hover:bg-slate-50';
 
                             return (
-                                <div key={type} className="rounded-xl border border-slate-200 overflow-hidden">
-                                    <button
-                                        onClick={() => setExpandedType(isExpanded ? null : type)}
-                                        className="w-full p-4 text-left hover:bg-slate-50 transition-colors"
-                                    >
-                                        <div className="flex items-start justify-between mb-2">
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-xl">{TYPE_ICONS[type]}</span>
-                                                <span
-                                                    className="text-[10px] font-bold uppercase tracking-widest"
-                                                    style={{ color: TYPE_COLORS[type] }}
-                                                >
-                                                    {TYPE_LABELS[type]}
-                                                </span>
-                                            </div>
-                                            <span className="text-[10px] text-slate-400">
-                                                {isExpanded ? '▼' : '▶'}
-                                            </span>
-                                        </div>
-                                        <div className="text-2xl font-black text-slate-900">
-                                            {total.toLocaleString('ro')}
-                                        </div>
-                                        <div className="flex items-center gap-2 mt-1">
-                                            <span className="text-[10px] text-slate-500">Coverage subtype:</span>
+                                <button
+                                    key={type}
+                                    onClick={() => setExpandedType(isExpanded ? null : type)}
+                                    className={`w-full p-4 text-left rounded-xl border border-slate-200 transition-colors ${cardRing}`}
+                                    style={isExpanded ? { '--tw-ring-color': TYPE_COLORS[type] } : undefined}
+                                >
+                                    <div className="flex items-start justify-between mb-2">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xl">{TYPE_ICONS[type]}</span>
                                             <span
-                                                className="text-[10px] font-bold"
-                                                style={{
-                                                    color: cov.pct >= 70 ? '#10b981'
-                                                         : cov.pct >= 30 ? '#f59e0b'
-                                                         : '#ef4444',
-                                                }}
+                                                className="text-[10px] font-bold uppercase tracking-widest"
+                                                style={{ color: TYPE_COLORS[type] }}
                                             >
-                                                {cov.pct}% ({cov.with_subtype}/{cov.total})
+                                                {TYPE_LABELS[type]}
                                             </span>
                                         </div>
-                                        <div className="mt-3">
-                                            <MiniBars data={data} color={TYPE_COLORS[type]} height="h-12" />
-                                        </div>
-                                    </button>
-
-                                    {isExpanded && (
-                                        <div className="border-t border-slate-200 bg-slate-50 p-3 space-y-2">
-                                            {subtypesForType.length === 0 ? (
-                                                <div className="text-xs text-slate-400 text-center py-2">
-                                                    Nu sunt sub-categorii pentru acest tip.
-                                                </div>
-                                            ) : (
-                                                subtypesForType.map((sub) => {
-                                                    const subLabel   = SUBTYPE_LABELS[type]?.[sub.subtype] ?? sub.subtype;
-                                                    const subData    = bySubtypeDaily[`${type}:${sub.subtype}`] ?? [];
-                                                    const lastScraped = sub.last_scraped_at
-                                                        ? new Date(sub.last_scraped_at).toLocaleString('ro-RO', {
-                                                            day: '2-digit', month: '2-digit',
-                                                            hour: '2-digit', minute: '2-digit',
-                                                          })
-                                                        : '—';
-
-                                                    return (
-                                                        <div key={sub.subtype} className="bg-white rounded-lg border border-slate-200 px-3 py-2">
-                                                            <div className="flex items-center justify-between mb-1">
-                                                                <span className="text-xs font-bold text-slate-700">{subLabel}</span>
-                                                                <span className="text-xs font-black text-slate-900">
-                                                                    {Number(sub.cnt).toLocaleString('ro')}
-                                                                </span>
-                                                            </div>
-                                                            <div className="flex items-center justify-between gap-2">
-                                                                <div className="flex-1 min-w-0">
-                                                                    {subData.length > 0 ? (
-                                                                        <MiniBars data={subData} color={TYPE_COLORS[type]} height="h-6" />
-                                                                    ) : (
-                                                                        <div className="text-[10px] text-slate-300">Fără date 7 zile</div>
-                                                                    )}
-                                                                </div>
-                                                                <span className="text-[10px] text-slate-400 whitespace-nowrap">
-                                                                    {lastScraped}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
+                                        <span className="text-[10px] text-slate-400">
+                                            {isExpanded ? '▼' : '▶'}
+                                        </span>
+                                    </div>
+                                    <div className="text-2xl font-black text-slate-900">
+                                        {total.toLocaleString('ro')}
+                                    </div>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <span className="text-[10px] text-slate-500">Coverage subtype:</span>
+                                        <span
+                                            className="text-[10px] font-bold"
+                                            style={{
+                                                color: cov.pct >= 70 ? '#10b981'
+                                                     : cov.pct >= 30 ? '#f59e0b'
+                                                     : '#ef4444',
+                                            }}
+                                        >
+                                            {cov.pct}% ({cov.with_subtype}/{cov.total})
+                                        </span>
+                                    </div>
+                                    <div className="mt-3">
+                                        <MiniBars data={data} color={TYPE_COLORS[type]} height="h-12" />
+                                    </div>
+                                </button>
                             );
                         })}
                     </div>
                 </div>
+
+                {/* Standalone details panel — sits BELOW the 3x2 grid so card heights
+                    stay uniform and sub-cards never overlap the next grid row. */}
+                {expandedType && (() => {
+                    const type = expandedType;
+                    const subtypesForType = (bySubtype ?? []).filter(s => s.type === type);
+
+                    return (
+                        <div
+                            ref={detailsRef}
+                            className="bg-white rounded-xl border-2 shadow-sm p-5"
+                            style={{ borderColor: TYPE_COLORS[type] }}
+                        >
+                            <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-2xl">{TYPE_ICONS[type]}</span>
+                                    <h3 className="text-sm font-bold text-slate-900">
+                                        Detalii {TYPE_LABELS[type]}
+                                    </h3>
+                                    <span className="text-xs text-slate-400">
+                                        ({subtypesForType.length} sub-categorii)
+                                    </span>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setExpandedType(null)}
+                                    className="text-slate-400 hover:text-slate-700 text-lg leading-none px-2 py-1 rounded hover:bg-slate-100"
+                                    aria-label="Închide detalii"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+
+                            {subtypesForType.length === 0 ? (
+                                <div className="text-xs text-slate-400 text-center py-4">
+                                    Nu sunt sub-categorii pentru acest tip.
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                    {subtypesForType.map((sub) => {
+                                        const subLabel   = SUBTYPE_LABELS[type]?.[sub.subtype] ?? sub.subtype;
+                                        const subData    = bySubtypeDaily[`${type}:${sub.subtype}`] ?? [];
+                                        const lastScraped = sub.last_scraped_at
+                                            ? new Date(sub.last_scraped_at).toLocaleString('ro-RO', {
+                                                day: '2-digit', month: '2-digit',
+                                                hour: '2-digit', minute: '2-digit',
+                                              })
+                                            : '—';
+
+                                        return (
+                                            <div key={sub.subtype} className="bg-slate-50 rounded-lg border border-slate-200 p-3">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <span className="text-xs font-bold text-slate-700">{subLabel}</span>
+                                                    <span className="text-base font-black text-slate-900">
+                                                        {Number(sub.cnt).toLocaleString('ro')}
+                                                    </span>
+                                                </div>
+                                                <div className="mb-1.5">
+                                                    {subData.length > 0 ? (
+                                                        <MiniBars data={subData} color={TYPE_COLORS[type]} height="h-8" />
+                                                    ) : (
+                                                        <div className="text-[10px] text-slate-300 py-2 text-center">
+                                                            Fără date 7 zile
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="text-[10px] text-slate-400 text-right">
+                                                    Ultim scrape: {lastScraped}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })()}
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                     <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">

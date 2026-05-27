@@ -291,6 +291,13 @@ Schedule::command('scraper:watchdog')
     ->everyTenMinutes()
     ->name('scraper-watchdog');
 
+// Stale-run cleanup — finalizes scraper_runs rows whose worker was SIGKILL'd
+// or died before atexit ran. Catches anything the watchdog/orphan-kill paths
+// missed, so the dashboard never shows a ghost "active run".
+Schedule::command('scraper:cleanup-stale-runs')
+    ->everyFifteenMinutes()
+    ->name('scraper-cleanup-stale-runs');
+
 // Batch matching — runs at 06:30, 07:30, ..., 22:30 Chisinau time.
 // Picks up fresh scraped_listings (matched_at IS NULL) and dispatches
 // per-user notifications for any saved searches that match.

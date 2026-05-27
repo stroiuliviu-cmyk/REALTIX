@@ -181,11 +181,27 @@ def _init_run_row(conn, dialect: str, mode: str, pid: int) -> int | None:
         return None
 
 
+def _reset_aborted_tx(conn) -> None:
+    """Roll back any in-flight transaction so the next query can run.
+    psycopg2 raises InFailedSqlTransaction on every subsequent query once
+    one has errored without a rollback — call this before any "must succeed"
+    write so finalize/update don't get blocked by an earlier upsert failure.
+    Idempotent and safe on a clean connection."""
+    try:
+        conn.rollback()
+    except Exception:
+        pass
+
+
 def _update_run_row(conn, dialect: str, run_id: int | None, **fields) -> None:
     """Update scraper_runs row with arbitrary stat fields. category_stats
     dicts get JSON-encoded automatically. Silently no-ops if run_id is None."""
     if not run_id or not fields:
         return
+    # Reset any aborted-tx state from a prior failed upsert (see Bug A in
+    # commit 65f57b3 incident: hourly run 16:13 hit InFailedSqlTransaction
+    # and lost the finalize, leaving the row stuck on 'running').
+    _reset_aborted_tx(conn)
     try:
         cols, vals = [], []
         for k, v in fields.items():
@@ -204,21 +220,23 @@ def _update_run_row(conn, dialect: str, run_id: int | None, **fields) -> None:
         cur.close()
     except Exception as e:
         log.warning(f"Failed to update scraper_runs row {run_id}: {e}")
-        try:
-            conn.rollback()
-        except Exception:
-            pass
+        _reset_aborted_tx(conn)
 
 
 def _finalize_run(conn, dialect: str, run_id: int | None,
                   status: str = "success", error_msg: str | None = None,
                   exit_code: int | None = None) -> None:
     """Mark a run as finished (success / failed / killed / timeout) and
-    compute duration in Python (avoids dialect-specific date arithmetic)."""
+    compute duration in Python (avoids dialect-specific date arithmetic).
+    Falls back to a minimal status-only UPDATE if the full one fails — we'd
+    rather lose duration/stats than leave a row stuck on 'running'."""
     if not run_id:
         return
+    # Always rollback first — if a prior upsert errored, every SELECT/UPDATE
+    # below would just re-raise InFailedSqlTransaction.
+    _reset_aborted_tx(conn)
+    ended = datetime.now(timezone.utc)
     try:
-        ended = datetime.now(timezone.utc)
         cur = conn.cursor()
         # Fetch started_at to compute duration; falls back to 0 if missing.
         cur.execute(_ph("SELECT started_at FROM scraper_runs WHERE id = ?", dialect), (run_id,))
@@ -245,12 +263,30 @@ def _finalize_run(conn, dialect: str, run_id: int | None,
         )
         conn.commit()
         cur.close()
+        return
     except Exception as e:
         log.warning(f"Failed to finalize run {run_id}: {e}")
-        try:
-            conn.rollback()
-        except Exception:
-            pass
+
+    # Recovery path: rollback, then retry with a minimal status-only UPDATE
+    # so the row at least leaves the 'running' state (the cleanup cron can
+    # backfill duration later from started_at/ended_at).
+    _reset_aborted_tx(conn)
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            _ph(
+                "UPDATE scraper_runs SET status = ?, ended_at = ?, error_message = ?, "
+                "updated_at = ? WHERE id = ?",
+                dialect,
+            ),
+            (status, ended, error_msg, ended, run_id),
+        )
+        conn.commit()
+        cur.close()
+        log.info(f"Recovered: finalized run {run_id} with status={status} (minimal update)")
+    except Exception as e2:
+        log.error(f"Recovery also failed for run {run_id}: {e2}")
+        _reset_aborted_tx(conn)
 
 
 # ── Logging / shutdown / driver recovery ──────────────────────────────────────

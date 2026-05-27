@@ -39,17 +39,37 @@ class ScraperProcessGuard
                 continue;
             }
 
+            // SIGTERM first so Python's atexit (which finalizes the
+            // scraper_runs row) gets a chance to run. We then poll up to
+            // 5 seconds before falling back to SIGKILL — the prior 2 s was
+            // too short and frequently left rows stuck on 'running'.
             @shell_exec("kill -TERM {$pid} 2>/dev/null");
-            sleep(2);
-            if ($this->isAlive($pid)) {
-                @shell_exec("kill -9 {$pid} 2>/dev/null");
+
+            $waited = 0;
+            $exited = false;
+            while ($waited < 5) {
+                if (! $this->isAlive($pid)) {
+                    $exited = true;
+                    break;
+                }
+                sleep(1);
+                $waited++;
             }
-            $killed[] = ['pid' => $pid, 'age_sec' => $age];
+
+            if ($exited) {
+                $killed[] = ['pid' => $pid, 'age_sec' => $age, 'method' => 'SIGTERM_graceful'];
+            } else {
+                @shell_exec("kill -9 {$pid} 2>/dev/null");
+                $killed[] = ['pid' => $pid, 'age_sec' => $age, 'method' => 'SIGKILL_after_grace'];
+            }
         }
 
-        // Cleanup Firefox/geckodriver zombies left behind by killed scrapers.
-        @shell_exec("pkill -9 -f 'firefox.*--marionette' 2>/dev/null");
-        @shell_exec("pkill -9 -f geckodriver 2>/dev/null");
+        // Firefox/geckodriver only get reaped when we actually killed a
+        // scraper — leaves unrelated browser sessions on the box alone.
+        if (! empty($killed)) {
+            @shell_exec("pkill -9 -f 'firefox.*--marionette' 2>/dev/null");
+            @shell_exec("pkill -9 -f geckodriver 2>/dev/null");
+        }
 
         return $killed;
     }

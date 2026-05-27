@@ -83,9 +83,9 @@ function ProfileDropdown({ user }) {
                     <Link href="/subscription" className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
                         <span>💳</span> {t('profile.subscription')}
                     </Link>
-                    <a href="mailto:support@realtix.md" className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                    <Link href="/suport" className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
                         <span>❓</span> {t('profile.support')}
-                    </a>
+                    </Link>
                     <div className="border-t border-slate-100 mt-1 pt-1">
                         <Link
                             href="/logout"

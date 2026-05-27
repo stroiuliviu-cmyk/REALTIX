@@ -284,6 +284,16 @@ Route::middleware(['auth', 'verified', 'onboarded'])->group(function () {
     Route::get('/settings/portals/discover-categories', [SettingsController::class, 'discoverPortal999Categories'])->name('settings.portals.discover');
 });
 
+// User Support (helpdesk tickets) — auth + verified only, NOT onboarded gate
+// since support is a critical comm channel even during onboarding issues.
+Route::middleware(['auth', 'verified'])->prefix('suport')->name('support.')->group(function () {
+    Route::get('/',                [\App\Http\Controllers\SupportController::class, 'index'])->name('index');
+    Route::get('/nou',             [\App\Http\Controllers\SupportController::class, 'create'])->name('create');
+    Route::post('/',               [\App\Http\Controllers\SupportController::class, 'store'])->name('store');
+    Route::get('/{ticket}',        [\App\Http\Controllers\SupportController::class, 'show'])->name('show');
+    Route::post('/{ticket}/reply', [\App\Http\Controllers\SupportController::class, 'reply'])->name('reply');
+});
+
 // Platform admin (super_admin only)
 // Legacy /admin/* prefix kept for backward compat — redirects to /super-admin/*
 Route::middleware(['auth', 'super_admin'])->group(function () {

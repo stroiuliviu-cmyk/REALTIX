@@ -186,6 +186,7 @@ export default function Index({
     bySubtype = [], bySubtypeDaily = {}, coverage = {},
     syncLogs,
     recentRuns = [], runsAgg = {}, activeRun = null,
+    recentlyTouched = [],
 }) {
     const [isSyncing, setIsSyncing] = useState(false);
 
@@ -224,7 +225,7 @@ export default function Index({
         const interval = setInterval(() => {
             router.reload({
                 only: ['stats', 'byType', 'byTypeDaily', 'bySubtype', 'bySubtypeDaily', 'coverage',
-                       'recentRuns', 'runsAgg', 'activeRun'],
+                       'recentRuns', 'runsAgg', 'activeRun', 'recentlyTouched'],
                 preserveScroll: true,
                 preserveState: true,
                 onSuccess: () => setLastRefresh(new Date()),
@@ -525,6 +526,91 @@ export default function Index({
                         <MetricCard label="Success" value={runsAgg.success_24h ?? 0} accent="emerald" />
                         <MetricCard label="Failed" value={runsAgg.failed_24h ?? 0} accent="red" />
                         <MetricCard label="Avg durată" value={formatDuration(runsAgg.avg_duration_sec)} />
+                    </div>
+
+                    {/* Live feed of listings touched in the last 10 minutes. Surfaces
+                        NEW vs UPDATE per row so the operator can watch what the active
+                        scraper is touching without tailing logs. */}
+                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+                            <h3 className="text-sm font-bold text-slate-900">
+                                Listings procesate live ({recentlyTouched?.length ?? 0})
+                            </h3>
+                            <span className="text-xs text-slate-400">
+                                Ultimele 10 minute · refresh 30s
+                            </span>
+                        </div>
+                        {(!recentlyTouched || recentlyTouched.length === 0) ? (
+                            <div className="p-8 text-center text-sm text-slate-400">
+                                Niciun listing touched în ultimele 10 minute.
+                                <br />
+                                <span className="text-xs">Cron-ul rulează la fiecare oră fixă (7-22).</span>
+                            </div>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+                                        <tr>
+                                            <th className="px-4 py-2 text-left font-semibold">Timp</th>
+                                            <th className="px-4 py-2 text-left font-semibold">Acțiune</th>
+                                            <th className="px-4 py-2 text-left font-semibold">Tip</th>
+                                            <th className="px-4 py-2 text-left font-semibold">Subtype</th>
+                                            <th className="px-4 py-2 text-left font-semibold">ID</th>
+                                            <th className="px-4 py-2 text-left font-semibold">Titlu</th>
+                                            <th className="px-4 py-2 text-right font-semibold">Preț</th>
+                                            <th className="px-4 py-2 text-center font-semibold">Link</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {recentlyTouched.map(l => (
+                                            <tr key={l.id} className="border-t border-slate-100 hover:bg-slate-50">
+                                                <td className="px-4 py-2 whitespace-nowrap text-slate-500">
+                                                    {timeAgo(l.updated_at)}
+                                                </td>
+                                                <td className="px-4 py-2">
+                                                    <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${
+                                                        l.is_new
+                                                            ? 'bg-emerald-100 text-emerald-700'
+                                                            : 'bg-blue-100 text-blue-700'
+                                                    }`}>
+                                                        {l.is_new ? '+ NEW' : '↻ UPDATE'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-2 text-slate-700">
+                                                    {TYPE_LABELS[l.type] ?? l.type}
+                                                </td>
+                                                <td className="px-4 py-2 text-xs text-slate-500">
+                                                    {l.subtype ?? '—'}
+                                                </td>
+                                                <td className="px-4 py-2 font-mono text-xs text-slate-500">
+                                                    {l.external_id}
+                                                </td>
+                                                <td className="px-4 py-2 max-w-xs truncate text-slate-800">
+                                                    {l.title}
+                                                </td>
+                                                <td className="px-4 py-2 text-right whitespace-nowrap font-mono text-slate-700">
+                                                    {l.price ? `${Number(l.price).toLocaleString('ro-RO')} ${l.currency ?? ''}` : '—'}
+                                                </td>
+                                                <td className="px-4 py-2 text-center">
+                                                    {l.external_url ? (
+                                                        <a
+                                                            href={l.external_url}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-blue-600 hover:underline text-xs"
+                                                        >
+                                                            Vezi →
+                                                        </a>
+                                                    ) : (
+                                                        <span className="text-xs text-slate-300">—</span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
                     </div>
 
                     <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">

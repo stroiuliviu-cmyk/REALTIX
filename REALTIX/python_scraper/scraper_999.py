@@ -2335,7 +2335,14 @@ def main() -> int:
     try:
         global _current_category_name
         for cat in cats:
-            cat_stats = {"new": 0, "updated": 0, "errors": 0, "skipped": 0, "processed": 0}
+            cat_stats = {
+                "new": 0, "updated": 0, "errors": 0, "skipped": 0, "processed": 0,
+                # URLs whose detail-fetch failed (None return, generic exception, or
+                # WebDriverException after the per-run restart budget was already
+                # exhausted). Capped at 10 per category on flush to keep the JSON
+                # blob small enough for Inertia roundtrips.
+                "failed_urls": [],
+            }
             stats["by_category"][cat["slug"]] = cat_stats
             cat_started = time.time()
 
@@ -2429,6 +2436,7 @@ def main() -> int:
                             if not ad:
                                 stats["errors"] += 1
                                 cat_stats["errors"] += 1
+                                cat_stats["failed_urls"].append(url[:200])
                                 continue
 
                             # --scope-hours: skip ads published outside the time window.
@@ -2534,6 +2542,11 @@ def main() -> int:
                         log.error(f"WebDriver crash on {external_id}: {type(e).__name__}: {str(e)[:120]}")
                         stats["errors"] += 1
                         cat_stats["errors"] += 1
+                        # Only record the URL once the restart budget is gone —
+                        # earlier crashes self-heal via the driver restart below
+                        # and don't represent a true failure.
+                        if driver_restart_count >= MAX_DRIVER_RESTARTS:
+                            cat_stats["failed_urls"].append(url[:200])
                         if driver_restart_count < MAX_DRIVER_RESTARTS:
                             wait = BACKOFF_SECONDS[driver_restart_count]
                             log.warning(f"Restarting driver (#{driver_restart_count + 1}/{MAX_DRIVER_RESTARTS}), sleeping {wait}s")
@@ -2552,6 +2565,7 @@ def main() -> int:
                     except Exception as e:
                         stats["errors"] += 1
                         cat_stats["errors"] += 1
+                        cat_stats["failed_urls"].append(url[:200])
                         print(f"  ❌ {url}: {type(e).__name__}: {str(e)[:80]}")
 
                     time.sleep(random.uniform(args.delay_min, args.delay_max))
@@ -2565,6 +2579,7 @@ def main() -> int:
                 "updated":      cat_stats["updated"],
                 "skipped":      cat_stats["skipped"],
                 "failed":       cat_stats["errors"],
+                "failed_urls":  cat_stats["failed_urls"][:10],
                 "duration_sec": int(time.time() - cat_started),
             }
             for k in ("processed", "new", "updated", "skipped", "failed"):

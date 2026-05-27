@@ -162,6 +162,30 @@ class Portal999Controller extends Controller
             ];
         }
 
+        // Live "listings touched" feed — last 30 listings updated in the past
+        // 10 minutes. is_new is derived from created_at ≈ updated_at (UPSERT
+        // INSERT path) vs ≠ (UPDATE path) so the dashboard can colour them.
+        $recentlyTouched = ScrapedListing::query()
+            ->where('source', '999md')
+            ->where('updated_at', '>=', now()->subMinutes(10))
+            ->orderByDesc('updated_at')
+            ->limit(30)
+            ->get(['id', 'external_id', 'external_url', 'title', 'price', 'currency',
+                   'type', 'subtype', 'updated_at', 'created_at'])
+            ->map(fn ($l) => [
+                'id'           => $l->id,
+                'external_id'  => $l->external_id,
+                'external_url' => $l->external_url,
+                'title'        => mb_substr($l->title ?? '', 0, 60),
+                'price'        => $l->price,
+                'currency'     => $l->currency,
+                'type'         => $l->type,
+                'subtype'      => $l->subtype,
+                'updated_at'   => $l->updated_at?->toIso8601String(),
+                'is_new'       => $l->created_at && $l->updated_at
+                                  && $l->created_at->diffInSeconds($l->updated_at) < 5,
+            ]);
+
         $syncLogs = ActivityLog::query()
             ->where(function ($q) {
                 $q->where('action', 'like', 'scrape.%')
@@ -248,6 +272,7 @@ class Portal999Controller extends Controller
             'recentRuns'      => $recentRuns,
             'runsAgg'         => $runsAgg,
             'activeRun'       => $activeRun,
+            'recentlyTouched' => $recentlyTouched,
         ]);
     }
 }

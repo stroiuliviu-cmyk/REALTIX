@@ -164,7 +164,7 @@ export default function AppLayout({ children, title }) {
     return (
         <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-blue-50 text-slate-900 font-[Inter,sans-serif]">
             {impersonation && (
-                <div className="bg-rose-600 text-white text-xs sm:text-sm font-semibold px-4 py-2.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4 shadow-md">
+                <div className="bg-rose-600 text-white text-xs sm:text-sm font-semibold px-4 py-2.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4 shadow-md lg:pl-64">
                     <div className="flex items-start sm:items-center gap-2">
                         <span className="text-base shrink-0">🎭</span>
                         <span>
@@ -180,7 +180,7 @@ export default function AppLayout({ children, title }) {
                 </div>
             )}
             {isPastDue && (
-                <div className="bg-red-600 text-white text-xs sm:text-sm font-semibold px-4 py-2.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4 shadow-md">
+                <div className="bg-red-600 text-white text-xs sm:text-sm font-semibold px-4 py-2.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4 shadow-md lg:pl-64">
                     <div className="flex items-start sm:items-center gap-2">
                         <span className="text-base shrink-0">⚠</span>
                         <span>
@@ -198,7 +198,7 @@ export default function AppLayout({ children, title }) {
                 </div>
             )}
             {/* Header */}
-            <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
+            <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl lg:pl-64">
                 <div className="mx-auto flex max-w-screen-2xl items-center justify-between px-4 sm:px-6 py-3 gap-3">
                     {/* Hamburger (mobile only) */}
                     <button
@@ -317,7 +317,7 @@ export default function AppLayout({ children, title }) {
 
             {/* Flash messages */}
             {(flash?.success || flash?.error || flash?.warning) && (
-                <div className="mx-auto max-w-screen-2xl px-6 pt-3">
+                <div className="mx-auto max-w-screen-2xl px-6 pt-3 lg:pl-64">
                     {flash?.success && (
                         <div className="rounded-2xl bg-emerald-50 border border-emerald-200 px-5 py-3 text-emerald-700 text-sm font-medium flex items-center gap-2">
                             <span>✓</span> {flash.success}
@@ -474,8 +474,11 @@ export default function AppLayout({ children, title }) {
 
             {/* Main layout */}
             <div className="mx-auto max-w-screen-2xl flex gap-0 p-3 sm:p-6 items-start">
-                {/* Sidebar (desktop only) — dark theme with Lucide icons + helper card */}
-                <aside className="hidden lg:flex flex-col w-64 shrink-0 rounded-3xl bg-slate-900 p-3 shadow-2xl border border-slate-800 sticky top-24 self-start mr-5 h-[calc(100vh-7rem)] overflow-y-auto">
+                {/* Sidebar (desktop only) — dark, edge-to-edge, fixed full-height.
+                    Inner wrapper carries the padding + flex-col so mt-auto pushes
+                    the helper card to the bottom of the viewport. */}
+                <aside className="hidden lg:flex flex-col w-64 shrink-0 bg-slate-900 border-r border-slate-800 fixed top-0 left-0 h-screen overflow-y-auto z-30">
+                    <div className="flex flex-col h-full p-4">
                     {/* Logo (sidebar-local — distinct from light header logo) */}
                     <Link href="/dashboard" className="flex items-center gap-2 px-3 py-2 mb-3">
                         <Home className="w-7 h-7 text-blue-400 shrink-0" />
@@ -565,10 +568,11 @@ export default function AppLayout({ children, title }) {
                             </Link>
                         </div>
                     </div>
+                    </div>
                 </aside>
 
                 {/* Content */}
-                <main className="flex-1 min-w-0 min-h-150">
+                <main className="flex-1 min-w-0 min-h-150 lg:ml-64">
                     {title && (
                         <h1 className="text-xl sm:text-2xl font-bold text-slate-900 mb-4 sm:mb-5">{title}</h1>
                     )}

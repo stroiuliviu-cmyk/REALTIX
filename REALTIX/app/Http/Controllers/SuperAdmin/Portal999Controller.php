@@ -5,6 +5,7 @@ namespace App\Http\Controllers\SuperAdmin;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\ScrapedListing;
+use App\Services\ScraperProcessGuard;
 use App\Services\SuperAdmin\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,20 +16,36 @@ use Inertia\Response;
 
 class Portal999Controller extends Controller
 {
-    public function triggerSync(Request $request, AuditLogger $audit): RedirectResponse
+    public function triggerSync(Request $request, AuditLogger $audit, ScraperProcessGuard $guard): RedirectResponse
     {
+        // Refuse spawning a parallel sync if one is already in flight.
+        // Without this, rapid button clicks pile up 2-3 Python processes
+        // competing for the same Firefox session and 999.md rate limits.
+        $runningPids = $guard->getRunningPids();
+        if (count($runningPids) > 0) {
+            return back()->with('error',
+                '⏳ Sync deja în desfășurare (PID: ' . implode(', ', $runningPids) . '). '
+                . 'Așteaptă să termine sau verifică logs.'
+            );
+        }
+
         try {
+            // Args mirror the hourly cron exactly (--pages=1 --skip-recent-hours=0
+            // --scope-hours=1 --download-images --mode=manual). The old --today-only
+            // flag was dropped — deprecated by the single-pass scraper refactor.
             Artisan::queue('portal:999:scrape', [
-                '--pages'           => 2,
-                '--skip-recent'     => 1,
-                '--today-only'      => true,
-                '--download-images' => true,
+                '--pages'              => 1,
+                '--agency'             => 1,
+                '--skip-recent-hours'  => 0,
+                '--scope-hours'        => 1,
+                '--download-images'    => true,
+                '--mode'               => 'manual',
             ]);
             $audit->record('portal_999.manual_sync', null, 'Manual 999.md sync triggered');
-            return back()->with('success', '🔄 Sync 999.md pornit în background. Verifică logs în câteva minute.');
+            return back()->with('success', '🔄 Sync 999.md pornit. Estimat: 5-8 minute.');
         } catch (\Throwable $e) {
             report($e);
-            return back()->with('error', 'Eroare la pornirea sync: ' . $e->getMessage());
+            return back()->with('error', 'Eroare la pornire: ' . $e->getMessage());
         }
     }
 

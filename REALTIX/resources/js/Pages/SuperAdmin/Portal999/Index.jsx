@@ -1,6 +1,7 @@
 import SuperAdminLayout from '@/Layouts/SuperAdminLayout';
 import { Head, router } from '@inertiajs/react';
 import { useState, useEffect, useRef } from 'react';
+import { Loader2, RefreshCw } from 'lucide-react';
 
 function MetricCard({ label, value, accent = 'slate' }) {
     const palette = {
@@ -119,9 +120,21 @@ export default function Index({
     bySubtype = [], bySubtypeDaily = {}, coverage = {},
     syncLogs,
 }) {
+    const [isSyncing, setIsSyncing] = useState(false);
+
+    // 30s debounce prevents double-clicks from queuing redundant Artisan jobs.
+    // Server-side ScraperProcessGuard still refuses parallel spawns, but the
+    // client-side guard avoids spamming the queue with no-op rejections.
     const triggerSync = () => {
+        if (isSyncing) return;
         if (!confirm('Pornește sync manual 999.md acum? Va dispatcha job-ul în background.')) return;
-        router.post(route('super-admin.portal-999.sync'), {}, { preserveScroll: true });
+        setIsSyncing(true);
+        router.post(route('super-admin.portal-999.sync'), {}, {
+            preserveScroll: true,
+            onFinish: () => {
+                setTimeout(() => setIsSyncing(false), 30000);
+            },
+        });
     };
 
     const [expandedType, setExpandedType] = useState(null);
@@ -158,8 +171,26 @@ export default function Index({
 
             <div className="space-y-5">
                 <div className="flex justify-end">
-                    <button onClick={triggerSync} className="rounded-lg bg-blue-600 text-white px-4 py-2 text-sm font-bold hover:bg-blue-700">
-                        🔄 Trigger manual sync
+                    <button
+                        onClick={triggerSync}
+                        disabled={isSyncing}
+                        className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold transition-colors ${
+                            isSyncing
+                                ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                                : 'bg-blue-600 text-white hover:bg-blue-700'
+                        }`}
+                    >
+                        {isSyncing ? (
+                            <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Sync în desfășurare…
+                            </>
+                        ) : (
+                            <>
+                                <RefreshCw className="w-4 h-4" />
+                                Trigger manual sync
+                            </>
+                        )}
                     </button>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

@@ -34,7 +34,7 @@ Artisan::command('portal:999:sync {agency? : Agency ID (defaults to first)}', fu
 // Public scraping (incremental): php artisan portal:999:scrape
 // Default: 2 pages × 6 categories — fetches recently posted ads (~150-200 ads in 2-4 min).
 // Skips ads already updated within the last hour to avoid duplicate work.
-Artisan::command('portal:999:scrape {--pages=2 : Pages per category, or "all"} {--max-ads= : Hard cap} {--category= : Single category slug} {--agency=1 : Agency ID for new rows} {--skip-recent=1 : Skip ads updated within N hours} {--today-only : Stop when ads older than today} {--download-images : Download images locally} {--fast : Fast bulk mode}', function () {
+Artisan::command('portal:999:scrape {--pages=2 : Pages per category, or "all"} {--max-ads= : Hard cap} {--category= : Single category slug} {--agency=1 : Agency ID for new rows} {--skip-recent-hours=1 : Skip ads updated within N hours} {--scope-hours=0 : Only keep ads from last N hours (0=disabled)} {--mode=manual : morning|hourly|manual} {--today-only : Stop when ads older than today} {--download-images : Download images locally} {--fast : Fast bulk mode}', function () {
     $script = base_path('python_scraper/scraper_999.py');
     if (! file_exists($script)) {
         $this->error("Script not found at {$script}");
@@ -45,8 +45,12 @@ Artisan::command('portal:999:scrape {--pages=2 : Pages per category, or "all"} {
     $args = [
         '--pages=' . $this->option('pages'),
         '--agency=' . $this->option('agency'),
-        '--skip-recent-hours=' . $this->option('skip-recent'),
+        '--skip-recent-hours=' . $this->option('skip-recent-hours'),
+        '--mode=' . $this->option('mode'),
     ];
+    if ((int) $this->option('scope-hours') > 0) {
+        $args[] = '--scope-hours=' . $this->option('scope-hours');
+    }
     if ($max = $this->option('max-ads'))      $args[] = '--max-ads=' . $max;
     if ($cat = $this->option('category'))     $args[] = '--category=' . $cat;
     if ($this->option('today-only'))          $args[] = '--today-only';

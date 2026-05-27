@@ -54,6 +54,26 @@ class ScraperProcessGuard
         return $killed;
     }
 
+    /**
+     * Return all currently running scraper_999.py PIDs without killing anything.
+     * Used by controllers to refuse spawning a parallel run when one is already
+     * in flight (e.g. the super-admin "Trigger manual sync" button).
+     */
+    public function getRunningPids(): array
+    {
+        $pids = [];
+        @exec("pgrep -f 'scraper_999\\.py' 2>/dev/null", $pids);
+
+        $out = [];
+        foreach ($pids as $pid) {
+            $pid = (int) trim($pid);
+            if ($pid > 0) {
+                $out[] = $pid;
+            }
+        }
+        return $out;
+    }
+
     /** Process age in seconds (etimes), or 0 if PID is gone / ps not available. */
     private function getProcessAge(int $pid): int
     {

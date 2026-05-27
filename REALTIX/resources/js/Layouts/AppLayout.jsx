@@ -2,6 +2,10 @@ import { useState, useRef, useEffect } from 'react';
 import { Link, usePage, router } from '@inertiajs/react';
 import { useTranslation } from '@/Hooks/useTranslation';
 import NotificationsBell from '@/Components/NotificationsBell';
+import {
+    Home, Globe, Plus, Send, FileText, Calendar, Users, Sparkles,
+    Settings, LifeBuoy,
+} from 'lucide-react';
 
 function ProfileDropdown({ user }) {
     const { t } = useTranslation();
@@ -119,13 +123,14 @@ export default function AppLayout({ children, title }) {
     }, [mobileMenuOpen]);
 
     const sidebarItems = [
-        { key: 'properties',  label: t('nav.my_listings'),  href: '/properties',        icon: '🏠' },
-        { key: 'web-offers',  label: t('nav.web_offers'),   href: '/web-offers',        icon: '🌐' },
-        { key: 'create',      label: t('nav.add_listing'),  href: '/properties/create', icon: '➕' },
-        { key: 'autopost',    label: t('nav.autopost'),     href: '/autopost',          icon: '📤' },
-        { key: 'contracts',   label: t('nav.contracts'),    href: '/contracts',         icon: '📄' },
-        { key: 'calendar',    label: t('nav.calendar'),     href: '/calendar',          icon: '📅' },
-        { key: 'contacts',    label: t('nav.crm_clients'),  href: '/contacts',          icon: '👥' },
+        { key: 'properties',  label: t('nav.my_listings'),  href: '/properties',        Icon: Home },
+        { key: 'web-offers',  label: t('nav.web_offers'),   href: '/web-offers',        Icon: Globe },
+        { key: 'create',      label: t('nav.add_listing'),  href: '/properties/create', Icon: Plus },
+        { key: 'autopost',    label: t('nav.autopost'),     href: '/autopost',          Icon: Send },
+        { key: 'contracts',   label: t('nav.contracts'),    href: '/contracts',         Icon: FileText },
+        { key: 'calendar',    label: t('nav.calendar'),     href: '/calendar',          Icon: Calendar },
+        { key: 'contacts',    label: t('nav.crm_clients'),  href: '/contacts',          Icon: Users },
+        { key: 'ai-offers',   label: 'Oferte AI',           href: '/oferte-ai',         Icon: Sparkles, badge: 'NOU' },
     ];
 
     const headerNavItems = [
@@ -338,12 +343,15 @@ export default function AppLayout({ children, title }) {
                         className="lg:hidden fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
                         onClick={() => setMobileMenuOpen(false)}
                     />
-                    <aside className="lg:hidden fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] bg-white shadow-2xl overflow-y-auto">
-                        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-                            <div className="text-xl font-black tracking-widest text-blue-900" style={{ fontFamily: 'Montserrat, sans-serif' }}>REALTIX</div>
+                    <aside className="lg:hidden fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] bg-slate-900 shadow-2xl overflow-y-auto flex flex-col">
+                        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
+                            <div className="flex items-center gap-2">
+                                <Home className="w-6 h-6 text-blue-400" />
+                                <div className="text-xl font-black tracking-widest text-white" style={{ fontFamily: 'Montserrat, sans-serif' }}>REALTIX</div>
+                            </div>
                             <button
                                 onClick={() => setMobileMenuOpen(false)}
-                                className="p-2 -mr-2 rounded-xl text-slate-500 hover:bg-slate-100"
+                                className="p-2 -mr-2 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white"
                                 aria-label="Close menu"
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -353,15 +361,17 @@ export default function AppLayout({ children, title }) {
                         </div>
 
                         {user?.agency && (
-                            <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-3">
-                                {user.agency.logo_path ? (
-                                    <img src={`/storage/${user.agency.logo_path}`} alt={user.agency.name} className="w-10 h-10 rounded-lg object-cover border border-slate-200" />
-                                ) : (
-                                    <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center text-blue-700 font-bold">{user.agency.name?.[0] ?? '?'}</div>
-                                )}
-                                <div className="leading-tight">
-                                    <div className="text-sm font-bold text-slate-800">{user.agency.name}</div>
-                                    <div className="text-xs text-slate-400">{planLabel}</div>
+                            <div className="mx-3 mt-3 mb-2 rounded-lg bg-slate-800/50 border border-slate-700 px-3 py-2.5 flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-lg bg-blue-600/20 flex items-center justify-center shrink-0">
+                                    {user.agency.logo_path ? (
+                                        <img src={`/storage/${user.agency.logo_path}`} alt={user.agency.name} className="w-full h-full rounded-lg object-cover" />
+                                    ) : (
+                                        <Home className="w-4 h-4 text-blue-400" />
+                                    )}
+                                </div>
+                                <div className="flex-1 min-w-0 leading-tight">
+                                    <div className="text-sm font-semibold text-white truncate">{user.agency.name}</div>
+                                    <div className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">{planLabel}</div>
                                 </div>
                             </div>
                         )}
@@ -374,10 +384,10 @@ export default function AppLayout({ children, title }) {
                                     href={item.href}
                                     className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold ${
                                         currentPath.startsWith(item.href)
-                                            ? 'bg-slate-900 text-white'
+                                            ? 'bg-blue-600 text-white'
                                             : item.highlight
-                                                ? 'bg-rose-100 text-rose-700'
-                                                : 'text-slate-700 hover:bg-slate-100'
+                                                ? 'bg-rose-500/20 text-rose-300'
+                                                : 'text-slate-300 hover:bg-slate-800 hover:text-white'
                                     }`}
                                 >
                                     {item.highlight && <span>🛡</span>}
@@ -385,9 +395,10 @@ export default function AppLayout({ children, title }) {
                                 </Link>
                             ))}
 
-                            <div className="border-t border-slate-100 my-2" />
+                            <div className="border-t border-slate-800 my-2" />
 
                             {sidebarItems.map(item => {
+                                const Icon = item.Icon;
                                 const isActive = item.href === '/properties/create'
                                     ? currentPath === item.href
                                     : currentPath.startsWith(item.href);
@@ -395,35 +406,62 @@ export default function AppLayout({ children, title }) {
                                     <Link
                                         key={item.key}
                                         href={item.href}
-                                        className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold ${
-                                            isActive ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100'
+                                        className={`flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-sm font-medium ${
+                                            isActive
+                                                ? 'bg-blue-600 text-white'
+                                                : 'text-slate-300 hover:bg-slate-800 hover:text-white'
                                         }`}
                                     >
-                                        <span className="text-base">{item.icon}</span>
-                                        <span>{item.label}</span>
+                                        <span className="flex items-center gap-3">
+                                            <Icon className="w-5 h-5 shrink-0" strokeWidth={isActive ? 2.5 : 2} />
+                                            <span>{item.label}</span>
+                                        </span>
+                                        {item.badge && (
+                                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400">
+                                                {item.badge}
+                                            </span>
+                                        )}
                                     </Link>
                                 );
                             })}
-
-                            <div className="border-t border-slate-100 my-2" />
-
-                            <Link
-                                href="/settings"
-                                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold ${
-                                    currentPath.startsWith('/settings') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100'
-                                }`}
-                            >
-                                <span className="text-base">⚙️</span> <span>{t('nav.settings')}</span>
-                            </Link>
                         </div>
 
-                        <div className="px-3 pb-4 mt-2">
-                            <div className="rounded-xl bg-slate-100 p-1 flex">
+                        {/* Bottom-aligned Settings + helper card */}
+                        <div className="mt-auto p-3 space-y-3">
+                            <Link
+                                href="/settings"
+                                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium ${
+                                    currentPath.startsWith('/settings')
+                                        ? 'bg-blue-600 text-white'
+                                        : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                                }`}
+                            >
+                                <Settings className="w-5 h-5 shrink-0" />
+                                <span>{t('nav.settings')}</span>
+                            </Link>
+
+                            <div className="p-4 rounded-xl bg-linear-to-br from-blue-600/20 to-purple-600/20 border border-blue-500/30">
+                                <div className="flex items-start gap-2 mb-2">
+                                    <LifeBuoy className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
+                                    <div>
+                                        <div className="text-sm font-bold text-white">Ai nevoie de ajutor?</div>
+                                        <div className="text-xs text-slate-400 mt-0.5">Echipa noastră îți stă la dispoziție.</div>
+                                    </div>
+                                </div>
+                                <Link
+                                    href="/suport"
+                                    className="block w-full text-center px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10 text-xs font-semibold text-white transition-colors"
+                                >
+                                    Contactează suport
+                                </Link>
+                            </div>
+
+                            <div className="rounded-xl bg-slate-800 p-1 flex">
                                 {['ro', 'ru'].map(lang => (
                                     <button
                                         key={lang}
                                         onClick={() => switchLanguage(lang)}
-                                        className={`flex-1 py-1.5 text-xs font-bold uppercase rounded-lg transition-colors ${locale === lang ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400'}`}
+                                        className={`flex-1 py-1.5 text-xs font-bold uppercase rounded-lg transition-colors ${locale === lang ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-400'}`}
                                     >
                                         {lang}
                                     </button>
@@ -436,13 +474,40 @@ export default function AppLayout({ children, title }) {
 
             {/* Main layout */}
             <div className="mx-auto max-w-screen-2xl flex gap-0 p-3 sm:p-6 items-start">
-                {/* Sidebar (desktop only) */}
-                <aside className="hidden lg:block w-56 shrink-0 rounded-4xl bg-white/90 p-3 shadow-xl border border-slate-100/80 backdrop-blur-xl sticky top-24 self-start mr-5">
-                    <div className="hidden lg:block mb-3 text-xs font-bold uppercase tracking-wider text-slate-400 px-3">
+                {/* Sidebar (desktop only) — dark theme with Lucide icons + helper card */}
+                <aside className="hidden lg:flex flex-col w-64 shrink-0 rounded-3xl bg-slate-900 p-3 shadow-2xl border border-slate-800 sticky top-24 self-start mr-5 h-[calc(100vh-7rem)] overflow-y-auto">
+                    {/* Logo (sidebar-local — distinct from light header logo) */}
+                    <Link href="/dashboard" className="flex items-center gap-2 px-3 py-2 mb-3">
+                        <Home className="w-7 h-7 text-blue-400 shrink-0" />
+                        <span className="text-lg font-black tracking-widest text-white" style={{ fontFamily: 'Montserrat, sans-serif' }}>
+                            REALTIX
+                        </span>
+                    </Link>
+
+                    {/* Agency badge */}
+                    {user?.agency && (
+                        <div className="mx-1 mb-4 rounded-lg bg-slate-800/50 border border-slate-700 px-3 py-2.5 flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-lg bg-blue-600/20 flex items-center justify-center shrink-0 overflow-hidden">
+                                {user.agency.logo_path ? (
+                                    <img src={`/storage/${user.agency.logo_path}`} alt={user.agency.name} className="w-full h-full rounded-lg object-cover" />
+                                ) : (
+                                    <Home className="w-4 h-4 text-blue-400" />
+                                )}
+                            </div>
+                            <div className="flex-1 min-w-0 leading-tight">
+                                <div className="text-sm font-semibold text-white truncate">{user.agency.name}</div>
+                                <div className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">{planLabel}</div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Navigate label + items */}
+                    <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 px-3">
                         {t('nav.navigate')}
                     </div>
                     <div className="space-y-1">
-                        {sidebarItems.map((item) => {
+                        {sidebarItems.map(item => {
+                            const Icon = item.Icon;
                             const isActive = item.href === '/properties/create'
                                 ? currentPath === item.href
                                 : currentPath.startsWith(item.href);
@@ -450,31 +515,55 @@ export default function AppLayout({ children, title }) {
                                 <Link
                                     key={item.key}
                                     href={item.href}
-                                    title={item.label}
-                                    className={`flex items-center gap-3 text-sm font-semibold transition-all duration-150 rounded-2xl p-3 ${
+                                    className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
                                         isActive
-                                            ? 'bg-slate-900 text-white shadow-md'
-                                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                                            ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/20'
+                                            : 'text-slate-300 hover:bg-slate-800 hover:text-white'
                                     }`}
                                 >
-                                    <span className="text-base shrink-0">{item.icon}</span>
-                                    <span className="hidden lg:block leading-tight">{item.label}</span>
+                                    <span className="flex items-center gap-3">
+                                        <Icon className="w-5 h-5 shrink-0" strokeWidth={isActive ? 2.5 : 2} />
+                                        <span>{item.label}</span>
+                                    </span>
+                                    {item.badge && (
+                                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400">
+                                            {item.badge}
+                                        </span>
+                                    )}
                                 </Link>
                             );
                         })}
                     </div>
 
-                    <div className="mt-4 pt-4 border-t border-slate-100 space-y-1">
+                    {/* Bottom-aligned: Settings + helper card */}
+                    <div className="mt-auto pt-4 space-y-3">
                         <Link
                             href="/settings"
-                            title={t('nav.settings')}
-                            className={`flex items-center gap-3 text-sm font-semibold transition-all duration-150 rounded-2xl p-3 ${
-                                currentPath.startsWith('/settings') ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'
+                            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                                currentPath.startsWith('/settings')
+                                    ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/20'
+                                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
                             }`}
                         >
-                            <span className="text-base shrink-0">⚙️</span>
-                            <span className="hidden lg:block">{t('nav.settings')}</span>
+                            <Settings className="w-5 h-5 shrink-0" />
+                            <span>{t('nav.settings')}</span>
                         </Link>
+
+                        <div className="p-4 rounded-xl bg-linear-to-br from-blue-600/20 to-purple-600/20 border border-blue-500/30">
+                            <div className="flex items-start gap-2 mb-2">
+                                <LifeBuoy className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
+                                <div>
+                                    <div className="text-sm font-bold text-white">Ai nevoie de ajutor?</div>
+                                    <div className="text-xs text-slate-400 mt-0.5">Echipa noastră îți stă la dispoziție.</div>
+                                </div>
+                            </div>
+                            <Link
+                                href="/suport"
+                                className="block w-full text-center px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10 text-xs font-semibold text-white transition-colors"
+                            >
+                                Contactează suport
+                            </Link>
+                        </div>
                     </div>
                 </aside>
 

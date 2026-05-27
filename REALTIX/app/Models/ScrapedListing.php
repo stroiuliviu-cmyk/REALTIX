@@ -46,6 +46,7 @@ class ScrapedListing extends Model
         'city', 'district', 'address', 'year_built',
         'images', 'ai_valuation', 'raw_data',
         'type', 'transaction_type', 'owner_type',
+        'subtype', 'extra_flags',
         'published_at', 'phone',
         'condition', 'building_type', 'heating',
         'furnished', 'parking', 'balcony', 'elevator', 'pets_allowed', 'air_conditioning',
@@ -55,6 +56,7 @@ class ScrapedListing extends Model
     protected $casts = [
         'images'           => 'array',
         'raw_data'         => 'array',
+        'extra_flags'      => 'array',
         'price_per_m2'     => 'decimal:2',
         'price'            => 'decimal:2',
         'published_at'     => 'datetime',

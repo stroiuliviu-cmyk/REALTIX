@@ -312,78 +312,85 @@ _SCOPE_HOURS = 0
 # Process ID heartbeat is written here every minute by the worker loop.
 HEARTBEAT_PATH = Path(__file__).resolve().parent.parent / "storage" / "app" / "scraper_heartbeat.txt"
 
-# Sub-categorii 999.md (alese după opțiunea B — minim funcțional)
-# Total 14 subtypes + 1 extra_flag (new_build pentru apartment)
 CATEGORIES = [
-    {
-        "slug": "apartments-and-rooms",
-        "type": "apartment",
-        "transaction_type": "sale",
-        "label": "Apartamente",
-        "subtypes": [
-            {"key": "1_camera", "exo_param": "exo_241=893", "label": "1 cameră"},
-            {"key": "2_camere", "exo_param": "exo_241=894", "label": "2 camere"},
-            {"key": "3_camere", "exo_param": "exo_241=902", "label": "3 camere"},
-            {"key": "4plus",    "exo_param": "exo_241=904", "label": "4+ camere"},
-        ],
-        "extra_flags": [
-            {"key": "new_build", "exo_param": "exo_852=19108", "label": "Bloc nou"},
-        ],
-    },
-    {
-        "slug": "house-and-garden",
-        "type": "house",
-        "transaction_type": "sale",
-        "label": "Case",
-        "subtypes": [],
-        "extra_flags": [],
-    },
-    {
-        "slug": "cottage",
-        "type": "cottage",
-        "transaction_type": "sale",
-        "label": "Vile/Cabane",
-        "subtypes": [],
-        "extra_flags": [],
-    },
-    {
-        "slug": "land",
-        "type": "land",
-        "transaction_type": "sale",
-        "label": "Terenuri",
-        "subtypes": [
-            {"key": "constructii", "exo_param": "exo_258=1039",  "label": "Pentru construcții"},
-            {"key": "agricol",     "exo_param": "exo_258=1040",  "label": "Agricol"},
-            {"key": "lac",         "exo_param": "exo_258=24342", "label": "Lângă lac"},
-        ],
-        "extra_flags": [],
-    },
-    {
-        "slug": "garages-and-parking",
-        "type": "garage",
-        "transaction_type": "sale",
-        "label": "Garaje/parcări",
-        "subtypes": [
-            {"key": "garaj",       "exo_param": "exo_259=1041", "label": "Garaj"},
-            {"key": "loc_parcare", "exo_param": "exo_259=1042", "label": "Loc parcare"},
-            {"key": "subterana",   "exo_param": "exo_259=1043", "label": "Parcare subterană"},
-        ],
-        "extra_flags": [],
-    },
-    {
-        "slug": "commercial-real-estate",
-        "type": "commercial",
-        "transaction_type": "sale",
-        "label": "Comercial",
-        "subtypes": [
-            {"key": "birou",      "exo_param": "exo_257=1026", "label": "Spațiu birou"},
-            {"key": "comercial",  "exo_param": "exo_257=1030", "label": "Spațiu comercial"},
-            {"key": "depozit",    "exo_param": "exo_257=1027", "label": "Depozit"},
-            {"key": "industrial", "exo_param": "exo_257=1029", "label": "Spațiu industrial"},
-        ],
-        "extra_flags": [],
-    },
+    {"slug": "apartments-and-rooms",   "type": "apartment",  "transaction_type": "sale", "label": "Apartamente"},
+    {"slug": "house-and-garden",       "type": "house",      "transaction_type": "sale", "label": "Case"},
+    {"slug": "cottage",                "type": "cottage",    "transaction_type": "sale", "label": "Vile/Cabane"},
+    {"slug": "land",                   "type": "land",       "transaction_type": "sale", "label": "Terenuri"},
+    {"slug": "garages-and-parking",    "type": "garage",     "transaction_type": "sale", "label": "Garaje/parcări"},
+    {"slug": "commercial-real-estate", "type": "commercial", "transaction_type": "sale", "label": "Comercial"},
 ]
+
+
+def derive_subtype_and_flags(type_: str, rooms, title: str, description: str) -> tuple:
+    """
+    Derive subtype + extra_flags from listing characteristics (title, rooms,
+    description). Called once per listing in the single-pass main loop, right
+    before upsert. Replaces the old multi-pass URL-filter approach which gave
+    wrong tags (e.g. "Spațiu comercial" listings ended up tagged "birou"
+    because of how passes were ordered).
+
+    KEEP IN SYNC with PHP ReclassifySubtypes::deriveSubtypeAndFlags(). Any
+    keyword change here needs a mirror edit in the artisan command and vice
+    versa.
+
+    Returns (subtype: str|None, extra_flags: dict).
+    """
+    title_lower = (title or "").lower()
+    desc_lower = (description or "").lower()
+    combined = title_lower + " " + desc_lower
+    extra_flags: dict = {}
+    subtype = None
+
+    if type_ == "apartment":
+        if rooms is not None:
+            try:
+                r = int(rooms)
+                if   r == 1: subtype = "1_camera"
+                elif r == 2: subtype = "2_camere"
+                elif r == 3: subtype = "3_camere"
+                elif r >= 4: subtype = "4plus"
+            except (ValueError, TypeError):
+                pass
+
+        new_build_keywords = [
+            "bloc nou", "bloc-nou", "новостройка",
+            "complex rezidential", "complex residential",
+            "imobil nou", "construcție nouă", "construcția nouă",
+            "construcție 202", "construcția 202",
+        ]
+        if any(kw in combined for kw in new_build_keywords):
+            extra_flags["new_build"] = True
+
+    elif type_ == "land":
+        if "agricol" in title_lower or "agrigol" in title_lower or "сельскохозяйств" in title_lower:
+            subtype = "agricol"
+        elif "lângă lac" in title_lower or "iaz" in title_lower or " lac" in title_lower or "озер" in title_lower:
+            subtype = "lac"
+        elif "construcți" in title_lower or "constructi" in title_lower or "под строительство" in title_lower:
+            subtype = "constructii"
+        else:
+            subtype = "constructii"
+
+    elif type_ == "garage":
+        if "subteran" in title_lower or "подземн" in title_lower:
+            subtype = "subterana"
+        elif "parcare" in title_lower or "parking" in title_lower or "паркинг" in title_lower:
+            subtype = "loc_parcare"
+        else:
+            subtype = "garaj"
+
+    elif type_ == "commercial":
+        if "depozit" in title_lower or "склад" in title_lower or "warehouse" in title_lower:
+            subtype = "depozit"
+        elif "industrial" in title_lower or "производств" in title_lower:
+            subtype = "industrial"
+        elif "birou" in title_lower or "офис" in title_lower or "office" in title_lower or "oficiu" in title_lower:
+            subtype = "birou"
+        else:
+            subtype = "comercial"
+
+    return subtype, extra_flags
 
 REALTIX_DB_DEFAULT = Path(__file__).resolve().parent.parent / "database" / "database.sqlite"
 DEFAULT_AGENCY_ID = 1
@@ -2111,24 +2118,15 @@ def main() -> int:
             print(f"[FATAL] Unknown category '{args.category}'. Valid: {[c['slug'] for c in CATEGORIES]}", file=sys.stderr)
             return 1
 
-    # --single-subtype takes precedence: scrape ONE subtype only (test mode)
-    single_subtype_filter: tuple[str, str] | None = None
-    if args.single_subtype:
-        try:
-            cat_slug, sub_key = args.single_subtype.split(":", 1)
-        except ValueError:
-            print(f"[FATAL] --single-subtype must be 'category_slug:subtype_key' (got '{args.single_subtype}')", file=sys.stderr)
-            return 1
-        cats = [c for c in CATEGORIES if c["slug"] == cat_slug]
-        if not cats:
-            print(f"[FATAL] Unknown category '{cat_slug}' in --single-subtype", file=sys.stderr)
-            return 1
-        all_keys = [s["key"] for s in cats[0].get("subtypes", [])] + [f["key"] for f in cats[0].get("extra_flags", [])]
-        if sub_key not in all_keys:
-            print(f"[FATAL] Unknown subtype/flag '{sub_key}' in '{cat_slug}'. Valid: {all_keys}", file=sys.stderr)
-            return 1
-        single_subtype_filter = (cat_slug, sub_key)
-        print(f"🎯 Single-subtype test mode: {cat_slug} → {sub_key}")
+    # --single-subtype / --subtype-only are deprecated since the single-pass refactor.
+    # Subtypes are now derived in Python from listing characteristics (title/rooms/
+    # description) instead of being inferred from URL filter passes. Flags kept for
+    # backward CLI compat (cron commands may still pass them) but ignored.
+    if args.single_subtype or args.subtype_only:
+        log.warning(
+            "--single-subtype / --subtype-only are DEPRECATED after the single-pass refactor. "
+            "Subtypes are now derived from listing title/rooms in Python. Flags ignored."
+        )
 
     print(f"🦊 Starting Firefox (headless={not args.no_headless})...")
     print(f"📁 DB: {db_path}")
@@ -2180,31 +2178,18 @@ def main() -> int:
 
             print(f"📂 {cat['label']} ({cat['slug']})")
 
-            # Build the list of passes to run for this category.
-            # Each pass = (exo_param URL filter, subtype tag, extra_flags merge).
-            # --single-subtype: only that one pass.
-            # --subtype-only: skip the un-filtered main pass.
-            passes: list[dict] = []
-            if not args.subtype_only and not single_subtype_filter:
-                passes.append({"exo": None, "subtype": None, "extra_flags": None, "label": "main"})
-            for sub in cat.get("subtypes", []):
-                if single_subtype_filter and (cat["slug"], sub["key"]) != single_subtype_filter:
-                    continue
-                passes.append({"exo": sub["exo_param"], "subtype": sub["key"], "extra_flags": None,
-                               "label": f"subtype:{sub['key']}"})
-            for flag in cat.get("extra_flags", []):
-                if single_subtype_filter and (cat["slug"], flag["key"]) != single_subtype_filter:
-                    continue
-                passes.append({"exo": flag["exo_param"], "subtype": None, "extra_flags": {flag["key"]: True},
-                               "label": f"flag:{flag['key']}"})
-
-            if not passes:
-                print(f"  (no passes to run for {cat['slug']}, skipping)")
-                continue
+            # Single-pass: one un-filtered URL fetch per category. The old multi-pass
+            # approach (one URL per subtype via exo_*=N filter) gave wrong tags and
+            # multiplied HTTP calls by ~5×. Subtype + extra_flags are now derived in
+            # Python from listing title/rooms via derive_subtype_and_flags() right
+            # before upsert. The outer for-pass loop is preserved as a single-iteration
+            # wrapper to keep the inner skip-recent / scope-hours / driver-retry logic
+            # unindented and stable.
+            passes = [{"exo": None, "subtype": None, "extra_flags": None, "label": "main"}]
 
             for pass_ in passes:
-                pass_subtype     = pass_["subtype"]
-                pass_extra_flags = pass_["extra_flags"]
+                pass_subtype     = pass_["subtype"]      # always None in single-pass; kept for diff stability
+                pass_extra_flags = pass_["extra_flags"]  # always None in single-pass; kept for diff stability
 
                 print(f"  ── pass {pass_['label']} ──")
                 try:
@@ -2253,14 +2238,8 @@ def main() -> int:
                             print(f"  ⏭️  Early-exit: 5 consecutive ads already processed in last {args.skip_recent_hours}h — skipping rest of {cat['slug']}/{pass_['label']}")
                             break
                         stats["skipped"] += 1
-                        # Still tag subtype/extra_flags on skipped recent listings
-                        # so a subsequent pass can populate them without re-fetch.
-                        if pass_subtype is not None or pass_extra_flags is not None:
-                            db_state_quick = check_db_listing_state(conn, dialect, external_id)
-                            if db_state_quick is not None:
-                                update_price_only(conn, dialect, db_state_quick["id"], None, None,
-                                                  subtype=pass_subtype, extra_flags=pass_extra_flags)
-                                conn.commit()
+                        # In single-pass mode we have no fresh subtype info on this path
+                        # (no detail fetch performed) — nothing to write back.
                         continue
                     consecutive_recent = 0
 
@@ -2313,8 +2292,15 @@ def main() -> int:
                                 else:
                                     consecutive_old = 0
 
+                            # Derive subtype + extra_flags from extracted title/rooms/desc
+                            derived_subtype, derived_flags = derive_subtype_and_flags(
+                                type_=cat["type"],
+                                rooms=ad.get("rooms"),
+                                title=ad.get("title", "") or "",
+                                description=ad.get("description", "") or "",
+                            )
                             upsert_listing(conn, dialect, ad, cat, args.agency,
-                                           subtype=pass_subtype, extra_flags=pass_extra_flags)
+                                           subtype=derived_subtype, extra_flags=derived_flags or None)
                             conn.commit()
                             stats["new"] += 1
                             cat_stats["new"] += 1
@@ -2336,8 +2322,14 @@ def main() -> int:
                                 cur_str = list_currency or '—'
                                 print(f"  ↻ UPD-light (no detail) #{external_id} | (list price: {list_price} {cur_str})")
                             else:
+                                derived_subtype, derived_flags = derive_subtype_and_flags(
+                                    type_=cat["type"],
+                                    rooms=ad.get("rooms"),
+                                    title=ad.get("title", "") or "",
+                                    description=ad.get("description", "") or "",
+                                )
                                 upsert_listing(conn, dialect, ad, cat, args.agency,
-                                               subtype=pass_subtype, extra_flags=pass_extra_flags)
+                                               subtype=derived_subtype, extra_flags=derived_flags or None)
                                 conn.commit()
                                 title = (ad.get("title") or "")[:45]
                                 price = ad.get("price")

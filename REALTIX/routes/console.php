@@ -8,6 +8,7 @@ use App\Notifications\CalendarEventReminder;
 use App\Notifications\SubscriptionExpiringSoon;
 use App\Notifications\TrialExpiringSoon;
 use App\Services\ScraperHealthService;
+use App\Services\ScraperProcessGuard;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
@@ -52,11 +53,21 @@ Artisan::command('portal:999:scrape {--pages=2 : Pages per category, or "all"} {
     if ($this->option('download-images'))     $args[] = '--download-images';
     if ($this->option('fast'))                $args[] = '--fast';
 
-    $cmd = $python . ' ' . escapeshellarg($script) . ' ' . implode(' ', $args);
-    $this->info("Running: {$cmd}");
+    // GC orphan scraper PIDs from previous failed runs before we spawn.
+    // Symfony Process timeout on shell-wrapped spawns leaks the Python child;
+    // without this, parallel cron-runs can pile up after a few timeouts.
+    $killed = app(ScraperProcessGuard::class)->killOrphans();
+    if (! empty($killed)) {
+        $this->warn(sprintf('Killed %d orphan scraper(s): %s', count($killed), json_encode($killed)));
+    }
+
+    // Direct process spawn (NO shell) — timeout will SIGTERM the Python directly
+    // instead of just the intermediate shell wrapper.
+    $command = array_merge([$python, $script], $args);
+    $this->info('Running: ' . implode(' ', $command));
     $this->newLine();
 
-    $process = \Symfony\Component\Process\Process::fromShellCommandline($cmd);
+    $process = new Process($command);
     $process->setTimeout(7200); // 2h hard timeout
     $process->run(function ($type, $buffer) {
         echo $buffer;
@@ -83,14 +94,20 @@ Artisan::command('portal:999:scrape:full {--agency=1}', function () {
     }
 
     $python = env('PYTHON_BIN', 'python');
-    $cmd = sprintf(
-        '%s %s --pages=all --agency=%d --skip-recent-hours=0',
-        $python,
-        escapeshellarg($script),
-        $this->option('agency'),
-    );
 
-    $process = \Symfony\Component\Process\Process::fromShellCommandline($cmd);
+    $killed = app(ScraperProcessGuard::class)->killOrphans();
+    if (! empty($killed)) {
+        $this->warn(sprintf('Killed %d orphan scraper(s): %s', count($killed), json_encode($killed)));
+    }
+
+    $command = [
+        $python, $script,
+        '--pages=all',
+        '--agency=' . $this->option('agency'),
+        '--skip-recent-hours=0',
+    ];
+
+    $process = new Process($command);
     $process->setTimeout(0); // no timeout for full bulk
     $process->run(function ($type, $buffer) {
         echo $buffer;
@@ -127,11 +144,16 @@ Artisan::command('portal:999:scrape:morning {--agency=1}', function () {
         '--mode=morning',
     ];
 
-    $cmd = $python . ' ' . escapeshellarg($script) . ' ' . implode(' ', $args);
-    $this->info("Running: {$cmd}");
+    $killed = app(ScraperProcessGuard::class)->killOrphans();
+    if (! empty($killed)) {
+        $this->warn(sprintf('Killed %d orphan scraper(s): %s', count($killed), json_encode($killed)));
+    }
+
+    $command = array_merge([$python, $script], $args);
+    $this->info('Running: ' . implode(' ', $command));
     $this->newLine();
 
-    $process = Process::fromShellCommandline($cmd);
+    $process = new Process($command);
     $process->setTimeout(75 * 60); // 75-minute hard timeout
     $process->run(function ($type, $buffer) {
         echo $buffer;
@@ -183,11 +205,16 @@ Artisan::command('portal:999:scrape:hourly {--agency=1}', function () {
         '--mode=hourly',
     ];
 
-    $cmd = $python . ' ' . escapeshellarg($script) . ' ' . implode(' ', $args);
-    $this->info("Running: {$cmd}");
+    $killed = app(ScraperProcessGuard::class)->killOrphans();
+    if (! empty($killed)) {
+        $this->warn(sprintf('Killed %d orphan scraper(s): %s', count($killed), json_encode($killed)));
+    }
+
+    $command = array_merge([$python, $script], $args);
+    $this->info('Running: ' . implode(' ', $command));
     $this->newLine();
 
-    $process = Process::fromShellCommandline($cmd);
+    $process = new Process($command);
     $process->setTimeout(15 * 60); // 15-minute hard timeout
     $process->run(function ($type, $buffer) {
         echo $buffer;

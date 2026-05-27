@@ -107,19 +107,32 @@ def _ph(sql: str, dialect: str) -> str:
     return sql.replace("?", "%s") if dialect == "pgsql" else sql
 
 
-def _write_heartbeat() -> None:
-    """Write current ISO timestamp + PID to the heartbeat file. The Laravel
-    watchdog (`scraper:watchdog`) checks this file every 10 minutes — if it's
-    older than 15 minutes it considers the scraper stuck and kills the PID.
+# Run-tracking globals — set by _init_run_row() and updated by the main loop.
+# Signal handler / atexit cleanup uses them to finalize the scraper_runs row
+# even when the process is killed mid-loop.
+SCRAPER_RUN_ID: int | None = None
+_current_category_name: str | None = None  # type slug (apartment / house / land / …) currently being processed
 
-    Uses atomic write (tmp + rename) so the watchdog never sees a partial
-    file if our process dies mid-write.
+
+def _write_heartbeat() -> None:
+    """Write JSON heartbeat (atomic) so the Laravel watchdog can verify the
+    scraper is alive. Format:
+        {"timestamp": "<ISO>", "pid": <int>, "run_id": <int|null>, "category": "<str|null>"}
+
+    Watchdog accepts both this JSON and the legacy "<ISO>|<PID>" format
+    (see App\\Console\\Commands\\ScraperWatchdog) so a partial rollout of
+    older scraper code doesn't break the heartbeat check.
     """
     try:
         HEARTBEAT_PATH.parent.mkdir(parents=True, exist_ok=True)
-        content = f"{datetime.now(timezone.utc).isoformat(timespec='seconds')}|{os.getpid()}"
+        payload = {
+            "timestamp": datetime.now(timezone.utc).isoformat(timespec='seconds'),
+            "pid":       os.getpid(),
+            "run_id":    SCRAPER_RUN_ID,
+            "category":  _current_category_name,
+        }
         tmp = HEARTBEAT_PATH.with_suffix(".txt.tmp")
-        tmp.write_text(content, encoding="utf-8")
+        tmp.write_text(json.dumps(payload), encoding="utf-8")
         tmp.replace(HEARTBEAT_PATH)
     except Exception:
         pass
@@ -133,6 +146,113 @@ def _clear_heartbeat() -> None:
         pass
 
 
+# ── Run tracking (scraper_runs table) ────────────────────────────────────────
+def _init_run_row(conn, dialect: str, mode: str, pid: int) -> int | None:
+    """Insert a new row into scraper_runs and return its ID. Cross-dialect:
+    on Postgres uses RETURNING id, on SQLite falls back to lastrowid.
+    Returns None on failure (e.g. table missing because migrations haven't
+    been run yet) so the scraper keeps working without run-tracking."""
+    try:
+        started = datetime.now(timezone.utc)
+        cur = conn.cursor()
+        if dialect == "pgsql":
+            cur.execute(
+                "INSERT INTO scraper_runs (mode, pid, started_at, status, created_at, updated_at) "
+                "VALUES (%s, %s, %s, 'running', %s, %s) RETURNING id",
+                (mode, pid, started, started, started),
+            )
+            run_id = cur.fetchone()[0]
+        else:
+            cur.execute(
+                "INSERT INTO scraper_runs (mode, pid, started_at, status, created_at, updated_at) "
+                "VALUES (?, ?, ?, 'running', ?, ?)",
+                (mode, pid, started, started, started),
+            )
+            run_id = cur.lastrowid
+        conn.commit()
+        cur.close()
+        return int(run_id) if run_id else None
+    except Exception as e:
+        log.warning(f"Failed to init scraper_runs row: {e}")
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        return None
+
+
+def _update_run_row(conn, dialect: str, run_id: int | None, **fields) -> None:
+    """Update scraper_runs row with arbitrary stat fields. category_stats
+    dicts get JSON-encoded automatically. Silently no-ops if run_id is None."""
+    if not run_id or not fields:
+        return
+    try:
+        cols, vals = [], []
+        for k, v in fields.items():
+            if k == "category_stats" and isinstance(v, dict):
+                v = json.dumps(v)
+            cols.append(f"{k} = ?")
+            vals.append(v)
+        # Always bump updated_at so Eloquent timestamps reflect activity.
+        cols.append("updated_at = ?")
+        vals.append(datetime.now(timezone.utc))
+        vals.append(run_id)
+        sql = f"UPDATE scraper_runs SET {', '.join(cols)} WHERE id = ?"
+        cur = conn.cursor()
+        cur.execute(_ph(sql, dialect), vals)
+        conn.commit()
+        cur.close()
+    except Exception as e:
+        log.warning(f"Failed to update scraper_runs row {run_id}: {e}")
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+
+
+def _finalize_run(conn, dialect: str, run_id: int | None,
+                  status: str = "success", error_msg: str | None = None,
+                  exit_code: int | None = None) -> None:
+    """Mark a run as finished (success / failed / killed / timeout) and
+    compute duration in Python (avoids dialect-specific date arithmetic)."""
+    if not run_id:
+        return
+    try:
+        ended = datetime.now(timezone.utc)
+        cur = conn.cursor()
+        # Fetch started_at to compute duration; falls back to 0 if missing.
+        cur.execute(_ph("SELECT started_at FROM scraper_runs WHERE id = ?", dialect), (run_id,))
+        row = cur.fetchone()
+        duration = 0
+        if row and row[0] is not None:
+            started = row[0]
+            # psycopg2 returns datetime; sqlite3 returns str. Normalize.
+            if isinstance(started, str):
+                try:
+                    started = datetime.fromisoformat(started)
+                except ValueError:
+                    started = ended
+            if started.tzinfo is None:
+                started = started.replace(tzinfo=timezone.utc)
+            duration = max(0, int((ended - started).total_seconds()))
+        cur.execute(
+            _ph(
+                "UPDATE scraper_runs SET status = ?, ended_at = ?, duration_seconds = ?, "
+                "error_message = ?, exit_code = ?, current_category = NULL, updated_at = ? WHERE id = ?",
+                dialect,
+            ),
+            (status, ended, duration, error_msg, exit_code, ended, run_id),
+        )
+        conn.commit()
+        cur.close()
+    except Exception as e:
+        log.warning(f"Failed to finalize run {run_id}: {e}")
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+
+
 # ── Logging / shutdown / driver recovery ──────────────────────────────────────
 # Logger module-level; configured in setup_logging() from main().
 log = logging.getLogger("scraper_999")
@@ -140,6 +260,18 @@ log = logging.getLogger("scraper_999")
 # Tracked globally so signal handlers + atexit can find the live driver
 # for cleanup even when execution is deep in a nested loop.
 _current_driver = None
+
+# Tracked globally so the SIGTERM handler can finalize the scraper_runs row
+# even though the spawn entry point is too deep in main()'s try/finally to
+# access locals directly. Set in main() right after the DB connection opens.
+_current_db_conn = None
+_current_db_dialect = None
+# Set to True by the signal handler so atexit knows whether to mark the run
+# as 'killed' (SIGTERM) vs the default 'success'/'failed' path in main().
+_terminated_by_signal = False
+# Set to True by main() after it finalizes the run row, so the atexit
+# fallback doesn't overwrite a 'success' with 'failed'.
+_run_finalized = False
 
 # Per-run driver restart budget (resets on each fresh `main()` invocation).
 MAX_DRIVER_RESTARTS = 3
@@ -195,16 +327,29 @@ def safe_quit_driver(driver) -> None:
 
 
 def _cleanup_at_exit() -> None:
-    """atexit fallback for Python crashes that skip the main() finally block."""
+    """atexit fallback for Python crashes that skip the main() finally block.
+    If a scraper_runs row is still in 'running' state, finalize it as 'killed'
+    (signal-triggered) or 'failed' (uncaught exception) so the dashboard
+    doesn't show a stale active run forever."""
     global _current_driver
     if _current_driver is not None:
         safe_quit_driver(_current_driver)
         _current_driver = None
+    # Best-effort run row finalization. main()'s normal exit path already
+    # finalizes with status='success' before this fires; this only matters
+    # when we got here via crash / SIGTERM and the run is still 'running'.
+    if (SCRAPER_RUN_ID is not None and not _run_finalized
+            and _current_db_conn is not None and _current_db_dialect is not None):
+        status = "killed" if _terminated_by_signal else "failed"
+        _finalize_run(_current_db_conn, _current_db_dialect, SCRAPER_RUN_ID,
+                      status=status, error_msg="Process terminated before normal exit")
     _clear_heartbeat()
 
 
 def _signal_handler(signum, _frame):
     """Graceful shutdown on SIGTERM / SIGINT — triggers finally + atexit."""
+    global _terminated_by_signal
+    _terminated_by_signal = True
     log.warning(f"Received signal {signum}, exiting gracefully")
     # 128 + signal number convention
     sys.exit(130 if signum == signal.SIGINT else 143)
@@ -2150,6 +2295,18 @@ def main() -> int:
     conn, dialect = open_db_connection(repo_root, sqlite_path_override=str(db_path) if str(db_path) != str(REALTIX_DB_DEFAULT) else None)
     print(f"🗄  DB driver: {dialect}")
 
+    # Register conn for the atexit fallback so SIGTERM mid-loop can still
+    # finalize the scraper_runs row (the signal handler can't reach main's locals).
+    global _current_db_conn, _current_db_dialect, SCRAPER_RUN_ID, _run_finalized
+    _current_db_conn    = conn
+    _current_db_dialect = dialect
+
+    # Insert a 'running' row for this scrape. Returns None if the table is
+    # missing (migrations not yet run) — downstream helpers no-op on None.
+    SCRAPER_RUN_ID = _init_run_row(conn, dialect, mode=args.mode, pid=os.getpid())
+    if SCRAPER_RUN_ID:
+        log.info(f"Scraper run ID: {SCRAPER_RUN_ID}")
+
     # Load list of recently-updated external IDs to skip (saves ~3-5s per ad)
     recently_updated: set[str] = set()
     if args.skip_recent_hours > 0:
@@ -2158,6 +2315,10 @@ def main() -> int:
             print(f"💾 Skipping {len(recently_updated)} ads updated within last {args.skip_recent_hours}h")
 
     stats = {"new": 0, "updated": 0, "errors": 0, "skipped": 0, "processed": 0, "by_category": {}}
+    # Per-type breakdown for the scraper_runs.category_stats JSON column.
+    # Keyed by cat["type"] (apartment/house/…) so the UI can look up directly.
+    category_stats_db: dict = {}
+    total_stats = {"processed": 0, "new": 0, "updated": 0, "skipped": 0, "failed": 0}
     started = time.time()
 
     today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).replace(tzinfo=None)
@@ -2172,9 +2333,16 @@ def main() -> int:
     last_heartbeat = time.time()
 
     try:
+        global _current_category_name
         for cat in cats:
-            cat_stats = {"new": 0, "updated": 0, "errors": 0}
+            cat_stats = {"new": 0, "updated": 0, "errors": 0, "skipped": 0, "processed": 0}
             stats["by_category"][cat["slug"]] = cat_stats
+            cat_started = time.time()
+
+            # Live progress: tell the dashboard which category is in flight.
+            _current_category_name = cat["type"]
+            _write_heartbeat()
+            _update_run_row(conn, dialect, SCRAPER_RUN_ID, current_category=cat["type"])
 
             print(f"📂 {cat['label']} ({cat['slug']})")
 
@@ -2238,6 +2406,7 @@ def main() -> int:
                             print(f"  ⏭️  Early-exit: 5 consecutive ads already processed in last {args.skip_recent_hours}h — skipping rest of {cat['slug']}/{pass_['label']}")
                             break
                         stats["skipped"] += 1
+                        cat_stats["skipped"] += 1
                         # In single-pass mode we have no fresh subtype info on this path
                         # (no detail fetch performed) — nothing to write back.
                         continue
@@ -2356,6 +2525,7 @@ def main() -> int:
                             cat_stats["updated"] += 1
 
                         stats["processed"] += 1
+                        cat_stats["processed"] += 1
 
                     except WebDriverException as e:
                         # Selenium / Firefox died mid-fetch. Skip this listing,
@@ -2386,14 +2556,59 @@ def main() -> int:
 
                     time.sleep(random.uniform(args.delay_min, args.delay_max))
 
+            # Per-category flush: stash one entry in category_stats_db (keyed by
+            # type), accumulate totals, push everything to the run row so the
+            # dashboard's live-progress card refreshes after each category.
+            category_stats_db[cat["type"]] = {
+                "processed":    cat_stats["processed"],
+                "new":          cat_stats["new"],
+                "updated":      cat_stats["updated"],
+                "skipped":      cat_stats["skipped"],
+                "failed":       cat_stats["errors"],
+                "duration_sec": int(time.time() - cat_started),
+            }
+            for k in ("processed", "new", "updated", "skipped", "failed"):
+                total_stats[k] += category_stats_db[cat["type"]][k]
+            _update_run_row(conn, dialect, SCRAPER_RUN_ID,
+                category_stats=category_stats_db,
+                total_processed=total_stats["processed"],
+                total_new=total_stats["new"],
+                total_updated=total_stats["updated"],
+                total_skipped=total_stats["skipped"],
+                total_failed=total_stats["failed"],
+            )
+
             print()
 
     except KeyboardInterrupt:
         print("\n[interrupted]")
+        _finalize_run(conn, dialect, SCRAPER_RUN_ID, status="killed",
+                      error_msg="KeyboardInterrupt / --max-ads cap hit")
+        _run_finalized = True
     except ScraperBlocked as e:
         print(f"\n🚫 SCRAPER BLOCKED: {e}", file=sys.stderr)
+        _finalize_run(conn, dialect, SCRAPER_RUN_ID, status="failed",
+                      error_msg=f"ScraperBlocked: {e}", exit_code=42)
+        _run_finalized = True
         return 42
+    except Exception as e:
+        log.critical(f"Scraper aborted: {type(e).__name__}: {e}")
+        _finalize_run(conn, dialect, SCRAPER_RUN_ID, status="failed",
+                      error_msg=f"{type(e).__name__}: {str(e)[:500]}", exit_code=1)
+        _run_finalized = True
+        raise
     finally:
+        # Normal-exit finalization. SIGTERM/SIGINT raises SystemExit (NOT
+        # Exception) which bypasses the except blocks above, so we have to
+        # branch on _terminated_by_signal here too — otherwise the watchdog
+        # killing a stuck scraper would log it as 'success'.
+        if not _run_finalized and SCRAPER_RUN_ID:
+            if _terminated_by_signal:
+                _finalize_run(conn, dialect, SCRAPER_RUN_ID, status="killed",
+                              error_msg="Process received termination signal")
+            else:
+                _finalize_run(conn, dialect, SCRAPER_RUN_ID, status="success", exit_code=0)
+            _run_finalized = True
         try:
             conn.close()
         except Exception:

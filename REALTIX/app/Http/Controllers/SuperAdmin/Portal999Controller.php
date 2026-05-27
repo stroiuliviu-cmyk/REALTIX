@@ -5,12 +5,14 @@ namespace App\Http\Controllers\SuperAdmin;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\ScrapedListing;
+use App\Models\ScraperRun;
 use App\Services\ScraperProcessGuard;
 use App\Services\SuperAdmin\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -170,6 +172,69 @@ class Portal999Controller extends Controller
             ->take(30)
             ->get(['id', 'action', 'description', 'created_at', 'properties']);
 
+        // Run-tracking data (scraper_runs table). Wrapped in a defensive
+        // check so a missing migration in a fresh checkout doesn't 500 the
+        // dashboard — the section just renders empty until migrate runs.
+        $recentRuns = collect();
+        $runsAgg    = ['count_24h' => 0, 'success_24h' => 0, 'failed_24h' => 0,
+                       'avg_duration_sec' => null, 'total_new_24h' => 0, 'total_updated_24h' => 0];
+        $activeRun  = null;
+
+        if (Schema::hasTable('scraper_runs')) {
+            $recentRuns = ScraperRun::orderByDesc('started_at')
+                ->limit(20)
+                ->get()
+                ->map(fn ($run) => [
+                    'id'               => $run->id,
+                    'mode'             => $run->mode,
+                    'pid'              => $run->pid,
+                    'started_at'       => $run->started_at?->toIso8601String(),
+                    'ended_at'         => $run->ended_at?->toIso8601String(),
+                    'duration_human'   => $run->durationHuman(),
+                    'duration_seconds' => $run->duration_seconds,
+                    'status'           => $run->status,
+                    'exit_code'        => $run->exit_code,
+                    'total_processed'  => $run->total_processed,
+                    'total_new'        => $run->total_new,
+                    'total_updated'    => $run->total_updated,
+                    'total_skipped'    => $run->total_skipped,
+                    'total_failed'     => $run->total_failed,
+                    'category_stats'   => $run->category_stats ?? [],
+                    'current_category' => $run->current_category,
+                    'error_message'    => $run->error_message,
+                    'is_active'        => $run->isActive(),
+                ]);
+
+            $last24h = ScraperRun::where('started_at', '>=', now()->subDay())->get();
+            $runsAgg = [
+                'count_24h'         => $last24h->count(),
+                'success_24h'       => $last24h->where('status', 'success')->count(),
+                'failed_24h'        => $last24h->whereIn('status', ['failed', 'killed', 'timeout'])->count(),
+                'avg_duration_sec'  => $last24h->where('status', 'success')->avg('duration_seconds'),
+                'total_new_24h'     => (int) $last24h->sum('total_new'),
+                'total_updated_24h' => (int) $last24h->sum('total_updated'),
+            ];
+
+            $active = ScraperRun::where('status', 'running')
+                ->orderByDesc('started_at')
+                ->first();
+            if ($active) {
+                $activeRun = [
+                    'id'               => $active->id,
+                    'pid'              => $active->pid,
+                    'mode'             => $active->mode,
+                    'started_at'       => $active->started_at?->toIso8601String(),
+                    'current_category' => $active->current_category,
+                    'total_processed'  => $active->total_processed,
+                    'total_new'        => $active->total_new,
+                    'total_updated'    => $active->total_updated,
+                    'total_skipped'    => $active->total_skipped,
+                    'total_failed'     => $active->total_failed,
+                    'category_stats'   => $active->category_stats ?? [],
+                ];
+            }
+        }
+
         return Inertia::render('SuperAdmin/Portal999/Index', [
             'stats'           => $stats,
             'byType'          => $byType,
@@ -180,6 +245,9 @@ class Portal999Controller extends Controller
             'bySubtypeDaily'  => $bySubtypeDaily,
             'coverage'        => $coverage,
             'syncLogs'        => $syncLogs,
+            'recentRuns'      => $recentRuns,
+            'runsAgg'         => $runsAgg,
+            'activeRun'       => $activeRun,
         ]);
     }
 }

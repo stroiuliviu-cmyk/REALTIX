@@ -9,6 +9,8 @@ function MetricCard({ label, value, accent = 'slate' }) {
         emerald: 'bg-emerald-50 border-emerald-200',
         blue:    'bg-blue-50 border-blue-200',
         violet:  'bg-violet-50 border-violet-200',
+        red:     'bg-red-50 border-red-200',
+        amber:   'bg-amber-50 border-amber-200',
     };
     return (
         <div className={`rounded-xl border ${palette[accent]} px-5 py-4`}>
@@ -82,6 +84,70 @@ const TYPE_ICONS = {
     commercial: '🏪',
 };
 
+// Mode + status visual tokens for the run history table.
+const MODE_BADGE = {
+    hourly:  'bg-blue-100 text-blue-700',
+    morning: 'bg-amber-100 text-amber-700',
+    manual:  'bg-slate-100 text-slate-700',
+};
+
+const STATUS_BADGE = {
+    success: 'bg-emerald-100 text-emerald-700',
+    failed:  'bg-red-100 text-red-700',
+    killed:  'bg-orange-100 text-orange-700',
+    timeout: 'bg-orange-100 text-orange-700',
+    running: 'bg-blue-100 text-blue-700',
+};
+
+function StatMini({ label, value, color = 'slate' }) {
+    const colorClass = {
+        slate:   'text-slate-700',
+        blue:    'text-blue-700',
+        emerald: 'text-emerald-700',
+        violet:  'text-violet-700',
+    }[color] ?? 'text-slate-700';
+    return (
+        <div className="bg-white rounded-lg border border-slate-200 px-3 py-2">
+            <div className="text-[10px] uppercase tracking-widest font-bold text-slate-500">{label}</div>
+            <div className={`text-lg font-black ${colorClass}`}>
+                {typeof value === 'number' ? value.toLocaleString('ro') : (value ?? '—')}
+            </div>
+        </div>
+    );
+}
+
+function StatusBadge({ status }) {
+    const cls = STATUS_BADGE[status] ?? 'bg-slate-100 text-slate-600';
+    return (
+        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${cls}`}>
+            {status}
+        </span>
+    );
+}
+
+function formatDuration(seconds) {
+    if (seconds == null || seconds === 0) return '—';
+    const s = Math.round(seconds);
+    if (s < 60) return `${s}s`;
+    const m = Math.floor(s / 60);
+    return `${m}m ${s % 60}s`;
+}
+
+function formatDateTime(iso) {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleString('ro-RO', {
+        day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+    });
+}
+
+function timeAgo(iso) {
+    if (!iso) return '—';
+    const sec = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+    if (sec < 60) return `acum ${sec}s`;
+    if (sec < 3600) return `acum ${Math.floor(sec / 60)} min`;
+    return `acum ${Math.floor(sec / 3600)}h`;
+}
+
 // Sub-category labels per type — inline (propertyLabels.js has only type labels).
 // '_none' = synthetic bucket for rows with subtype IS NULL.
 const SUBTYPE_LABELS = {
@@ -119,6 +185,7 @@ export default function Index({
     stats, byType, byCity, byDay, byTypeDaily = [],
     bySubtype = [], bySubtypeDaily = {}, coverage = {},
     syncLogs,
+    recentRuns = [], runsAgg = {}, activeRun = null,
 }) {
     const [isSyncing, setIsSyncing] = useState(false);
 
@@ -156,7 +223,8 @@ export default function Index({
         if (!autoRefresh) return;
         const interval = setInterval(() => {
             router.reload({
-                only: ['stats', 'byType', 'byTypeDaily', 'bySubtype', 'bySubtypeDaily', 'coverage'],
+                only: ['stats', 'byType', 'byTypeDaily', 'bySubtype', 'bySubtypeDaily', 'coverage',
+                       'recentRuns', 'runsAgg', 'activeRun'],
                 preserveScroll: true,
                 preserveState: true,
                 onSuccess: () => setLastRefresh(new Date()),
@@ -400,6 +468,109 @@ export default function Index({
                                         <span className="font-bold text-slate-900">{Number(c.cnt).toLocaleString('ro')}</span>
                                     </div>
                                 ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* ─── Activitate scraper ─── */}
+                <div className="space-y-4">
+                    <h2 className="text-base font-bold text-slate-900">Activitate scraper</h2>
+
+                    {activeRun && (
+                        <div className="bg-blue-50 border border-blue-200 rounded-xl p-5">
+                            <div className="flex items-start justify-between">
+                                <div>
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
+                                        <h3 className="text-lg font-bold text-slate-900">Sync activ</h3>
+                                        <span className="px-2 py-0.5 rounded-full bg-blue-600 text-white text-xs font-bold uppercase">
+                                            {activeRun.mode}
+                                        </span>
+                                    </div>
+                                    <div className="text-sm text-slate-600">
+                                        PID {activeRun.pid ?? '—'} · Pornit {timeAgo(activeRun.started_at)} · Categorie: <strong>
+                                            {activeRun.current_category ?? 'inițializare…'}
+                                        </strong>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+                                <StatMini label="Procesate" value={activeRun.total_processed} color="blue" />
+                                <StatMini label="Noi" value={activeRun.total_new} color="emerald" />
+                                <StatMini label="Update" value={activeRun.total_updated} color="violet" />
+                                <StatMini label="Skip" value={activeRun.total_skipped} color="slate" />
+                            </div>
+                            {Object.keys(activeRun.category_stats || {}).length > 0 && (
+                                <div className="mt-4">
+                                    <div className="text-xs font-bold uppercase text-slate-500 mb-2">Categorii parcurse</div>
+                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+                                        {Object.entries(activeRun.category_stats).map(([cat, s]) => (
+                                            <div key={cat} className="bg-white rounded-lg p-2 border border-slate-200">
+                                                <div className="text-xs font-bold text-slate-700">
+                                                    {TYPE_LABELS[cat] ?? cat}
+                                                </div>
+                                                <div className="text-xs text-emerald-600">+{s.new ?? 0}</div>
+                                                <div className="text-xs text-slate-500">{s.processed ?? 0} listings</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <MetricCard label="Runs 24h" value={runsAgg.count_24h ?? 0} />
+                        <MetricCard label="Success" value={runsAgg.success_24h ?? 0} accent="emerald" />
+                        <MetricCard label="Failed" value={runsAgg.failed_24h ?? 0} accent="red" />
+                        <MetricCard label="Avg durată" value={formatDuration(runsAgg.avg_duration_sec)} />
+                    </div>
+
+                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div className="px-5 py-3 border-b border-slate-100">
+                            <h3 className="text-sm font-bold text-slate-900">Istoric runs (ultimele 20)</h3>
+                        </div>
+                        {recentRuns.length === 0 ? (
+                            <p className="px-5 py-10 text-center text-sm text-slate-400">
+                                Nu există runs înregistrate încă. Pornește un sync manual sau așteaptă cron-ul orar.
+                            </p>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+                                        <tr>
+                                            <th className="px-4 py-2 text-left font-semibold">Pornit</th>
+                                            <th className="px-4 py-2 text-left font-semibold">Mode</th>
+                                            <th className="px-4 py-2 text-left font-semibold">Durată</th>
+                                            <th className="px-4 py-2 text-right font-semibold">Procesate</th>
+                                            <th className="px-4 py-2 text-right font-semibold">Noi</th>
+                                            <th className="px-4 py-2 text-right font-semibold">Update</th>
+                                            <th className="px-4 py-2 text-right font-semibold">Skip</th>
+                                            <th className="px-4 py-2 text-right font-semibold">Fail</th>
+                                            <th className="px-4 py-2 text-center font-semibold">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {recentRuns.map(run => (
+                                            <tr key={run.id} className="border-t border-slate-100 hover:bg-slate-50">
+                                                <td className="px-4 py-2 whitespace-nowrap text-slate-700">{formatDateTime(run.started_at)}</td>
+                                                <td className="px-4 py-2">
+                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${MODE_BADGE[run.mode] ?? 'bg-slate-100 text-slate-600'}`}>
+                                                        {run.mode}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-2 text-slate-600 whitespace-nowrap">{run.duration_human}</td>
+                                                <td className="px-4 py-2 text-right font-mono text-slate-800">{run.total_processed}</td>
+                                                <td className="px-4 py-2 text-right font-mono text-emerald-600">+{run.total_new}</td>
+                                                <td className="px-4 py-2 text-right font-mono text-violet-600">{run.total_updated}</td>
+                                                <td className="px-4 py-2 text-right font-mono text-slate-500">{run.total_skipped}</td>
+                                                <td className="px-4 py-2 text-right font-mono text-red-500">{run.total_failed}</td>
+                                                <td className="px-4 py-2 text-center"><StatusBadge status={run.status} /></td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
                             </div>
                         )}
                     </div>

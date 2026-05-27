@@ -36,8 +36,21 @@ class ScraperWatchdog extends Command
             return self::SUCCESS;
         }
 
-        // Heartbeat format: "<ISO8601 timestamp>|<PID>"
-        [$timestamp, $pid] = array_pad(explode('|', $contents, 2), 2, null);
+        // Accept two formats:
+        //   1. JSON (current): {"timestamp": "<ISO>", "pid": <int>, "run_id": ..., "category": ...}
+        //   2. Legacy:         "<ISO8601>|<PID>"  (kept for backward-compat with older scraper builds)
+        $timestamp = null;
+        $pid       = null;
+        if (str_starts_with($contents, '{')) {
+            $decoded = json_decode($contents, true);
+            if (is_array($decoded)) {
+                $timestamp = $decoded['timestamp'] ?? null;
+                $pid       = $decoded['pid'] ?? null;
+            }
+        }
+        if ($timestamp === null) {
+            [$timestamp, $pid] = array_pad(explode('|', $contents, 2), 2, null);
+        }
 
         if (! $timestamp) {
             $this->warn('Invalid heartbeat file — removing');

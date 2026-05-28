@@ -3,7 +3,7 @@ import { Link, usePage, router } from '@inertiajs/react';
 import { useTranslation } from '@/Hooks/useTranslation';
 import NotificationsBell from '@/Components/NotificationsBell';
 import {
-    Home, Globe, Plus, Send, FileText, Calendar, Users, Sparkles,
+    Home, Globe, Plus, Send, FileText, Calendar, Users,
     Settings, LifeBuoy, ChevronDown, LayoutGrid, MoreHorizontal,
 } from 'lucide-react';
 
@@ -130,7 +130,6 @@ export default function AppLayout({ children, title }) {
         { key: 'contracts',   label: t('nav.contracts'),    href: '/contracts',         Icon: FileText },
         { key: 'calendar',    label: t('nav.calendar'),     href: '/calendar',          Icon: Calendar },
         { key: 'contacts',    label: t('nav.crm_clients'),  href: '/contacts',          Icon: Users },
-        { key: 'ai-offers',   label: 'Oferte AI',           href: '/oferte-ai',         Icon: Sparkles, badge: 'NOU' },
     ];
 
     const headerNavItems = [
@@ -551,22 +550,6 @@ export default function AppLayout({ children, title }) {
                             >
                                 Contactează suport
                             </Link>
-                        </div>
-
-                        <div className="rounded-xl bg-white/4 border border-white/6 p-1 flex">
-                            {['ro', 'ru'].map(lang => (
-                                <button
-                                    key={lang}
-                                    onClick={() => switchLanguage(lang)}
-                                    className={`flex-1 py-1.5 text-xs font-bold uppercase rounded-lg transition-colors ${
-                                        locale === lang
-                                            ? 'bg-blue-600 text-white shadow-sm'
-                                            : 'text-slate-400 hover:text-white'
-                                    }`}
-                                >
-                                    {lang}
-                                </button>
-                            ))}
                         </div>
                     </div>
                     </div>

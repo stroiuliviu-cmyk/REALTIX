@@ -217,21 +217,6 @@ export default function AppLayout({ children, title }) {
                         <div className="text-lg sm:text-2xl font-black tracking-wider sm:tracking-widest text-blue-900" style={{ fontFamily: 'Montserrat, sans-serif' }}>
                             REALTIX
                         </div>
-                        {user?.agency && (
-                            <div className="hidden sm:flex items-center gap-2 text-xs text-slate-400 border-l border-slate-200 pl-3">
-                                {user.agency.logo_path && (
-                                    <img
-                                        src={`/storage/${user.agency.logo_path}`}
-                                        alt={user.agency.name}
-                                        className="w-8 h-8 rounded-lg object-cover border border-slate-200 shadow-sm"
-                                    />
-                                )}
-                                <div className="leading-tight">
-                                    <div className="font-semibold text-slate-600">{user.agency.name}</div>
-                                    <div className="text-slate-400">{planLabel}</div>
-                                </div>
-                            </div>
-                        )}
                     </Link>
 
                     {/* Center nav */}

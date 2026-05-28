@@ -4,7 +4,7 @@ import { useTranslation } from '@/Hooks/useTranslation';
 import NotificationsBell from '@/Components/NotificationsBell';
 import {
     Home, Globe, Plus, Send, FileText, Calendar, Users, Sparkles,
-    Settings, LifeBuoy,
+    Settings, LifeBuoy, ChevronDown,
 } from 'lucide-react';
 
 function ProfileDropdown({ user }) {
@@ -459,41 +459,46 @@ export default function AppLayout({ children, title }) {
 
             {/* Main layout */}
             <div className="mx-auto max-w-screen-2xl flex gap-0 p-3 sm:p-6 items-start">
-                {/* Sidebar (desktop only) — dark, edge-to-edge, fixed full-height.
+                {/* Sidebar (desktop only) — dark navy, edge-to-edge, fixed full-height.
                     Inner wrapper carries the padding + flex-col so mt-auto pushes
-                    the helper card to the bottom of the viewport. */}
-                <aside className="hidden lg:flex flex-col w-64 shrink-0 bg-slate-900 border-r border-slate-800 fixed top-0 left-0 h-screen overflow-y-auto z-30">
+                    the helper card / language switcher to the bottom of the viewport. */}
+                <aside className="hidden lg:flex flex-col w-64 shrink-0 bg-linear-to-b from-slate-900 to-[#0b1120] border-r border-white/6 fixed top-0 left-0 h-screen overflow-y-auto z-30">
                     <div className="flex flex-col h-full p-4">
-                    {/* Logo (sidebar-local — distinct from light header logo) */}
-                    <Link href="/dashboard" className="flex items-center gap-2 px-3 py-2 mb-3">
-                        <Home className="w-7 h-7 text-blue-400 shrink-0" />
+                    {/* Logo */}
+                    <Link href="/dashboard" className="flex items-center gap-2.5 px-3 py-2 mb-4">
+                        <Home className="w-7 h-7 text-blue-500 shrink-0" strokeWidth={2.5} />
                         <span className="text-lg font-black tracking-widest text-white" style={{ fontFamily: 'Montserrat, sans-serif' }}>
                             REALTIX
                         </span>
                     </Link>
 
-                    {/* Agency badge */}
+                    {/* Agency card — links to /subscription so the chevron + cursor-pointer
+                        + hover state all map to actual behaviour (plan management). */}
                     {user?.agency && (
-                        <div className="mx-1 mb-4 rounded-lg bg-slate-800/50 border border-slate-700 px-3 py-2.5 flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-lg bg-blue-600/20 flex items-center justify-center shrink-0 overflow-hidden">
+                        <Link
+                            href="/subscription"
+                            className="mx-1 mb-4 rounded-2xl bg-white/4 border border-white/7 px-3 py-3 flex items-center gap-3 hover:bg-white/7 transition-colors"
+                        >
+                            <div className="w-10 h-10 rounded-xl bg-blue-500/15 flex items-center justify-center shrink-0 overflow-hidden">
                                 {user.agency.logo_path ? (
-                                    <img src={`/storage/${user.agency.logo_path}`} alt={user.agency.name} className="w-full h-full rounded-lg object-cover" />
+                                    <img src={`/storage/${user.agency.logo_path}`} alt={user.agency.name} className="w-full h-full rounded-xl object-cover" />
                                 ) : (
-                                    <Home className="w-4 h-4 text-blue-400" />
+                                    <Home className="w-5 h-5 text-blue-400" />
                                 )}
                             </div>
                             <div className="flex-1 min-w-0 leading-tight">
                                 <div className="text-sm font-semibold text-white truncate">{user.agency.name}</div>
-                                <div className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">{planLabel}</div>
+                                <div className="text-[11px] text-slate-400 font-medium truncate">{planLabel}</div>
                             </div>
-                        </div>
+                            <ChevronDown className="w-4 h-4 text-slate-500 shrink-0" />
+                        </Link>
                     )}
 
-                    {/* Navigate label + items */}
-                    <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 px-3">
+                    {/* Navigate label */}
+                    <div className="px-3 pt-1 pb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
                         {t('nav.navigate')}
                     </div>
-                    <div className="space-y-1">
+                    <div className="space-y-1.5">
                         {sidebarItems.map(item => {
                             const Icon = item.Icon;
                             const isActive = item.href === '/properties/create'
@@ -503,18 +508,18 @@ export default function AppLayout({ children, title }) {
                                 <Link
                                     key={item.key}
                                     href={item.href}
-                                    className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                                    className={`group relative flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-sm transition-all duration-200 ${
                                         isActive
-                                            ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/20'
-                                            : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                                            ? 'bg-linear-to-r from-blue-600 to-blue-500 text-white font-semibold shadow-lg shadow-blue-600/25'
+                                            : 'text-slate-400 hover:text-white hover:bg-white/5 font-medium'
                                     }`}
                                 >
                                     <span className="flex items-center gap-3">
-                                        <Icon className="w-5 h-5 shrink-0" strokeWidth={isActive ? 2.5 : 2} />
+                                        <Icon className="w-5 h-5 shrink-0 text-current" strokeWidth={isActive ? 2.5 : 2} />
                                         <span>{item.label}</span>
                                     </span>
                                     {item.badge && (
-                                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400">
+                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/20">
                                             {item.badge}
                                         </span>
                                     )}
@@ -523,21 +528,23 @@ export default function AppLayout({ children, title }) {
                         })}
                     </div>
 
-                    {/* Bottom-aligned: Settings + helper card */}
-                    <div className="mt-auto pt-4 space-y-3">
+                    {/* Bottom-aligned: separator + Settings + helper card + lang switcher */}
+                    <div className="mt-auto space-y-3">
+                        <div className="border-t border-white/6 my-3 mx-1" />
+
                         <Link
                             href="/settings"
-                            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                            className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all duration-200 ${
                                 currentPath.startsWith('/settings')
-                                    ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/20'
-                                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                                    ? 'bg-linear-to-r from-blue-600 to-blue-500 text-white font-semibold shadow-lg shadow-blue-600/25'
+                                    : 'text-slate-400 hover:text-white hover:bg-white/5 font-medium'
                             }`}
                         >
-                            <Settings className="w-5 h-5 shrink-0" />
+                            <Settings className="w-5 h-5 shrink-0 text-current" strokeWidth={currentPath.startsWith('/settings') ? 2.5 : 2} />
                             <span>{t('nav.settings')}</span>
                         </Link>
 
-                        <div className="p-4 rounded-xl bg-linear-to-br from-blue-600/20 to-purple-600/20 border border-blue-500/30">
+                        <div className="p-4 rounded-2xl bg-linear-to-br from-blue-600/15 to-indigo-600/10 border border-blue-500/20">
                             <div className="flex items-start gap-2 mb-2">
                                 <LifeBuoy className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
                                 <div>
@@ -547,10 +554,26 @@ export default function AppLayout({ children, title }) {
                             </div>
                             <Link
                                 href="/suport"
-                                className="block w-full text-center px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10 text-xs font-semibold text-white transition-colors"
+                                className="block w-full text-center bg-white/10 hover:bg-white/15 border border-white/10 rounded-xl text-xs font-semibold text-white py-2 transition-colors"
                             >
                                 Contactează suport
                             </Link>
+                        </div>
+
+                        <div className="rounded-xl bg-white/4 border border-white/6 p-1 flex">
+                            {['ro', 'ru'].map(lang => (
+                                <button
+                                    key={lang}
+                                    onClick={() => switchLanguage(lang)}
+                                    className={`flex-1 py-1.5 text-xs font-bold uppercase rounded-lg transition-colors ${
+                                        locale === lang
+                                            ? 'bg-blue-600 text-white shadow-sm'
+                                            : 'text-slate-400 hover:text-white'
+                                    }`}
+                                >
+                                    {lang}
+                                </button>
+                            ))}
                         </div>
                     </div>
                     </div>

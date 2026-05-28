@@ -46,7 +46,7 @@ function StatCard({ icon, label, value, sub, href, color = '#3b82f6', sparkline 
     return (
         <Wrapper
             href={href}
-            className="rounded-2xl bg-white border border-slate-100 p-5 hover:shadow-md transition-shadow group block"
+            className="rounded-2xl bg-white border border-slate-100 p-5 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 group block"
         >
             <div className="flex items-start gap-3">
                 <div
@@ -56,8 +56,8 @@ function StatCard({ icon, label, value, sub, href, color = '#3b82f6', sparkline 
                     {icon}
                 </div>
                 <div className="flex-1">
-                    <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{label}</div>
-                    <div className="text-3xl font-black text-slate-900 mt-0.5">{value}</div>
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
+                    <div className="text-3xl font-black text-slate-900 mt-0.5 tabular-nums">{value}</div>
                     {sub && <div className="text-xs text-slate-400 mt-0.5">{sub}</div>}
                 </div>
             </div>
@@ -93,6 +93,9 @@ function AiDealCard({ listing, t }) {
                 ) : (
                     <div className="w-full h-full flex items-center justify-center text-3xl text-slate-300">🏠</div>
                 )}
+                <span className="absolute top-3 left-3 text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-500 text-white shadow">
+                    Potrivit
+                </span>
                 <span className={`absolute top-3 right-3 text-xs font-bold px-2.5 py-1 rounded-full ${b.cls}`}>{b.label}</span>
             </div>
             <div className="p-4">
@@ -189,9 +192,13 @@ export default function Index({
                         <div className="text-xs font-bold uppercase tracking-widest text-slate-400">
                             {t('dashboard.welcome_back')}
                         </div>
-                        <h1 className="text-2xl font-black text-slate-900 mt-0.5" style={{ fontFamily: 'Montserrat, sans-serif' }}>
-                            {user?.name ?? '—'}
+                        <h1 className="text-2xl font-black text-slate-900 mt-0.5 flex items-center gap-2" style={{ fontFamily: 'Montserrat, sans-serif' }}>
+                            <span>{user?.name ?? '—'}</span>
+                            <span aria-hidden="true">👋</span>
                         </h1>
+                        <p className="text-sm text-slate-500 mt-1">
+                            Iată ce se întâmplă cu afacerea ta astăzi.
+                        </p>
                     </div>
                     <Link
                         href="/properties/create"
@@ -201,56 +208,82 @@ export default function Index({
                     </Link>
                 </div>
 
-                {/* ── Hero card (dark navy mockup) ── */}
-                <section className="rounded-3xl bg-linear-to-br from-blue-900 via-blue-800 to-indigo-800 p-6 sm:p-8 text-white shadow-xl">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                {/* ── Hero card (dark navy mockup + building watermark) ── */}
+                <section className="relative overflow-hidden rounded-3xl bg-linear-to-br from-blue-900 via-blue-800 to-indigo-900 p-6 sm:p-8 text-white shadow-xl">
+                    {/* Subtle building silhouette behind content — pointer-events-none
+                        so links/buttons stay clickable through it. */}
+                    <svg
+                        className="absolute right-8 top-1/2 -translate-y-1/2 w-64 h-64 opacity-[0.07] pointer-events-none hidden md:block"
+                        viewBox="0 0 100 100"
+                        fill="none"
+                        stroke="white"
+                        strokeWidth="1.5"
+                        aria-hidden="true"
+                    >
+                        <rect x="20" y="30" width="18" height="60" />
+                        <rect x="42" y="15" width="20" height="75" />
+                        <rect x="66" y="40" width="16" height="50" />
+                        <line x1="24" y1="38" x2="34" y2="38" /><line x1="24" y1="46" x2="34" y2="46" />
+                        <line x1="24" y1="54" x2="34" y2="54" /><line x1="24" y1="62" x2="34" y2="62" />
+                        <line x1="47" y1="24" x2="57" y2="24" /><line x1="47" y1="32" x2="57" y2="32" />
+                        <line x1="47" y1="40" x2="57" y2="40" /><line x1="47" y1="48" x2="57" y2="48" />
+                        <line x1="47" y1="56" x2="57" y2="56" /><line x1="47" y1="64" x2="57" y2="64" />
+                        <line x1="70" y1="48" x2="78" y2="48" /><line x1="70" y1="56" x2="78" y2="56" />
+                        <line x1="70" y1="64" x2="78" y2="64" />
+                    </svg>
+
+                    <div className="relative grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
                         <div>
-                            <div className="text-xs font-bold uppercase tracking-widest text-blue-200 mb-3">
+                            <div className="text-xs font-semibold uppercase tracking-wider text-blue-300 mb-3">
                                 Performanța afacerii tale
                             </div>
                             <div className="flex items-baseline gap-3 flex-wrap">
-                                <h2 className="text-4xl font-black text-white">{growthHeadline}</h2>
-                                <span className={`text-2xl font-black ${growthColor}`}>
+                                <h2 className="text-5xl font-black text-white">{growthHeadline}</h2>
+                                <span className={`text-2xl font-black tabular-nums ${growthColor}`}>
                                     {growthArrow} {Math.abs(weekGrowth).toFixed(1)}%
                                 </span>
                             </div>
-                            <div className="text-sm text-blue-200 mt-1">
+                            <div className="text-sm text-blue-200 mt-2">
                                 față de săptămâna trecută
                             </div>
                             {agency?.name && (
                                 <div className="text-xs text-blue-300 mt-2">{agency.name}</div>
                             )}
                             <div className="mt-5 flex flex-wrap gap-2">
-                                <Link href="/statistics" className="rounded-2xl bg-white text-blue-900 px-4 py-2 text-sm font-bold hover:bg-blue-50 transition-colors">
+                                <Link href="/statistics" className="rounded-xl bg-white text-blue-900 px-4 py-2 text-sm font-bold shadow hover:bg-blue-50 transition-colors">
                                     Vezi statistici
                                 </Link>
-                                <Link href="/statistics" className="rounded-2xl border border-white/30 bg-transparent text-white px-4 py-2 text-sm font-bold hover:bg-white/10 transition-colors">
+                                <Link href="/statistics" className="rounded-xl border border-white/25 bg-white/10 text-white px-4 py-2 text-sm font-bold hover:bg-white/20 transition-colors">
                                     Rapoarte detaliate
                                 </Link>
                             </div>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                             {[
-                                { label: 'Anunțuri active',     value: Number(stats.active_properties ?? 0).toLocaleString('ro') },
-                                { label: 'Clienți noi',         value: Number(stats.buyers ?? 0).toLocaleString('ro') },
-                                { label: 'Tranzacții în curs',  value: Number(stats.active_deals ?? 0).toLocaleString('ro') },
-                                { label: 'Venit lunar',         value: formatMoney(stats.monthly_revenue) },
+                                { icon: '🏠', label: 'Anunțuri active',    value: Number(stats.active_properties ?? 0).toLocaleString('ro') },
+                                { icon: '👥', label: 'Clienți noi',        value: Number(stats.buyers ?? 0).toLocaleString('ro') },
+                                { icon: '🔄', label: 'Tranzacții în curs', value: Number(stats.active_deals ?? 0).toLocaleString('ro') },
+                                { icon: '💳', label: 'Venit lunar',        value: formatMoney(stats.monthly_revenue) },
                             ].map(s => (
-                                <div key={s.label} className="rounded-2xl bg-white/10 border border-white/15 backdrop-blur-sm p-4 relative">
-                                    <span className="absolute top-2 right-3 text-white/30">›</span>
-                                    <div className="text-2xl font-black">{s.value}</div>
-                                    <div className="text-[11px] text-blue-200 mt-0.5">{s.label}</div>
+                                <div key={s.label} className="rounded-2xl bg-white/10 border border-white/10 backdrop-blur-sm p-4 relative">
+                                    <span className="absolute top-2 right-3 text-blue-300/40">›</span>
+                                    <div className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center text-base mb-3">
+                                        {s.icon}
+                                    </div>
+                                    <div className="text-2xl font-bold tabular-nums">{s.value}</div>
+                                    <div className="text-xs text-blue-200 mt-0.5">{s.label}</div>
                                 </div>
                             ))}
                         </div>
                     </div>
                 </section>
 
-                {/* ── 6 stat cards with sparklines (2 rows × 3 cols on lg+ so
-                       the value/sub text never gets clipped). ── */}
+                {/* ── 6 stat cards with sparklines. 2/3/6 responsive grid:
+                       text never clips on smaller breakpoints; on xl all six
+                       sit in one row matching the mockup. ── */}
                 <section>
                     <h2 className="text-lg font-bold text-slate-900 mb-4">Indicatori cheie</h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
                         <StatCard
                             icon="🏠" label="Anunțurile mele"
                             value={Number(stats.properties ?? 0).toLocaleString('ro')}
@@ -273,19 +306,19 @@ export default function Index({
                         <StatCard
                             icon="💰" label="Venit / lună"
                             value={formatMoney(stats.monthly_revenue)}
-                            sub={`${stats.closed_deals ?? 0} tranzacții totale`}
+                            sub="comision"
                             href="/statistics" color="#f59e0b"
                         />
                         <StatCard
                             icon="📅" label="Vizionări"
                             value={Number(stats.upcoming_events ?? 0).toLocaleString('ro')}
-                            sub="programate (7 zile)"
+                            sub="programate"
                             href="/calendar" color="#ec4899"
                         />
                         <StatCard
                             icon="🌐" label="Web Oferte"
                             value={Number(scrapedStats.total ?? 0).toLocaleString('ro')}
-                            sub={`+${scrapedStats.today ?? 0} astăzi`}
+                            sub={`+${Number(scrapedStats.last_7d ?? 0).toLocaleString('ro')} săpt`}
                             href="/web-offers" color="#8b5cf6"
                             sparkline={sparklines.scraped}
                         />
@@ -294,13 +327,21 @@ export default function Index({
 
                 {/* ── AI Hot Deals ── */}
                 <section>
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-end justify-between mb-4 gap-3 flex-wrap">
                         <div>
-                            <h2 className="text-lg font-bold text-slate-900">{t('dashboard.ai_title')}</h2>
-                            <p className="text-xs text-slate-500 mt-0.5">{t('dashboard.ai_sub')}</p>
+                            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                                <span aria-hidden="true">✨</span>
+                                Oferte recomandate de AI
+                            </h2>
+                            <p className="text-sm text-slate-500 mt-0.5">
+                                Oportunități cu potențial ridicat pentru portofoliul tău
+                            </p>
                         </div>
-                        <Link href="/web-offers" className="rounded-2xl bg-slate-900 px-4 py-2 text-white text-sm font-semibold hover:bg-slate-700 transition-colors">
-                            {t('dashboard.all_offers')}
+                        <Link
+                            href="/web-offers"
+                            className="text-sm font-semibold text-blue-600 hover:text-blue-700 hover:underline"
+                        >
+                            Vezi toate ofertele →
                         </Link>
                     </div>
 

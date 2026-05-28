@@ -163,7 +163,7 @@ export default function AppLayout({ children, title }) {
     return (
         <div className="min-h-screen overflow-x-hidden bg-linear-to-br from-slate-50 via-white to-blue-50 text-slate-900 font-[Inter,sans-serif]">
             {impersonation && (
-                <div className="bg-rose-600 text-white text-xs sm:text-sm font-semibold px-4 py-2.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4 shadow-md lg:pl-64">
+                <div className="bg-rose-600 text-white text-xs sm:text-sm font-semibold px-4 py-2.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4 shadow-md lg:pl-56">
                     <div className="flex items-start sm:items-center gap-2">
                         <span className="text-base shrink-0">🎭</span>
                         <span>
@@ -179,7 +179,7 @@ export default function AppLayout({ children, title }) {
                 </div>
             )}
             {isPastDue && (
-                <div className="bg-red-600 text-white text-xs sm:text-sm font-semibold px-4 py-2.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4 shadow-md lg:pl-64">
+                <div className="bg-red-600 text-white text-xs sm:text-sm font-semibold px-4 py-2.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4 shadow-md lg:pl-56">
                     <div className="flex items-start sm:items-center gap-2">
                         <span className="text-base shrink-0">⚠</span>
                         <span>
@@ -197,7 +197,7 @@ export default function AppLayout({ children, title }) {
                 </div>
             )}
             {/* Header */}
-            <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl lg:pl-64">
+            <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl lg:pl-56">
                 <div className="mx-auto flex max-w-screen-2xl items-center justify-between px-4 sm:px-6 py-3 gap-3">
                     {/* Hamburger (mobile only) */}
                     <button
@@ -294,7 +294,7 @@ export default function AppLayout({ children, title }) {
 
             {/* Flash messages */}
             {(flash?.success || flash?.error || flash?.warning) && (
-                <div className="mx-auto max-w-screen-2xl px-6 pt-3 lg:pl-64">
+                <div className="mx-auto max-w-screen-2xl px-6 pt-3 lg:pl-56">
                     {flash?.success && (
                         <div className="rounded-2xl bg-emerald-50 border border-emerald-200 px-5 py-3 text-emerald-700 text-sm font-medium flex items-center gap-2">
                             <span>✓</span> {flash.success}
@@ -457,12 +457,12 @@ export default function AppLayout({ children, title }) {
                 {/* Sidebar (desktop only) — dark navy, edge-to-edge, fixed full-height.
                     Inner wrapper carries the padding + flex-col so mt-auto pushes
                     the helper card / language switcher to the bottom of the viewport. */}
-                <aside className="hidden lg:flex flex-col w-64 shrink-0 bg-linear-to-b from-slate-900 to-[#0b1120] border-r border-white/6 fixed top-0 left-0 h-screen overflow-y-auto z-30">
+                <aside className="hidden lg:flex flex-col w-56 shrink-0 bg-white border-r border-slate-200 fixed top-0 left-0 h-screen overflow-y-auto z-30">
                     <div className="flex flex-col h-full p-4">
                     {/* Logo */}
                     <Link href="/dashboard" className="flex items-center gap-2.5 px-3 py-2 mb-4">
-                        <Home className="w-7 h-7 text-blue-500 shrink-0" strokeWidth={2.5} />
-                        <span className="text-lg font-black tracking-widest text-white" style={{ fontFamily: 'Montserrat, sans-serif' }}>
+                        <Home className="w-7 h-7 text-blue-600 shrink-0" strokeWidth={2.5} />
+                        <span className="text-lg font-black tracking-widest text-slate-900" style={{ fontFamily: 'Montserrat, sans-serif' }}>
                             REALTIX
                         </span>
                     </Link>
@@ -472,25 +472,25 @@ export default function AppLayout({ children, title }) {
                     {user?.agency && (
                         <Link
                             href="/subscription"
-                            className="mx-1 mb-4 rounded-2xl bg-white/4 border border-white/7 px-3 py-3 flex items-center gap-3 hover:bg-white/7 transition-colors"
+                            className="mx-1 mb-4 rounded-2xl bg-slate-50 border border-slate-200 px-3 py-3 flex items-center gap-3 hover:bg-slate-100 transition-colors"
                         >
-                            <div className="w-10 h-10 rounded-xl bg-blue-500/15 flex items-center justify-center shrink-0 overflow-hidden">
+                            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0 overflow-hidden">
                                 {user.agency.logo_path ? (
                                     <img src={`/storage/${user.agency.logo_path}`} alt={user.agency.name} className="w-full h-full rounded-xl object-cover" />
                                 ) : (
-                                    <Home className="w-5 h-5 text-blue-400" />
+                                    <Home className="w-5 h-5 text-blue-600" />
                                 )}
                             </div>
                             <div className="flex-1 min-w-0 leading-tight">
-                                <div className="text-sm font-semibold text-white truncate">{user.agency.name}</div>
-                                <div className="text-[11px] text-slate-400 font-medium truncate">{planLabel}</div>
+                                <div className="text-sm font-semibold text-slate-900 truncate">{user.agency.name}</div>
+                                <div className="text-[11px] text-slate-500 font-medium truncate">{planLabel}</div>
                             </div>
-                            <ChevronDown className="w-4 h-4 text-slate-500 shrink-0" />
+                            <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
                         </Link>
                     )}
 
                     {/* Navigate label */}
-                    <div className="px-3 pt-1 pb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
+                    <div className="px-3 pt-1 pb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
                         {t('nav.navigate')}
                     </div>
                     <div className="space-y-1.5">
@@ -505,8 +505,8 @@ export default function AppLayout({ children, title }) {
                                     href={item.href}
                                     className={`group relative flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-sm transition-all duration-200 ${
                                         isActive
-                                            ? 'bg-linear-to-r from-blue-600 to-blue-500 text-white font-semibold shadow-lg shadow-blue-600/25'
-                                            : 'text-slate-400 hover:text-white hover:bg-white/5 font-medium'
+                                            ? 'bg-blue-600 text-white font-semibold shadow-md shadow-blue-600/20'
+                                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 font-medium'
                                     }`}
                                 >
                                     <span className="flex items-center gap-3">
@@ -514,7 +514,7 @@ export default function AppLayout({ children, title }) {
                                         <span>{item.label}</span>
                                     </span>
                                     {item.badge && (
-                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/20">
+                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">
                                             {item.badge}
                                         </span>
                                     )}
@@ -523,16 +523,16 @@ export default function AppLayout({ children, title }) {
                         })}
                     </div>
 
-                    {/* Bottom-aligned: separator + Settings + helper card + lang switcher */}
+                    {/* Bottom-aligned: separator + Settings */}
                     <div className="mt-auto space-y-3">
-                        <div className="border-t border-white/6 my-3 mx-1" />
+                        <div className="border-t border-slate-200 my-3 mx-1" />
 
                         <Link
                             href="/settings"
                             className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all duration-200 ${
                                 currentPath.startsWith('/settings')
-                                    ? 'bg-linear-to-r from-blue-600 to-blue-500 text-white font-semibold shadow-lg shadow-blue-600/25'
-                                    : 'text-slate-400 hover:text-white hover:bg-white/5 font-medium'
+                                    ? 'bg-blue-600 text-white font-semibold shadow-md shadow-blue-600/20'
+                                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 font-medium'
                             }`}
                         >
                             <Settings className="w-5 h-5 shrink-0 text-current" strokeWidth={currentPath.startsWith('/settings') ? 2.5 : 2} />
@@ -544,7 +544,7 @@ export default function AppLayout({ children, title }) {
 
                 {/* Content. pb-20 on mobile reserves space for the fixed
                     bottom nav so the last item isn't hidden behind it. */}
-                <main className="flex-1 min-w-0 min-h-150 lg:ml-64 pb-20 lg:pb-0">
+                <main className="flex-1 min-w-0 min-h-150 lg:ml-56 pb-20 lg:pb-0">
                     {title && (
                         <h1 className="text-xl sm:text-2xl font-bold text-slate-900 mb-4 sm:mb-5">{title}</h1>
                     )}

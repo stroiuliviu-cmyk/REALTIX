@@ -1,6 +1,15 @@
 import SuperAdminLayout from '@/Layouts/SuperAdminLayout';
 import { Head } from '@inertiajs/react';
 
+const CATEGORY_LABELS = {
+    apartment:  'Apartamente',
+    house:      'Case',
+    cottage:    'Vile/Cabane',
+    land:       'Terenuri',
+    garage:     'Garaje',
+    commercial: 'Comercial',
+};
+
 function formatBytes(b) {
     if (!b) return '0 B';
     const units = ['B', 'KB', 'MB', 'GB', 'TB'];
@@ -19,7 +28,7 @@ function MetricCard({ label, value, accent = 'slate' }) {
     );
 }
 
-export default function Index({ disk, media, byAgency, foldersByDir, planLabels }) {
+export default function Index({ disk, media, byAgency, foldersByDir, scrapedByCategory = [], planLabels }) {
     const diskAccent = disk.used_pct > 90 ? 'rose' : disk.used_pct > 75 ? 'amber' : 'emerald';
 
     return (
@@ -61,6 +70,37 @@ export default function Index({ disk, media, byAgency, foldersByDir, planLabels 
                         ))}
                     </div>
                 </div>
+
+                {scrapedByCategory.length > 0 && (
+                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
+                        <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between gap-3">
+                            <h3 className="text-sm font-bold text-slate-900">Scraped 999.md pe categorie</h3>
+                            <span className="text-xs text-slate-400">mărime estimată (152.7 KB/imagine)</span>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm min-w-160">
+                                <thead className="bg-slate-50">
+                                    <tr className="text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                        <th className="px-4 py-2">Categorie</th>
+                                        <th className="px-4 py-2 text-right">Listings</th>
+                                        <th className="px-4 py-2 text-right">Imagini</th>
+                                        <th className="px-4 py-2 text-right">Mărime estimată</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {scrapedByCategory.map(c => (
+                                        <tr key={c.type}>
+                                            <td className="px-4 py-2 font-semibold text-slate-800">{CATEGORY_LABELS[c.type] ?? c.type}</td>
+                                            <td className="px-4 py-2 text-right text-slate-700">{Number(c.listings).toLocaleString('ro')}</td>
+                                            <td className="px-4 py-2 text-right text-slate-700">{Number(c.total_images).toLocaleString('ro')}</td>
+                                            <td className="px-4 py-2 text-right font-bold text-slate-900">{formatBytes(c.est_bytes)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
 
                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
                     <div className="px-5 py-3 border-b border-slate-100">

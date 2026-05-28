@@ -4,6 +4,7 @@ namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -49,6 +50,34 @@ class StorageController extends Controller
             return [$dir => ['files' => $count, 'bytes' => $size]];
         })->all();
 
+        // Scraped 999.md storage split by listing category (type). Images are
+        // stored flat under scraped/{external_id}/NN.jpg — walking 13k+ dirs
+        // per request would be slow, so we ESTIMATE size from image_count ×
+        // average bytes/image (measured ~152.7 KB from a 200-file sample).
+        // Postgres-only (jsonb_array_length); production runs on pgsql.
+        $avgBytesPerImage = 152.7 * 1024;
+        $scrapedByCategory = [];
+        if (Schema::hasTable('scraped_listings')) {
+            $rows = DB::table('scraped_listings')
+                ->where('source', '999md')
+                ->whereNotNull('images')
+                ->selectRaw('
+                    type,
+                    COUNT(*) as listings,
+                    COALESCE(SUM(jsonb_array_length(images)), 0) as total_images
+                ')
+                ->groupBy('type')
+                ->orderByRaw('total_images DESC')
+                ->get();
+
+            $scrapedByCategory = $rows->map(fn ($r) => [
+                'type'         => $r->type ?: 'necunoscut',
+                'listings'     => (int) $r->listings,
+                'total_images' => (int) $r->total_images,
+                'est_bytes'    => (int) round($r->total_images * $avgBytesPerImage),
+            ])->values()->all();
+        }
+
         return Inertia::render('SuperAdmin/Storage/Index', [
             'disk' => [
                 'used_bytes'  => $used,
@@ -60,9 +89,10 @@ class StorageController extends Controller
                 'total_files'        => $totalFiles,
                 'total_agency_bytes' => $totalAgencyBytes,
             ],
-            'byAgency'     => $byAgency,
-            'foldersByDir' => $foldersByDir,
-            'planLabels'   => ['starter' => 'Solo', 'medium' => 'Team', 'pro' => 'Growth'],
+            'byAgency'          => $byAgency,
+            'foldersByDir'      => $foldersByDir,
+            'scrapedByCategory' => $scrapedByCategory,
+            'planLabels'        => ['starter' => 'Solo', 'medium' => 'Team', 'pro' => 'Growth'],
         ]);
     }
 

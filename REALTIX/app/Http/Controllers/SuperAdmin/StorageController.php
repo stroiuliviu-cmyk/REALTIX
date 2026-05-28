@@ -58,14 +58,21 @@ class StorageController extends Controller
         $avgBytesPerImage = 152.7 * 1024;
         $scrapedByCategory = [];
         if (Schema::hasTable('scraped_listings')) {
+            // images column is `json` (not jsonb), so we use json_array_length.
+            // The CASE guard ignores rows where images is stored as a non-array
+            // shape (e.g. a stray object) — those would crash json_array_length.
             $rows = DB::table('scraped_listings')
                 ->where('source', '999md')
                 ->whereNotNull('images')
-                ->selectRaw('
+                ->selectRaw("
                     type,
                     COUNT(*) as listings,
-                    COALESCE(SUM(jsonb_array_length(images)), 0) as total_images
-                ')
+                    COALESCE(SUM(
+                        CASE WHEN json_typeof(images) = 'array'
+                             THEN json_array_length(images)
+                             ELSE 0 END
+                    ), 0) as total_images
+                ")
                 ->groupBy('type')
                 ->orderByRaw('total_images DESC')
                 ->get();

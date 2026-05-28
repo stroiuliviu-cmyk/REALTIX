@@ -163,7 +163,7 @@ export default function AppLayout({ children, title }) {
     return (
         <div className="min-h-screen overflow-x-hidden bg-linear-to-br from-slate-50 via-white to-blue-50 text-slate-900 font-[Inter,sans-serif]">
             {impersonation && (
-                <div className="bg-rose-600 text-white text-xs sm:text-sm font-semibold px-4 py-2.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4 shadow-md lg:pl-56">
+                <div className="bg-rose-600 text-white text-xs sm:text-sm font-semibold px-4 py-2.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4 shadow-md lg:pl-64">
                     <div className="flex items-start sm:items-center gap-2">
                         <span className="text-base shrink-0">🎭</span>
                         <span>
@@ -179,7 +179,7 @@ export default function AppLayout({ children, title }) {
                 </div>
             )}
             {isPastDue && (
-                <div className="bg-red-600 text-white text-xs sm:text-sm font-semibold px-4 py-2.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4 shadow-md lg:pl-56">
+                <div className="bg-red-600 text-white text-xs sm:text-sm font-semibold px-4 py-2.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4 shadow-md lg:pl-64">
                     <div className="flex items-start sm:items-center gap-2">
                         <span className="text-base shrink-0">⚠</span>
                         <span>
@@ -197,7 +197,7 @@ export default function AppLayout({ children, title }) {
                 </div>
             )}
             {/* Header */}
-            <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl lg:pl-56">
+            <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl lg:pl-64">
                 <div className="mx-auto flex max-w-screen-2xl items-center justify-between px-4 sm:px-6 py-3 gap-3">
                     {/* Hamburger (mobile only) */}
                     <button
@@ -294,7 +294,7 @@ export default function AppLayout({ children, title }) {
 
             {/* Flash messages */}
             {(flash?.success || flash?.error || flash?.warning) && (
-                <div className="mx-auto max-w-screen-2xl px-6 pt-3 lg:pl-56">
+                <div className="mx-auto max-w-screen-2xl px-6 pt-3 lg:pl-64">
                     {flash?.success && (
                         <div className="rounded-2xl bg-emerald-50 border border-emerald-200 px-5 py-3 text-emerald-700 text-sm font-medium flex items-center gap-2">
                             <span>✓</span> {flash.success}
@@ -457,7 +457,7 @@ export default function AppLayout({ children, title }) {
                 {/* Sidebar (desktop only) — dark navy, edge-to-edge, fixed full-height.
                     Inner wrapper carries the padding + flex-col so mt-auto pushes
                     the helper card / language switcher to the bottom of the viewport. */}
-                <aside className="hidden lg:flex flex-col w-56 shrink-0 bg-linear-to-b from-slate-900 to-[#0b1120] border-r border-white/6 fixed top-0 left-0 h-screen overflow-y-auto z-30">
+                <aside className="hidden lg:flex flex-col w-64 shrink-0 bg-linear-to-b from-slate-900 to-[#0b1120] border-r border-white/6 fixed top-0 left-0 h-screen overflow-y-auto z-30">
                     <div className="flex flex-col h-full p-4">
                     {/* Logo */}
                     <Link href="/dashboard" className="flex items-center gap-2.5 px-3 py-2 mb-4">
@@ -544,7 +544,7 @@ export default function AppLayout({ children, title }) {
 
                 {/* Content. pb-20 on mobile reserves space for the fixed
                     bottom nav so the last item isn't hidden behind it. */}
-                <main className="flex-1 min-w-0 min-h-150 lg:ml-56 pb-20 lg:pb-0">
+                <main className="flex-1 min-w-0 min-h-150 lg:ml-64 pb-20 lg:pb-0">
                     {title && (
                         <h1 className="text-xl sm:text-2xl font-bold text-slate-900 mb-4 sm:mb-5">{title}</h1>
                     )}

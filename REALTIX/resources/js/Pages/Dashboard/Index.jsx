@@ -142,21 +142,10 @@ export default function Index({
                     </div>
                 )}
 
-                {/* ── Header ── */}
-                <div>
-                    <div className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                        {t('dashboard.welcome_back')}
-                    </div>
-                    <h1 className="text-2xl font-black text-slate-900 mt-0.5 flex items-center gap-2" style={{ fontFamily: 'Montserrat, sans-serif' }}>
-                        <span>{user?.name ?? '—'}</span>
-                        <span aria-hidden="true">👋</span>
-                    </h1>
-                    <p className="text-sm text-slate-500 mt-1">
-                        Iată ce se întâmplă cu afacerea ta astăzi.
-                    </p>
-                </div>
-
-                {/* ── Hero card (navy — pairs with the sidebar gradient) ── */}
+                {/* ── Hero card (navy — pairs with the sidebar gradient).
+                       Welcome (welcome_back + name + subtitle) lives inside
+                       the banner on light text so the page starts with a
+                       single visual block instead of two stacked headers. */}
                 <section className="relative overflow-hidden rounded-3xl bg-linear-to-br from-slate-900 via-blue-900 to-indigo-900 p-6 sm:p-8 text-white shadow-xl">
                     {/* Skyline silhouette behind content. pointer-events-none keeps
                         the underlying buttons clickable. */}
@@ -187,6 +176,19 @@ export default function Index({
                         <line x1="93" y1="57" x2="102" y2="57" /><line x1="93" y1="65" x2="102" y2="65" />
                         <line x1="93" y1="73" x2="102" y2="73" />
                     </svg>
+
+                    <div className="relative mb-6">
+                        <div className="text-xs font-bold uppercase tracking-wide text-blue-300">
+                            {t('dashboard.welcome_back')}
+                        </div>
+                        <h1 className="text-2xl font-bold text-white mt-0.5 flex items-center gap-2" style={{ fontFamily: 'Montserrat, sans-serif' }}>
+                            <span>{user?.name ?? '—'}</span>
+                            <span aria-hidden="true">👋</span>
+                        </h1>
+                        <p className="text-sm text-blue-200 mt-1">
+                            Iată ce se întâmplă cu afacerea ta astăzi.
+                        </p>
+                    </div>
 
                     <div className="relative grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
                         <div>

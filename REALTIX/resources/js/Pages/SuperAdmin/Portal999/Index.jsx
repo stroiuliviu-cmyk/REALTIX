@@ -86,9 +86,11 @@ const TYPE_ICONS = {
 
 // Mode + status visual tokens for the run history table.
 const MODE_BADGE = {
-    hourly:  'bg-blue-100 text-blue-700',
-    morning: 'bg-amber-100 text-amber-700',
-    manual:  'bg-slate-100 text-slate-700',
+    hourly:   'bg-blue-100 text-blue-700',
+    hourly_a: 'bg-blue-100 text-blue-700',
+    hourly_b: 'bg-purple-100 text-purple-700',
+    morning:  'bg-amber-100 text-amber-700',
+    manual:   'bg-slate-100 text-slate-700',
 };
 
 const STATUS_BADGE = {
@@ -185,7 +187,7 @@ export default function Index({
     stats, byType, byCity, byDay, byTypeDaily = [],
     bySubtype = [], bySubtypeDaily = {}, coverage = {},
     syncLogs,
-    recentRuns = [], runsAgg = {}, activeRun = null,
+    recentRuns = [], runsAgg = {}, activeRun = null, activeRuns = [],
     recentlyTouched = [],
 }) {
     const [isSyncing, setIsSyncing] = useState(false);
@@ -225,7 +227,7 @@ export default function Index({
         const interval = setInterval(() => {
             router.reload({
                 only: ['stats', 'byType', 'byTypeDaily', 'bySubtype', 'bySubtypeDaily', 'coverage',
-                       'recentRuns', 'runsAgg', 'activeRun', 'recentlyTouched'],
+                       'recentRuns', 'runsAgg', 'activeRun', 'activeRuns', 'recentlyTouched'],
                 preserveScroll: true,
                 preserveState: true,
                 onSuccess: () => setLastRefresh(new Date()),
@@ -478,46 +480,58 @@ export default function Index({
                 <div className="space-y-4">
                     <h2 className="text-base font-bold text-slate-900">Activitate scraper</h2>
 
-                    {activeRun && (
-                        <div className="bg-blue-50 border border-blue-200 rounded-xl p-5">
-                            <div className="flex items-start justify-between">
-                                <div>
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
-                                        <h3 className="text-lg font-bold text-slate-900">Sync activ</h3>
-                                        <span className="px-2 py-0.5 rounded-full bg-blue-600 text-white text-xs font-bold uppercase">
-                                            {activeRun.mode}
+                    {activeRuns.length > 0 && (
+                        <div>
+                            <div className="flex items-center gap-2 mb-3">
+                                <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
+                                <h3 className="text-lg font-bold text-slate-900">
+                                    Sync activ
+                                    {activeRuns.length > 1 && (
+                                        <span className="ml-2 text-sm font-medium text-slate-500">
+                                            ({activeRuns.length} grupuri paralele)
                                         </span>
-                                    </div>
-                                    <div className="text-sm text-slate-600">
-                                        PID {activeRun.pid ?? '—'} · Pornit {timeAgo(activeRun.started_at)} · Categorie: <strong>
-                                            {activeRun.current_category ?? 'inițializare…'}
-                                        </strong>
-                                    </div>
-                                </div>
+                                    )}
+                                </h3>
                             </div>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
-                                <StatMini label="Procesate" value={activeRun.total_processed} color="blue" />
-                                <StatMini label="Noi" value={activeRun.total_new} color="emerald" />
-                                <StatMini label="Update" value={activeRun.total_updated} color="violet" />
-                                <StatMini label="Skip" value={activeRun.total_skipped} color="slate" />
-                            </div>
-                            {Object.keys(activeRun.category_stats || {}).length > 0 && (
-                                <div className="mt-4">
-                                    <div className="text-xs font-bold uppercase text-slate-500 mb-2">Categorii parcurse</div>
-                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
-                                        {Object.entries(activeRun.category_stats).map(([cat, s]) => (
-                                            <div key={cat} className="bg-white rounded-lg p-2 border border-slate-200">
-                                                <div className="text-xs font-bold text-slate-700">
-                                                    {TYPE_LABELS[cat] ?? cat}
+                            <div className={activeRuns.length >= 2 ? 'grid grid-cols-1 md:grid-cols-2 gap-4' : ''}>
+                                {activeRuns.map(run => (
+                                    <div key={run.id} className="bg-blue-50 border border-blue-200 rounded-xl p-5">
+                                        <div className="flex items-center justify-between mb-2 gap-2">
+                                            <span className={`px-2 py-0.5 rounded-full text-xs font-bold uppercase ${MODE_BADGE[run.mode] ?? 'bg-slate-100 text-slate-700'}`}>
+                                                {run.mode}
+                                            </span>
+                                            <span className="text-xs text-slate-500 whitespace-nowrap">PID {run.pid ?? '—'}</span>
+                                        </div>
+                                        <div className="text-sm text-slate-600 mb-3">
+                                            Pornit {timeAgo(run.started_at)} · Categorie: <strong>
+                                                {run.current_category ?? 'inițializare…'}
+                                            </strong>
+                                        </div>
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                            <StatMini label="Procesate" value={run.total_processed} color="blue" />
+                                            <StatMini label="Noi" value={run.total_new} color="emerald" />
+                                            <StatMini label="Update" value={run.total_updated} color="violet" />
+                                            <StatMini label="Skip" value={run.total_skipped} color="slate" />
+                                        </div>
+                                        {Object.keys(run.category_stats || {}).length > 0 && (
+                                            <div className="mt-4">
+                                                <div className="text-xs font-bold uppercase text-slate-500 mb-2">Categorii parcurse</div>
+                                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                                    {Object.entries(run.category_stats).map(([cat, s]) => (
+                                                        <div key={cat} className="bg-white rounded-lg p-2 border border-slate-200">
+                                                            <div className="text-xs font-bold text-slate-700">
+                                                                {TYPE_LABELS[cat] ?? cat}
+                                                            </div>
+                                                            <div className="text-xs text-emerald-600">+{s.new ?? 0}</div>
+                                                            <div className="text-xs text-slate-500">{s.processed ?? 0} listings</div>
+                                                        </div>
+                                                    ))}
                                                 </div>
-                                                <div className="text-xs text-emerald-600">+{s.new ?? 0}</div>
-                                                <div className="text-xs text-slate-500">{s.processed ?? 0} listings</div>
                                             </div>
-                                        ))}
+                                        )}
                                     </div>
-                                </div>
-                            )}
+                                ))}
+                            </div>
                         </div>
                     )}
 

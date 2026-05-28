@@ -203,6 +203,7 @@ class Portal999Controller extends Controller
         $runsAgg    = ['count_24h' => 0, 'success_24h' => 0, 'failed_24h' => 0,
                        'avg_duration_sec' => null, 'total_new_24h' => 0, 'total_updated_24h' => 0];
         $activeRun  = null;
+        $activeRuns = [];
 
         if (Schema::hasTable('scraper_runs')) {
             $recentRuns = ScraperRun::orderByDesc('started_at')
@@ -239,24 +240,33 @@ class Portal999Controller extends Controller
                 'total_updated_24h' => (int) $last24h->sum('total_updated'),
             ];
 
-            $active = ScraperRun::where('status', 'running')
+            // Return ALL active runs (was: ->first()). The parallel hourly_a/
+            // hourly_b pair means up to 2 are running concurrently and the
+            // dashboard panel renders them side-by-side. Sorted by mode for
+            // a stable left-to-right ordering (hourly_a before hourly_b).
+            $activeRuns = ScraperRun::where('status', 'running')
+                ->orderBy('mode')
                 ->orderByDesc('started_at')
-                ->first();
-            if ($active) {
-                $activeRun = [
-                    'id'               => $active->id,
-                    'pid'              => $active->pid,
-                    'mode'             => $active->mode,
-                    'started_at'       => $active->started_at?->toIso8601String(),
-                    'current_category' => $active->current_category,
-                    'total_processed'  => $active->total_processed,
-                    'total_new'        => $active->total_new,
-                    'total_updated'    => $active->total_updated,
-                    'total_skipped'    => $active->total_skipped,
-                    'total_failed'     => $active->total_failed,
-                    'category_stats'   => $active->category_stats ?? [],
-                ];
-            }
+                ->get()
+                ->map(fn ($r) => [
+                    'id'               => $r->id,
+                    'pid'              => $r->pid,
+                    'mode'             => $r->mode,
+                    'started_at'       => $r->started_at?->toIso8601String(),
+                    'current_category' => $r->current_category,
+                    'total_processed'  => $r->total_processed,
+                    'total_new'        => $r->total_new,
+                    'total_updated'    => $r->total_updated,
+                    'total_skipped'    => $r->total_skipped,
+                    'total_failed'     => $r->total_failed,
+                    'category_stats'   => $r->category_stats ?? [],
+                ])
+                ->values()
+                ->all();
+
+            // Backward-compat: keep $activeRun = first one so any consumer
+            // still reading the single-run prop keeps working.
+            $activeRun = $activeRuns[0] ?? null;
         }
 
         return Inertia::render('SuperAdmin/Portal999/Index', [
@@ -272,6 +282,7 @@ class Portal999Controller extends Controller
             'recentRuns'      => $recentRuns,
             'runsAgg'         => $runsAgg,
             'activeRun'       => $activeRun,
+            'activeRuns'      => $activeRuns,
             'recentlyTouched' => $recentlyTouched,
         ]);
     }

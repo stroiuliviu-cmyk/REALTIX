@@ -1944,8 +1944,43 @@ def _detect_owner_type(soup: BeautifulSoup) -> str:
     return "agency"
 
 
+_TIP_OFERTA_LABEL_RE = re.compile(r"Tip\s+ofert|Тип\s+предложени", re.IGNORECASE)
+
+
 def _detect_transaction_type(soup: BeautifulSoup, features_text: str) -> str | None:
-    """Return 'rent' / 'sale' / 'inchiriere_zilnica' if detected from page; None to keep category default."""
+    """Return 'rent' / 'sale' / 'inchiriere_zilnica' if detected from page; None to keep category default.
+
+    Order of precedence (highest confidence first):
+      1. Structured "Tip ofertă" sidebar field on 999.md detail pages.
+      2. General page text heuristic (legacy fallback).
+    The breadcrumb-based detector (_detect_transaction_type_from_breadcrumb)
+    is called separately by the caller before this function.
+    """
+    # 1) Structured field — most reliable when present. Iterate every label
+    # node matching "Tip ofertă" / "Тип предложения" and inspect parent +
+    # next sibling text (999.md typically renders label/value as siblings).
+    for label in soup.find_all(string=_TIP_OFERTA_LABEL_RE):
+        parent = label.parent
+        if not parent:
+            continue
+        context = parent.get_text(" ", strip=True).lower()
+        nxt = parent.find_next_sibling()
+        if nxt:
+            context += " " + nxt.get_text(" ", strip=True).lower()
+
+        # Check the most specific bucket first so "chirie pe zi" doesn't
+        # collapse into the generic rent branch.
+        if "chirie pe zi" in context or "pe zi" in context \
+                or "посуточно" in context or "termen scurt" in context:
+            return "inchiriere_zilnica"
+        if "închiri" in context or "chirie" in context \
+                or "аренд" in context or "сда" in context:
+            return "rent"
+        if "vând" in context or "vinde" in context or "vanzare" in context \
+                or "продаж" in context or "продаю" in context:
+            return "sale"
+
+    # 2) Fallback: scan the whole page text.
     text = (soup.get_text(" ", strip=True) + " " + features_text).lower()
     if "chirie" in text or "аренд" in text or "închiri" in text:
         if "посуточно" in text or "pe zi" in text or "termen scurt" in text:
@@ -2565,8 +2600,16 @@ def main() -> int:
                             marker = "💲 PRICE" if price_changed else "⏭️  SKIP"
                             cur_str = list_currency or '—'
                             print(f"  {marker} #{external_id} | (list price: {list_price} {cur_str})")
-                            stats["updated"] += 1
-                            cat_stats["updated"] += 1
+                            # Count price-unchanged listings as 'skipped' rather than
+                            # 'updated'. We bumped updated_at + maybe wrote a subtype,
+                            # but nothing material changed — the dashboard SKIP/UPDATE
+                            # split is more useful when it reflects the marker line.
+                            if price_changed:
+                                stats["updated"] += 1
+                                cat_stats["updated"] += 1
+                            else:
+                                stats["skipped"] += 1
+                                cat_stats["skipped"] += 1
 
                         stats["processed"] += 1
                         cat_stats["processed"] += 1

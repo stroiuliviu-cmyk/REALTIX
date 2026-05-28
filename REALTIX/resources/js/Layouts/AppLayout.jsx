@@ -535,22 +535,6 @@ export default function AppLayout({ children, title }) {
                             <Settings className="w-5 h-5 shrink-0 text-current" strokeWidth={currentPath.startsWith('/settings') ? 2.5 : 2} />
                             <span>{t('nav.settings')}</span>
                         </Link>
-
-                        <div className="p-4 rounded-2xl bg-linear-to-br from-blue-600/15 to-indigo-600/10 border border-blue-500/20">
-                            <div className="flex items-start gap-2 mb-2">
-                                <LifeBuoy className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
-                                <div>
-                                    <div className="text-sm font-bold text-white">Ai nevoie de ajutor?</div>
-                                    <div className="text-xs text-slate-400 mt-0.5">Echipa noastră îți stă la dispoziție.</div>
-                                </div>
-                            </div>
-                            <Link
-                                href="/suport"
-                                className="block w-full text-center bg-white/10 hover:bg-white/15 border border-white/10 rounded-xl text-xs font-semibold text-white py-2 transition-colors"
-                            >
-                                Contactează suport
-                            </Link>
-                        </div>
                     </div>
                     </div>
                 </aside>

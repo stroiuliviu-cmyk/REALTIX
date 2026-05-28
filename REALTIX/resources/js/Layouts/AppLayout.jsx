@@ -4,7 +4,7 @@ import { useTranslation } from '@/Hooks/useTranslation';
 import NotificationsBell from '@/Components/NotificationsBell';
 import {
     Home, Globe, Plus, Send, FileText, Calendar, Users, Sparkles,
-    Settings, LifeBuoy, ChevronDown,
+    Settings, LifeBuoy, ChevronDown, LayoutGrid, MoreHorizontal,
 } from 'lucide-react';
 
 function ProfileDropdown({ user }) {
@@ -579,8 +579,9 @@ export default function AppLayout({ children, title }) {
                     </div>
                 </aside>
 
-                {/* Content */}
-                <main className="flex-1 min-w-0 min-h-150 lg:ml-64">
+                {/* Content. pb-20 on mobile reserves space for the fixed
+                    bottom nav so the last item isn't hidden behind it. */}
+                <main className="flex-1 min-w-0 min-h-150 lg:ml-64 pb-20 lg:pb-0">
                     {title && (
                         <h1 className="text-xl sm:text-2xl font-bold text-slate-900 mb-4 sm:mb-5">{title}</h1>
                     )}
@@ -615,6 +616,92 @@ export default function AppLayout({ children, title }) {
                     {children}
                 </main>
             </div>
+
+            {/* Fixed mobile bottom navigation. Five entries with a raised
+                central "Adaugă" button. The "Mai mult" entry opens the same
+                drawer the top-bar hamburger does, so deep routes (Web Oferte,
+                Autopostare, Contracte, Calendar, AI, Setări) remain reachable
+                with a single tap. Hidden on lg+ where the sidebar is visible. */}
+            <nav
+                className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 px-2 pt-2"
+                style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+                aria-label="Mobile navigation"
+            >
+                <div className="flex items-end justify-around">
+                    {(() => {
+                        const propertiesActive = currentPath.startsWith('/properties')
+                            && !currentPath.startsWith('/properties/create');
+                        const items = [
+                            { key: 'dashboard', label: 'Panou',    href: '/dashboard', Icon: Home,        isActive: currentPath === '/dashboard' },
+                            { key: 'props',     label: 'Anunțuri', href: '/properties', Icon: LayoutGrid, isActive: propertiesActive },
+                            { key: 'contacts',  label: 'Clienți',  href: '/contacts',   Icon: Users,      isActive: currentPath.startsWith('/contacts') },
+                        ];
+                        return (
+                            <>
+                                {items.slice(0, 2).map(({ key, label, href, Icon, isActive }) => (
+                                    <Link
+                                        key={key}
+                                        href={href}
+                                        className="flex flex-col items-center gap-1 px-3 py-1 min-w-14"
+                                    >
+                                        <Icon
+                                            className={`w-5 h-5 ${isActive ? 'text-blue-600' : 'text-slate-400'}`}
+                                            strokeWidth={isActive ? 2.5 : 2}
+                                        />
+                                        <span className={`text-[10px] font-medium ${isActive ? 'text-blue-600' : 'text-slate-400'}`}>
+                                            {label}
+                                        </span>
+                                    </Link>
+                                ))}
+
+                                {/* Raised center "Adaugă" — sits above the bar
+                                    via -mt-6 so the FAB-style button breaks the
+                                    baseline like the mockup. */}
+                                <Link
+                                    href="/properties/create"
+                                    className="flex flex-col items-center gap-1 -mt-6"
+                                >
+                                    <span className="w-14 h-14 rounded-full bg-blue-600 hover:bg-blue-700 flex items-center justify-center shadow-lg shadow-blue-600/30 transition-colors">
+                                        <Plus className="w-7 h-7 text-white" strokeWidth={2.5} />
+                                    </span>
+                                    <span className="text-[10px] font-medium text-slate-400">Adaugă</span>
+                                </Link>
+
+                                {items.slice(2).map(({ key, label, href, Icon, isActive }) => (
+                                    <Link
+                                        key={key}
+                                        href={href}
+                                        className="flex flex-col items-center gap-1 px-3 py-1 min-w-14"
+                                    >
+                                        <Icon
+                                            className={`w-5 h-5 ${isActive ? 'text-blue-600' : 'text-slate-400'}`}
+                                            strokeWidth={isActive ? 2.5 : 2}
+                                        />
+                                        <span className={`text-[10px] font-medium ${isActive ? 'text-blue-600' : 'text-slate-400'}`}>
+                                            {label}
+                                        </span>
+                                    </Link>
+                                ))}
+
+                                <button
+                                    type="button"
+                                    onClick={() => setMobileMenuOpen(true)}
+                                    className="flex flex-col items-center gap-1 px-3 py-1 min-w-14"
+                                    aria-label="Open more menu"
+                                >
+                                    <MoreHorizontal
+                                        className={`w-5 h-5 ${mobileMenuOpen ? 'text-blue-600' : 'text-slate-400'}`}
+                                        strokeWidth={mobileMenuOpen ? 2.5 : 2}
+                                    />
+                                    <span className={`text-[10px] font-medium ${mobileMenuOpen ? 'text-blue-600' : 'text-slate-400'}`}>
+                                        Mai mult
+                                    </span>
+                                </button>
+                            </>
+                        );
+                    })()}
+                </div>
+            </nav>
         </div>
     );
 }

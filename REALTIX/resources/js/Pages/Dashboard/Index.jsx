@@ -114,7 +114,7 @@ export default function Index({
     const isGrowth = weekGrowth >= 0;
     const growthHeadline = isGrowth ? 'În creștere' : 'În scădere';
     const growthArrow = isGrowth ? '↑' : '↓';
-    const growthColor = isGrowth ? 'text-emerald-300' : 'text-red-300';
+    const growthColor = isGrowth ? 'text-emerald-400' : 'text-red-400';
 
     return (
         <AppLayout>
@@ -156,12 +156,12 @@ export default function Index({
                     </p>
                 </div>
 
-                {/* ── Hero card (royal blue + skyline watermark) ── */}
-                <section className="relative overflow-hidden rounded-3xl bg-linear-to-br from-blue-700 via-blue-600 to-indigo-600 p-6 sm:p-8 text-white shadow-xl">
+                {/* ── Hero card (navy — pairs with the sidebar gradient) ── */}
+                <section className="relative overflow-hidden rounded-3xl bg-linear-to-br from-slate-900 via-blue-900 to-indigo-900 p-6 sm:p-8 text-white shadow-xl">
                     {/* Skyline silhouette behind content. pointer-events-none keeps
                         the underlying buttons clickable. */}
                     <svg
-                        className="absolute right-12 top-1/2 -translate-y-1/2 w-80 h-80 opacity-[0.12] pointer-events-none hidden md:block"
+                        className="absolute right-12 top-1/2 -translate-y-1/2 w-80 h-80 opacity-[0.08] pointer-events-none hidden md:block"
                         viewBox="0 0 120 100"
                         fill="none"
                         stroke="white"
@@ -190,7 +190,7 @@ export default function Index({
 
                     <div className="relative grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
                         <div>
-                            <div className="text-xs font-semibold uppercase tracking-wider text-blue-100 mb-3">
+                            <div className="text-xs font-semibold uppercase tracking-wider text-blue-300 mb-3">
                                 Performanța afacerii tale
                             </div>
                             <div className="flex items-baseline gap-3 flex-wrap">
@@ -199,17 +199,17 @@ export default function Index({
                                     {growthArrow} {Math.abs(weekGrowth).toFixed(1)}%
                                 </span>
                             </div>
-                            <div className="text-sm text-blue-100 mt-2">
+                            <div className="text-sm text-blue-200 mt-2">
                                 față de săptămâna trecută
                             </div>
                             {agency?.name && (
-                                <div className="text-xs text-blue-200 mt-2">{agency.name}</div>
+                                <div className="text-xs text-blue-300/70 mt-2">{agency.name}</div>
                             )}
                             <div className="mt-5 flex flex-wrap gap-2">
-                                <Link href="/statistics" className="rounded-xl bg-white text-blue-700 px-4 py-2 text-sm font-bold shadow hover:bg-blue-50 transition-colors">
+                                <Link href="/statistics" className="rounded-xl bg-white text-slate-900 px-4 py-2 text-sm font-bold shadow hover:bg-blue-50 transition-colors">
                                     Vezi statistici
                                 </Link>
-                                <Link href="/statistics" className="rounded-xl border border-white/25 bg-white/10 text-white px-4 py-2 text-sm font-bold hover:bg-white/20 transition-colors">
+                                <Link href="/statistics" className="rounded-xl border border-white/20 bg-white/10 text-white px-4 py-2 text-sm font-bold hover:bg-white/20 transition-colors">
                                     Rapoarte detaliate
                                 </Link>
                             </div>
@@ -221,13 +221,13 @@ export default function Index({
                                 { icon: '🔄', label: 'Tranzacții în curs', value: Number(stats.active_deals ?? 0).toLocaleString('ro') },
                                 { icon: '💳', label: 'Venit lunar',        value: formatMoney(stats.monthly_revenue) },
                             ].map(s => (
-                                <div key={s.label} className="rounded-2xl bg-white/8 border border-white/10 backdrop-blur-sm p-4 relative">
+                                <div key={s.label} className="rounded-2xl bg-white/6 border border-white/10 backdrop-blur-sm p-4 relative">
                                     <span className="absolute top-2 right-3 text-white/30">›</span>
                                     <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center text-base mb-3">
                                         {s.icon}
                                     </div>
                                     <div className="text-2xl font-bold tabular-nums text-white">{s.value}</div>
-                                    <div className="text-xs text-blue-100/80 mt-0.5">{s.label}</div>
+                                    <div className="text-xs text-blue-200 mt-0.5">{s.label}</div>
                                 </div>
                             ))}
                         </div>

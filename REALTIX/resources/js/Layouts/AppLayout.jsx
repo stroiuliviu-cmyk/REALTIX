@@ -212,13 +212,6 @@ export default function AppLayout({ children, title }) {
                         </svg>
                     </button>
 
-                    {/* Logo */}
-                    <Link href="/dashboard" className="flex items-center gap-3 shrink-0">
-                        <div className="text-lg sm:text-2xl font-black tracking-wider sm:tracking-widest text-blue-900" style={{ fontFamily: 'Montserrat, sans-serif' }}>
-                            REALTIX
-                        </div>
-                    </Link>
-
                     {/* Center nav */}
                     <nav className="hidden lg:flex items-center gap-1 text-sm font-medium">
                         {headerNavItems.map(item => {

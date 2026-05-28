@@ -234,12 +234,12 @@ export default function Index({
                     </div>
                 </section>
 
-                {/* ── 6 stat cards with sparklines. 2/3/6 responsive grid:
-                       text never clips on smaller breakpoints; on xl all six
-                       sit in one row matching the mockup. ── */}
+                {/* ── 6 stat cards. 2/3 grid (2 rows of 3 on md+) so large
+                       numbers like "12.812" never clip — six in a row was
+                       too cramped for the bigger values. ── */}
                 <section>
                     <h2 className="text-lg font-bold text-slate-900 mb-4">Indicatori cheie</h2>
-                    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                         <StatCard
                             icon="🏠" label="Anunțurile mele"
                             value={Number(stats.properties ?? 0).toLocaleString('ro')}

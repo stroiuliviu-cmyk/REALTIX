@@ -161,7 +161,7 @@ export default function AppLayout({ children, title }) {
     const { impersonation } = usePage().props;
 
     return (
-        <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-blue-50 text-slate-900 font-[Inter,sans-serif]">
+        <div className="min-h-screen overflow-x-hidden bg-linear-to-br from-slate-50 via-white to-blue-50 text-slate-900 font-[Inter,sans-serif]">
             {impersonation && (
                 <div className="bg-rose-600 text-white text-xs sm:text-sm font-semibold px-4 py-2.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4 shadow-md lg:pl-64">
                     <div className="flex items-start sm:items-center gap-2">
@@ -449,8 +449,11 @@ export default function AppLayout({ children, title }) {
                 </>
             )}
 
-            {/* Main layout */}
-            <div className="mx-auto max-w-screen-2xl flex gap-0 p-3 sm:p-6 items-start">
+            {/* Main layout. No mx-auto/max-w here — the fixed sidebar takes
+                viewport-left, so centering the wrapper would offset content
+                away from the sidebar's right edge on ultra-wide screens and
+                push the right side past the viewport (horizontal scroll). */}
+            <div className="flex gap-0 p-3 sm:p-6 items-start">
                 {/* Sidebar (desktop only) — dark navy, edge-to-edge, fixed full-height.
                     Inner wrapper carries the padding + flex-col so mt-auto pushes
                     the helper card / language switcher to the bottom of the viewport. */}

@@ -146,7 +146,7 @@ export default function Index({
                        Welcome (welcome_back + name + subtitle) lives inside
                        the banner on light text so the page starts with a
                        single visual block instead of two stacked headers. */}
-                <section className="relative overflow-hidden rounded-3xl bg-linear-to-br from-slate-900 via-blue-900 to-indigo-900 p-6 sm:p-8 text-white shadow-xl">
+                <section className="relative overflow-hidden rounded-3xl bg-linear-to-br from-slate-900 via-blue-900 to-indigo-900 p-5 sm:p-6 text-white shadow-xl">
                     {/* Skyline silhouette behind content. pointer-events-none keeps
                         the underlying buttons clickable. */}
                     <svg
@@ -177,37 +177,37 @@ export default function Index({
                         <line x1="93" y1="73" x2="102" y2="73" />
                     </svg>
 
-                    <div className="relative mb-6">
+                    <div className="relative mb-3">
                         <div className="text-xs font-bold uppercase tracking-wide text-blue-300">
                             {t('dashboard.welcome_back')}
                         </div>
-                        <h1 className="text-2xl font-bold text-white mt-0.5 flex items-center gap-2" style={{ fontFamily: 'Montserrat, sans-serif' }}>
+                        <h1 className="text-xl font-bold text-white mt-0.5 flex items-center gap-2" style={{ fontFamily: 'Montserrat, sans-serif' }}>
                             <span>{user?.name ?? '—'}</span>
                             <span aria-hidden="true">👋</span>
                         </h1>
-                        <p className="text-sm text-blue-200 mt-1">
+                        <p className="text-sm text-blue-200">
                             Iată ce se întâmplă cu afacerea ta astăzi.
                         </p>
                     </div>
 
-                    <div className="relative grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                    <div className="relative grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
                         <div>
-                            <div className="text-xs font-semibold uppercase tracking-wider text-blue-300 mb-3">
+                            <div className="text-xs font-semibold uppercase tracking-wider text-blue-300 mb-1">
                                 Performanța afacerii tale
                             </div>
                             <div className="flex items-baseline gap-3 flex-wrap">
-                                <h2 className="text-5xl font-black text-white">{growthHeadline}</h2>
-                                <span className={`text-2xl font-black tabular-nums ${growthColor}`}>
+                                <h2 className="text-4xl font-black text-white">{growthHeadline}</h2>
+                                <span className={`text-xl font-black tabular-nums ${growthColor}`}>
                                     {growthArrow} {Math.abs(weekGrowth).toFixed(1)}%
                                 </span>
                             </div>
-                            <div className="text-sm text-blue-200 mt-2">
+                            <div className="text-sm text-blue-200 mt-1">
                                 față de săptămâna trecută
                             </div>
                             {agency?.name && (
-                                <div className="text-xs text-blue-300/70 mt-2">{agency.name}</div>
+                                <div className="text-xs text-blue-300/70 mt-1">{agency.name}</div>
                             )}
-                            <div className="mt-5 flex flex-wrap gap-2">
+                            <div className="mt-3 flex flex-wrap gap-2">
                                 <Link href="/statistics" className="rounded-xl bg-white text-slate-900 px-4 py-2 text-sm font-bold shadow hover:bg-blue-50 transition-colors">
                                     Vezi statistici
                                 </Link>
@@ -216,20 +216,20 @@ export default function Index({
                                 </Link>
                             </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-2 gap-2">
                             {[
                                 { icon: '🏠', label: 'Anunțuri active',    value: Number(stats.active_properties ?? 0).toLocaleString('ro') },
                                 { icon: '👥', label: 'Clienți noi',        value: Number(stats.buyers ?? 0).toLocaleString('ro') },
                                 { icon: '🔄', label: 'Tranzacții în curs', value: Number(stats.active_deals ?? 0).toLocaleString('ro') },
                                 { icon: '💳', label: 'Venit lunar',        value: formatMoney(stats.monthly_revenue) },
                             ].map(s => (
-                                <div key={s.label} className="rounded-2xl bg-white/6 border border-white/10 backdrop-blur-sm p-4 relative">
-                                    <span className="absolute top-2 right-3 text-white/30">›</span>
-                                    <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center text-base mb-3">
+                                <div key={s.label} className="rounded-xl bg-white/6 border border-white/10 backdrop-blur-sm p-3 relative">
+                                    <span className="absolute top-1.5 right-2.5 text-white/30 text-sm">›</span>
+                                    <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-sm mb-1.5">
                                         {s.icon}
                                     </div>
-                                    <div className="text-2xl font-bold tabular-nums text-white">{s.value}</div>
-                                    <div className="text-xs text-blue-200 mt-0.5">{s.label}</div>
+                                    <div className="text-lg font-bold tabular-nums text-white leading-tight">{s.value}</div>
+                                    <div className="text-[11px] text-blue-200">{s.label}</div>
                                 </div>
                             ))}
                         </div>

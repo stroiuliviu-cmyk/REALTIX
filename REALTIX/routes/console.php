@@ -9,6 +9,7 @@ use App\Notifications\SubscriptionExpiringSoon;
 use App\Notifications\TrialExpiringSoon;
 use App\Services\ScraperHealthService;
 use App\Services\ScraperProcessGuard;
+use Illuminate\Console\Command;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
@@ -246,6 +247,86 @@ Artisan::command('portal:999:scrape:hourly {--agency=1}', function () {
     return self::FAILURE;
 })->purpose('Hourly incremental — scrape listings from the last hour (07:00-22:00)');
 
+/*
+| ─────────────────────────────────────────────────────────────────────
+|  Hourly parallel pair (groups A + B) — `portal:999:scrape:hourly-{a,b}`
+| ─────────────────────────────────────────────────────────────────────
+|
+|  Splits the 6 categories across two concurrent Python processes so a
+|  single hourly tick can finish all categories before the next one fires.
+|  Group A (heavier): apartment, house, commercial. Group B (lighter):
+|  cottage, land, garage. Each writes to its own heartbeat file and tags
+|  scraper_runs.mode as "hourly_a" / "hourly_b".
+|
+|  Critical: each group's killOrphans call is scoped to its own --group=
+|  argv so A's startup never kills B's still-running PID at the next tick.
+*/
+
+$runHourlyGroup = function ($cmd, string $group, string $label, string $categories) {
+    $cmd->info("═══ Hourly {$label} — " . now()->toDateTimeString() . ' ═══');
+
+    $script = base_path('python_scraper/scraper_999.py');
+    if (! file_exists($script)) {
+        $cmd->error("Script not found at {$script}");
+        return Command::FAILURE;
+    }
+
+    $python = env('PYTHON_BIN', 'python');
+    $args = [
+        '--pages=1',
+        '--agency=' . $cmd->option('agency'),
+        '--skip-recent-hours=0',
+        '--scope-hours=1',
+        '--download-images',
+        '--mode=hourly',
+        "--group={$group}",
+        "--categories={$categories}",
+    ];
+
+    // Group-scoped orphan kill — only matches PIDs whose argv has --group={group}.
+    $killed = app(ScraperProcessGuard::class)->killOrphans(600, $group);
+    if (! empty($killed)) {
+        $cmd->warn(sprintf('Killed %d orphan(s) group %s: %s', count($killed), strtoupper($group), json_encode($killed)));
+    }
+
+    $command = array_merge([$python, $script], $args);
+    $cmd->info('Running: ' . implode(' ', $command));
+    $cmd->newLine();
+
+    $process = new Process($command);
+    $process->setTimeout(3600);
+    $process->run(function ($type, $buffer) {
+        echo $buffer;
+    });
+
+    $exit = $process->getExitCode();
+
+    if ($exit === 0) {
+        app(ScraperHealthService::class)->markSuccessfulRun();
+        return Command::SUCCESS;
+    }
+
+    if ($exit === 42) {
+        $cmd->warn('SCRAPER BLOCKED by 999.md — pausing schedule for 2 hours');
+        Cache::put('scraper_blocked', true, now()->addHours(2));
+        return Command::FAILURE;
+    }
+
+    $failures = (int) Cache::get('scraper_recent_failures', 0);
+    Cache::put('scraper_recent_failures', $failures + 1, now()->addHour());
+    return Command::FAILURE;
+};
+
+Artisan::command('portal:999:scrape:hourly-a {--agency=1}', function () use ($runHourlyGroup) {
+    return $runHourlyGroup($this, 'a', 'A (apartment/house/commercial)',
+        'apartments-and-rooms,house-and-garden,commercial-real-estate');
+})->purpose('Hourly group A — apartment, house, commercial (parallel to group B)');
+
+Artisan::command('portal:999:scrape:hourly-b {--agency=1}', function () use ($runHourlyGroup) {
+    return $runHourlyGroup($this, 'b', 'B (cottage/land/garage)',
+        'cottage,land,garages-and-parking');
+})->purpose('Hourly group B — cottage, land, garage (parallel to group A)');
+
 // Auto-sync every 5 hours for every agency that has a 999.md API key configured
 // (or relies on the platform-wide PORTAL_999MD_API_KEY in .env).
 Schedule::call(function () {
@@ -281,11 +362,24 @@ Schedule::command('portal:999:scrape:morning')
     ->runInBackground()
     ->emailOutputOnFailure(env('MAIL_FROM_ADDRESS'));
 
-Schedule::command('portal:999:scrape:hourly')
+// Parallel hourly pair. Both fire at minute 0; their --group argv keeps the
+// orphan-kill paths from cross-killing each other. The legacy single-process
+// 'portal:999:scrape:hourly' artisan command stays available for manual use
+// but its Schedule entry has been replaced by these two.
+Schedule::command('portal:999:scrape:hourly-a')
     ->cron('0 7-22 * * *')
     ->timezone('Europe/Chisinau')
     ->when($canRunScraper)
-    ->name('999md-hourly-incremental')
+    ->name('999md-hourly-a')
+    ->withoutOverlapping(15)
+    ->onOneServer()
+    ->runInBackground();
+
+Schedule::command('portal:999:scrape:hourly-b')
+    ->cron('0 7-22 * * *')
+    ->timezone('Europe/Chisinau')
+    ->when($canRunScraper)
+    ->name('999md-hourly-b')
     ->withoutOverlapping(15)
     ->onOneServer()
     ->runInBackground();

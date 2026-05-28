@@ -308,6 +308,13 @@ _terminated_by_signal = False
 # Set to True by main() after it finalizes the run row, so the atexit
 # fallback doesn't overwrite a 'success' with 'failed'.
 _run_finalized = False
+# Parallel-group label (a/b) when this scraper is part of a hourly_a/hourly_b
+# pair. None for legacy single-process runs (morning, manual sync). Used to:
+#   1. write to a per-group heartbeat file (scraper_heartbeat_{group}.txt)
+#   2. scope the safe_quit_driver Firefox/geckodriver pkill so groups don't
+#      kill each other's browser when they happen to exit at the same time
+#   3. tag scraper_runs.mode as "hourly_a" / "hourly_b" for dashboard split
+_GROUP: str | None = None
 
 # Per-run driver restart budget (resets on each fresh `main()` invocation).
 MAX_DRIVER_RESTARTS = 3
@@ -345,13 +352,25 @@ def setup_logging(verbose: bool = False) -> None:
 def safe_quit_driver(driver) -> None:
     """Best-effort cleanup of a (possibly dead) Selenium driver. Never raises.
     On crash recovery the driver may already be unresponsive — pkill the leftover
-    Firefox/geckodriver processes so we don't leak handles across restarts."""
+    Firefox/geckodriver processes so we don't leak handles across restarts.
+
+    NOTE on parallel groups: when this process belongs to a hourly_a/hourly_b
+    pair (`_GROUP` set), the broad `pkill -f firefox` would also kill the
+    SIBLING group's running browser. In that case we skip the wide pkill and
+    rely on driver.quit() alone — driver.quit() is enough in 99% of exits;
+    rare zombies must be reaped manually or by a future per-PID cleanup.
+    """
     if driver is None:
         return
     try:
         driver.quit()
     except Exception as e:
         log.warning(f"driver.quit() failed: {e}")
+
+    if _GROUP is not None:
+        # Don't reap sibling group's Firefox.
+        return
+
     try:
         subprocess.run(["pkill", "-f", "firefox"],     timeout=5,
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -2243,6 +2262,14 @@ def main() -> int:
     parser.add_argument("--db", type=str, default=str(REALTIX_DB_DEFAULT), help="REALTIX SQLite path")
     parser.add_argument("--agency", type=int, default=DEFAULT_AGENCY_ID, help="Agency ID for new rows")
     parser.add_argument("--category", type=str, default=None, help="Run only one category (slug)")
+    parser.add_argument("--categories", type=str, default=None,
+                        help="Comma-separated list of category slugs to run "
+                             "(e.g. apartments-and-rooms,house-and-garden). Takes "
+                             "precedence over --category.")
+    parser.add_argument("--group", type=str, default=None,
+                        help="Parallel-group label (a/b). Sets per-group heartbeat "
+                             "file + tags scraper_runs.mode as <mode>_<group> + "
+                             "scopes Firefox cleanup so sibling groups aren't killed.")
     parser.add_argument("--delay-min", type=float, default=1.2,
                         help="Min seconds between ads (helps avoid 999.md reveal-endpoint rate limit)")
     parser.add_argument("--delay-max", type=float, default=2.5,
@@ -2289,11 +2316,17 @@ def main() -> int:
             args.delay_max = 1.2
 
     # Activate global flags
-    global _DOWNLOAD_IMAGES, _TODAY_ONLY, _MODE, _SCOPE_HOURS
+    global _DOWNLOAD_IMAGES, _TODAY_ONLY, _MODE, _SCOPE_HOURS, _GROUP, HEARTBEAT_PATH
     _DOWNLOAD_IMAGES = args.download_images
     _TODAY_ONLY = args.today_only
     _MODE = args.mode
     _SCOPE_HOURS = max(0, int(args.scope_hours or 0))
+    _GROUP = (args.group or '').strip().lower() or None
+    if _GROUP:
+        # Per-group heartbeat — watchdog reads scraper_heartbeat_{a,b}.txt
+        # so each group's stale-detection is independent.
+        HEARTBEAT_PATH = HEARTBEAT_PATH.parent / f"scraper_heartbeat_{_GROUP}.txt"
+        log.info(f"Parallel group mode: {_GROUP} — heartbeat at {HEARTBEAT_PATH.name}")
 
     # Mode-specific delay defaults — only override if the caller didn't tune them.
     if args.mode == "morning":
@@ -2328,7 +2361,13 @@ def main() -> int:
         return 1
 
     cats = CATEGORIES
-    if args.category:
+    if args.categories:
+        wanted = [s.strip() for s in args.categories.split(",") if s.strip()]
+        cats = [c for c in CATEGORIES if c["slug"] in wanted]
+        if not cats:
+            print(f"[FATAL] No categories matched '{args.categories}'. Valid: {[c['slug'] for c in CATEGORIES]}", file=sys.stderr)
+            return 1
+    elif args.category:
         cats = [c for c in CATEGORIES if c["slug"] == args.category]
         if not cats:
             print(f"[FATAL] Unknown category '{args.category}'. Valid: {[c['slug'] for c in CATEGORIES]}", file=sys.stderr)
@@ -2374,9 +2413,12 @@ def main() -> int:
 
     # Insert a 'running' row for this scrape. Returns None if the table is
     # missing (migrations not yet run) — downstream helpers no-op on None.
-    SCRAPER_RUN_ID = _init_run_row(conn, dialect, mode=args.mode, pid=os.getpid())
+    # When a parallel group is active, suffix the mode (e.g. "hourly_a") so
+    # the dashboard can distinguish concurrent runs by colour/filter.
+    run_mode = f"{args.mode}_{_GROUP}" if _GROUP else args.mode
+    SCRAPER_RUN_ID = _init_run_row(conn, dialect, mode=run_mode, pid=os.getpid())
     if SCRAPER_RUN_ID:
-        log.info(f"Scraper run ID: {SCRAPER_RUN_ID}")
+        log.info(f"Scraper run ID: {SCRAPER_RUN_ID} (mode={run_mode})")
 
     # Load list of recently-updated external IDs to skip (saves ~3-5s per ad)
     recently_updated: set[str] = set()

@@ -8,33 +8,72 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
 
 /**
- * Verifies the Python scraper is alive by checking the heartbeat file it
- * writes once per minute. If the heartbeat is older than 15 minutes we
- * consider the process stuck, kill it by PID and bump the failures counter
- * so the scheduler stops poking the same dead horse.
+ * Verifies the Python scraper(s) are alive by checking their heartbeat files.
+ * Three candidates are checked each tick:
+ *   - scraper_heartbeat_a.txt   (parallel group A)
+ *   - scraper_heartbeat_b.txt   (parallel group B)
+ *   - scraper_heartbeat.txt     (legacy / non-grouped runs: morning, manual)
+ *
+ * A heartbeat older than STALE_AFTER_MINUTES is considered stuck; we pre-mark
+ * the matching scraper_runs row, signal the PID (SIGTERM → 5 s grace → SIGKILL),
+ * and increment a failure counter so repeated stuck runs eventually pause the
+ * schedule.
  */
 class ScraperWatchdog extends Command
 {
     protected $signature = 'scraper:watchdog';
-    protected $description = 'Verify scraper heartbeat and kill stale processes';
+    protected $description = 'Verify scraper heartbeat(s) and kill stale processes';
 
     /** Heartbeat older than this is considered stuck. */
     private const STALE_AFTER_MINUTES = 15;
 
     public function handle(): int
     {
-        $heartbeatPath = storage_path('app/scraper_heartbeat.txt');
+        $candidates = [
+            ['path' => storage_path('app/scraper_heartbeat_a.txt'), 'group' => 'a'],
+            ['path' => storage_path('app/scraper_heartbeat_b.txt'), 'group' => 'b'],
+            ['path' => storage_path('app/scraper_heartbeat.txt'),   'group' => null],
+        ];
 
-        if (! file_exists($heartbeatPath)) {
+        $found    = 0;
+        $staleHit = 0;
+
+        foreach ($candidates as $c) {
+            if (! file_exists($c['path'])) {
+                continue;
+            }
+            $found++;
+            if ($this->processHeartbeat($c['path'], $c['group'])) {
+                $staleHit++;
+            }
+        }
+
+        if ($found === 0) {
             $this->info('No active scraper run — skipping');
             return self::SUCCESS;
         }
 
-        $contents = trim((string) @file_get_contents($heartbeatPath));
+        if ($staleHit > 0) {
+            $failures = (int) Cache::get('scraper_recent_failures', 0);
+            Cache::put('scraper_recent_failures', $failures + $staleHit, now()->addHour());
+            return self::FAILURE;
+        }
+
+        return self::SUCCESS;
+    }
+
+    /**
+     * Parse one heartbeat file, decide if it's stale, and kill the PID if so.
+     * Returns true when a stale heartbeat was acted upon (caller uses this to
+     * tally failures).
+     */
+    private function processHeartbeat(string $path, ?string $group): bool
+    {
+        $contents = trim((string) @file_get_contents($path));
         if ($contents === '') {
             $this->warn('Empty heartbeat file — removing');
-            @unlink($heartbeatPath);
-            return self::SUCCESS;
+            @unlink($path);
+            return false;
         }
 
         // Accept two formats:
@@ -55,46 +94,42 @@ class ScraperWatchdog extends Command
 
         if (! $timestamp) {
             $this->warn('Invalid heartbeat file — removing');
-            @unlink($heartbeatPath);
-            return self::FAILURE;
+            @unlink($path);
+            // Treat unparseable as a stale-equivalent so the failures counter
+            // moves and the scheduler can react.
+            return true;
         }
 
         try {
             $heartbeatAt = Carbon::parse($timestamp);
         } catch (\Throwable $e) {
             $this->warn("Unparseable heartbeat timestamp '{$timestamp}' — removing");
-            @unlink($heartbeatPath);
-            return self::FAILURE;
+            @unlink($path);
+            return true;
         }
 
         $ageMin = (int) $heartbeatAt->diffInMinutes(now());
+        $label  = $group ? " [group {$group}]" : '';
 
         if ($ageMin <= self::STALE_AFTER_MINUTES) {
-            $this->info("Heartbeat OK ({$ageMin} min old, PID {$pid})");
-            return self::SUCCESS;
+            $this->info("Heartbeat OK ({$ageMin} min old, PID {$pid}){$label}");
+            return false;
         }
 
-        $this->error("Stale heartbeat ({$ageMin} min old) — killing PID {$pid}");
+        $this->error("Stale heartbeat ({$ageMin} min old) — killing PID {$pid}{$label}");
 
         if ($pid && is_numeric($pid)) {
             $this->killProcess((int) $pid);
         }
 
-        @unlink($heartbeatPath);
-
-        // Count this as a failure so repeated stuck runs eventually pause the schedule.
-        $failures = (int) Cache::get('scraper_recent_failures', 0);
-        Cache::put('scraper_recent_failures', $failures + 1, now()->addHour());
-
-        return self::FAILURE;
+        @unlink($path);
+        return true;
     }
 
     /**
      * Pre-mark the matching scraper_runs row as 'killed' *before* signalling
      * the process. If we end up sending SIGKILL, Python's atexit handler
-     * never runs and the row would otherwise stay stuck on 'running' forever
-     * (this is Bug B from the 16:13 incident — orphan-killed runs leaving
-     * stale rows that confused the dashboard's "active run" panel).
+     * never runs and the row would otherwise stay stuck on 'running' forever.
      *
      * Linux: SIGTERM, poll up to 5 s, then SIGKILL.
      * Windows: taskkill /F (no graceful path) — kept for dev-on-Windows.

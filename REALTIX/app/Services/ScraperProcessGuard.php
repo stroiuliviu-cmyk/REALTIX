@@ -18,12 +18,25 @@ class ScraperProcessGuard
 {
     /**
      * Kill scraper_999.py processes older than $olderThanSeconds. Returns
-     * the list of [pid, age_sec] tuples we killed (for logging).
+     * the list of [pid, age_sec, method] tuples we killed (for logging).
+     *
+     * When $groupFilter is given (e.g. 'a' or 'b'), we only match scrapers
+     * whose argv contains "--group={filter}". This is critical for the
+     * hourly_a/hourly_b parallel pair: without it, A's cron would happily
+     * kill B's still-running PID at the next hour tick. The wide Firefox
+     * pkill is also skipped in this mode for the same reason — we cannot
+     * tell which Firefox belongs to which group.
      */
-    public function killOrphans(int $olderThanSeconds = 600): array
+    public function killOrphans(int $olderThanSeconds = 600, ?string $groupFilter = null): array
     {
         $pids = [];
-        @exec("pgrep -f 'scraper_999\\.py' 2>/dev/null", $pids);
+        if ($groupFilter !== null && $groupFilter !== '') {
+            // Match only scrapers whose argv carries this --group flag.
+            $safe = preg_replace('/[^a-z0-9_-]/i', '', $groupFilter);
+            @exec("pgrep -f 'scraper_999\\.py.*--group={$safe}' 2>/dev/null", $pids);
+        } else {
+            @exec("pgrep -f 'scraper_999\\.py' 2>/dev/null", $pids);
+        }
 
         $killed = [];
         foreach ($pids as $pid) {
@@ -64,9 +77,11 @@ class ScraperProcessGuard
             }
         }
 
-        // Firefox/geckodriver only get reaped when we actually killed a
-        // scraper — leaves unrelated browser sessions on the box alone.
-        if (! empty($killed)) {
+        // Wide Firefox/geckodriver reap is unsafe under parallel groups —
+        // it would kill the sibling group's still-running browser. Only do
+        // it for legacy / non-grouped runs, and only when we actually killed
+        // a scraper PID (no kills → no cleanup needed).
+        if (! empty($killed) && ($groupFilter === null || $groupFilter === '')) {
             @shell_exec("pkill -9 -f 'firefox.*--marionette' 2>/dev/null");
             @shell_exec("pkill -9 -f geckodriver 2>/dev/null");
         }

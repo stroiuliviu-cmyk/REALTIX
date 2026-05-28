@@ -158,7 +158,7 @@ export default function Index({
     const isGrowth = weekGrowth >= 0;
     const growthHeadline = isGrowth ? 'În creștere' : 'În scădere';
     const growthArrow = isGrowth ? '↑' : '↓';
-    const growthColor = isGrowth ? 'text-emerald-400' : 'text-red-400';
+    const growthColor = isGrowth ? 'text-emerald-300' : 'text-red-300';
 
     return (
         <AppLayout>
@@ -187,54 +187,54 @@ export default function Index({
                 )}
 
                 {/* ── Header ── */}
-                <div className="flex items-end justify-between flex-wrap gap-3">
-                    <div>
-                        <div className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                            {t('dashboard.welcome_back')}
-                        </div>
-                        <h1 className="text-2xl font-black text-slate-900 mt-0.5 flex items-center gap-2" style={{ fontFamily: 'Montserrat, sans-serif' }}>
-                            <span>{user?.name ?? '—'}</span>
-                            <span aria-hidden="true">👋</span>
-                        </h1>
-                        <p className="text-sm text-slate-500 mt-1">
-                            Iată ce se întâmplă cu afacerea ta astăzi.
-                        </p>
+                <div>
+                    <div className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                        {t('dashboard.welcome_back')}
                     </div>
-                    <Link
-                        href="/properties/create"
-                        className="rounded-2xl bg-slate-900 px-4 py-2.5 text-white text-sm font-bold hover:bg-slate-700 transition-colors"
-                    >
-                        + Anunț nou
-                    </Link>
+                    <h1 className="text-2xl font-black text-slate-900 mt-0.5 flex items-center gap-2" style={{ fontFamily: 'Montserrat, sans-serif' }}>
+                        <span>{user?.name ?? '—'}</span>
+                        <span aria-hidden="true">👋</span>
+                    </h1>
+                    <p className="text-sm text-slate-500 mt-1">
+                        Iată ce se întâmplă cu afacerea ta astăzi.
+                    </p>
                 </div>
 
-                {/* ── Hero card (dark navy mockup + building watermark) ── */}
-                <section className="relative overflow-hidden rounded-3xl bg-linear-to-br from-blue-900 via-blue-800 to-indigo-900 p-6 sm:p-8 text-white shadow-xl">
-                    {/* Subtle building silhouette behind content — pointer-events-none
-                        so links/buttons stay clickable through it. */}
+                {/* ── Hero card (royal blue + skyline watermark) ── */}
+                <section className="relative overflow-hidden rounded-3xl bg-linear-to-br from-blue-700 via-blue-600 to-indigo-600 p-6 sm:p-8 text-white shadow-xl">
+                    {/* Skyline silhouette behind content. pointer-events-none keeps
+                        the underlying buttons clickable. */}
                     <svg
-                        className="absolute right-8 top-1/2 -translate-y-1/2 w-64 h-64 opacity-[0.07] pointer-events-none hidden md:block"
-                        viewBox="0 0 100 100"
+                        className="absolute right-12 top-1/2 -translate-y-1/2 w-80 h-80 opacity-[0.12] pointer-events-none hidden md:block"
+                        viewBox="0 0 120 100"
                         fill="none"
                         stroke="white"
-                        strokeWidth="1.5"
+                        strokeWidth="1.2"
                         aria-hidden="true"
                     >
-                        <rect x="20" y="30" width="18" height="60" />
-                        <rect x="42" y="15" width="20" height="75" />
-                        <rect x="66" y="40" width="16" height="50" />
-                        <line x1="24" y1="38" x2="34" y2="38" /><line x1="24" y1="46" x2="34" y2="46" />
-                        <line x1="24" y1="54" x2="34" y2="54" /><line x1="24" y1="62" x2="34" y2="62" />
-                        <line x1="47" y1="24" x2="57" y2="24" /><line x1="47" y1="32" x2="57" y2="32" />
-                        <line x1="47" y1="40" x2="57" y2="40" /><line x1="47" y1="48" x2="57" y2="48" />
-                        <line x1="47" y1="56" x2="57" y2="56" /><line x1="47" y1="64" x2="57" y2="64" />
-                        <line x1="70" y1="48" x2="78" y2="48" /><line x1="70" y1="56" x2="78" y2="56" />
-                        <line x1="70" y1="64" x2="78" y2="64" />
+                        <rect x="10" y="45" width="16" height="50" />
+                        <rect x="29" y="25" width="18" height="70" />
+                        <rect x="50" y="38" width="14" height="57" />
+                        <rect x="67" y="15" width="20" height="80" />
+                        <rect x="90" y="50" width="15" height="45" />
+                        <line x1="13" y1="52" x2="23" y2="52" /><line x1="13" y1="60" x2="23" y2="60" />
+                        <line x1="13" y1="68" x2="23" y2="68" /><line x1="13" y1="76" x2="23" y2="76" />
+                        <line x1="32" y1="32" x2="44" y2="32" /><line x1="32" y1="40" x2="44" y2="40" />
+                        <line x1="32" y1="48" x2="44" y2="48" /><line x1="32" y1="56" x2="44" y2="56" />
+                        <line x1="32" y1="64" x2="44" y2="64" /><line x1="32" y1="72" x2="44" y2="72" />
+                        <line x1="53" y1="44" x2="61" y2="44" /><line x1="53" y1="52" x2="61" y2="52" />
+                        <line x1="53" y1="60" x2="61" y2="60" /><line x1="53" y1="68" x2="61" y2="68" />
+                        <line x1="70" y1="22" x2="84" y2="22" /><line x1="70" y1="30" x2="84" y2="30" />
+                        <line x1="70" y1="38" x2="84" y2="38" /><line x1="70" y1="46" x2="84" y2="46" />
+                        <line x1="70" y1="54" x2="84" y2="54" /><line x1="70" y1="62" x2="84" y2="62" />
+                        <line x1="70" y1="70" x2="84" y2="70" />
+                        <line x1="93" y1="57" x2="102" y2="57" /><line x1="93" y1="65" x2="102" y2="65" />
+                        <line x1="93" y1="73" x2="102" y2="73" />
                     </svg>
 
                     <div className="relative grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
                         <div>
-                            <div className="text-xs font-semibold uppercase tracking-wider text-blue-300 mb-3">
+                            <div className="text-xs font-semibold uppercase tracking-wider text-blue-100 mb-3">
                                 Performanța afacerii tale
                             </div>
                             <div className="flex items-baseline gap-3 flex-wrap">
@@ -243,14 +243,14 @@ export default function Index({
                                     {growthArrow} {Math.abs(weekGrowth).toFixed(1)}%
                                 </span>
                             </div>
-                            <div className="text-sm text-blue-200 mt-2">
+                            <div className="text-sm text-blue-100 mt-2">
                                 față de săptămâna trecută
                             </div>
                             {agency?.name && (
-                                <div className="text-xs text-blue-300 mt-2">{agency.name}</div>
+                                <div className="text-xs text-blue-200 mt-2">{agency.name}</div>
                             )}
                             <div className="mt-5 flex flex-wrap gap-2">
-                                <Link href="/statistics" className="rounded-xl bg-white text-blue-900 px-4 py-2 text-sm font-bold shadow hover:bg-blue-50 transition-colors">
+                                <Link href="/statistics" className="rounded-xl bg-white text-blue-700 px-4 py-2 text-sm font-bold shadow hover:bg-blue-50 transition-colors">
                                     Vezi statistici
                                 </Link>
                                 <Link href="/statistics" className="rounded-xl border border-white/25 bg-white/10 text-white px-4 py-2 text-sm font-bold hover:bg-white/20 transition-colors">
@@ -265,13 +265,13 @@ export default function Index({
                                 { icon: '🔄', label: 'Tranzacții în curs', value: Number(stats.active_deals ?? 0).toLocaleString('ro') },
                                 { icon: '💳', label: 'Venit lunar',        value: formatMoney(stats.monthly_revenue) },
                             ].map(s => (
-                                <div key={s.label} className="rounded-2xl bg-white/10 border border-white/10 backdrop-blur-sm p-4 relative">
-                                    <span className="absolute top-2 right-3 text-blue-300/40">›</span>
-                                    <div className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center text-base mb-3">
+                                <div key={s.label} className="rounded-2xl bg-white/8 border border-white/10 backdrop-blur-sm p-4 relative">
+                                    <span className="absolute top-2 right-3 text-white/30">›</span>
+                                    <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center text-base mb-3">
                                         {s.icon}
                                     </div>
-                                    <div className="text-2xl font-bold tabular-nums">{s.value}</div>
-                                    <div className="text-xs text-blue-200 mt-0.5">{s.label}</div>
+                                    <div className="text-2xl font-bold tabular-nums text-white">{s.value}</div>
+                                    <div className="text-xs text-blue-100/80 mt-0.5">{s.label}</div>
                                 </div>
                             ))}
                         </div>

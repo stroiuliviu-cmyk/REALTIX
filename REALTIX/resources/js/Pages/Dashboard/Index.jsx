@@ -2,46 +2,8 @@ import AppLayout from '@/Layouts/AppLayout';
 import { Head, Link, usePage } from '@inertiajs/react';
 import { useTranslation } from '@/Hooks/useTranslation';
 
-// ── Inline SVG primitives (no recharts dependency) ─────────────────────────
-function Sparkline({ data = [], color = '#3b82f6', height = 36 }) {
-    if (!data.length) {
-        return <div className="text-[10px] text-slate-300">—</div>;
-    }
-    const w = 120;
-    const h = height;
-    const max = Math.max(...data, 1);
-    const stepX = data.length > 1 ? w / (data.length - 1) : w;
-    const points = data.map((v, i) => {
-        const x = i * stepX;
-        const y = h - (v / max) * (h - 2) - 1;
-        return `${x.toFixed(1)},${y.toFixed(1)}`;
-    }).join(' ');
-    const areaPath = `M0,${h} L${points.replaceAll(' ', ' L')} L${w},${h} Z`;
-    const gradId = `spark-${color.replace('#', '')}`;
-    return (
-        <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="w-full" style={{ height }}>
-            <defs>
-                <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%"   stopColor={color} stopOpacity="0.35" />
-                    <stop offset="100%" stopColor={color} stopOpacity="0" />
-                </linearGradient>
-            </defs>
-            <path d={areaPath} fill={`url(#${gradId})`} />
-            <polyline
-                points={points}
-                fill="none"
-                stroke={color}
-                strokeWidth="1.5"
-                strokeLinejoin="round"
-                strokeLinecap="round"
-                vectorEffect="non-scaling-stroke"
-            />
-        </svg>
-    );
-}
-
 // ── Cards ───────────────────────────────────────────────────────────────────
-function StatCard({ icon, label, value, sub, href, color = '#3b82f6', sparkline }) {
+function StatCard({ icon, label, value, sub, href, color = '#3b82f6' }) {
     const Wrapper = href ? Link : 'div';
     return (
         <Wrapper
@@ -61,11 +23,6 @@ function StatCard({ icon, label, value, sub, href, color = '#3b82f6', sparkline 
                     {sub && <div className="text-xs text-slate-400 mt-0.5">{sub}</div>}
                 </div>
             </div>
-            {sparkline && sparkline.length > 0 && (
-                <div className="mt-3 -mx-1">
-                    <Sparkline data={sparkline} color={color} height={36} />
-                </div>
-            )}
         </Wrapper>
     );
 }
@@ -125,7 +82,6 @@ export default function Index({
     stats, hotDeals = [], lastUpdated,
     growth = { week: 0, deals: 0 },
     scrapedStats = {},
-    sparklines = { properties: [], scraped: [] },
 }) {
     const { t } = useTranslation();
     const { auth } = usePage().props;
@@ -289,7 +245,6 @@ export default function Index({
                             value={Number(stats.properties ?? 0).toLocaleString('ro')}
                             sub={`${stats.active_properties ?? 0} active`}
                             href="/properties" color="#3b82f6"
-                            sparkline={sparklines.properties}
                         />
                         <StatCard
                             icon="👥" label="Clienți CRM"
@@ -320,7 +275,6 @@ export default function Index({
                             value={Number(scrapedStats.total ?? 0).toLocaleString('ro')}
                             sub={`+${Number(scrapedStats.last_7d ?? 0).toLocaleString('ro')} săpt`}
                             href="/web-offers" color="#8b5cf6"
-                            sparkline={sparklines.scraped}
                         />
                     </div>
                 </section>

@@ -80,7 +80,6 @@ const formatMoney = (n) => (n > 0 ? `€${Number(n).toLocaleString('ro')}` : '�
 
 export default function Index({
     stats, hotDeals = [], lastUpdated,
-    growth = { week: 0, deals: 0 },
     scrapedStats = {},
 }) {
     const { t } = useTranslation();
@@ -109,12 +108,6 @@ export default function Index({
         }
         return null;
     })();
-
-    const weekGrowth = Number(growth.week ?? 0);
-    const isGrowth = weekGrowth >= 0;
-    const growthHeadline = isGrowth ? 'În creștere' : 'În scădere';
-    const growthArrow = isGrowth ? '↑' : '↓';
-    const growthColor = isGrowth ? 'text-emerald-400' : 'text-red-400';
 
     return (
         <AppLayout>
@@ -177,42 +170,21 @@ export default function Index({
                         <line x1="93" y1="73" x2="102" y2="73" />
                     </svg>
 
-                    <div className="relative mb-3">
-                        <div className="text-xs font-bold uppercase tracking-wide text-blue-300">
-                            {t('dashboard.welcome_back')}
-                        </div>
-                        <h1 className="text-xl font-bold text-white mt-0.5 flex items-center gap-2" style={{ fontFamily: 'Montserrat, sans-serif' }}>
-                            <span>{user?.name ?? '—'}</span>
-                            <span aria-hidden="true">👋</span>
-                        </h1>
-                        <p className="text-sm text-blue-200">
-                            Iată ce se întâmplă cu afacerea ta astăzi.
-                        </p>
-                    </div>
-
                     <div className="relative grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
                         <div>
-                            <div className="text-xs font-semibold uppercase tracking-wider text-blue-300 mb-1">
-                                Performanța afacerii tale
+                            <div className="text-xs font-bold uppercase tracking-wide text-blue-300">
+                                {t('dashboard.welcome_back')}
                             </div>
-                            <div className="flex items-baseline gap-3 flex-wrap">
-                                <h2 className="text-4xl font-black text-white">{growthHeadline}</h2>
-                                <span className={`text-xl font-black tabular-nums ${growthColor}`}>
-                                    {growthArrow} {Math.abs(weekGrowth).toFixed(1)}%
-                                </span>
-                            </div>
-                            <div className="text-sm text-blue-200 mt-1">
-                                față de săptămâna trecută
-                            </div>
+                            <h1 className="text-2xl sm:text-3xl font-bold text-white mt-0.5 flex items-center gap-2" style={{ fontFamily: 'Montserrat, sans-serif' }}>
+                                <span>{user?.name ?? '—'}</span>
+                                <span aria-hidden="true">👋</span>
+                            </h1>
                             {agency?.name && (
-                                <div className="text-xs text-blue-300/70 mt-1">{agency.name}</div>
+                                <div className="text-sm text-blue-200 mt-1">{agency.name}</div>
                             )}
-                            <div className="mt-3 flex flex-wrap gap-2">
-                                <Link href="/statistics" className="rounded-xl bg-white text-slate-900 px-4 py-2 text-sm font-bold shadow hover:bg-blue-50 transition-colors">
+                            <div className="mt-4">
+                                <Link href="/statistics" className="inline-block rounded-xl bg-white text-slate-900 px-4 py-2 text-sm font-bold shadow hover:bg-blue-50 transition-colors">
                                     Vezi statistici
-                                </Link>
-                                <Link href="/statistics" className="rounded-xl border border-white/20 bg-white/10 text-white px-4 py-2 text-sm font-bold hover:bg-white/20 transition-colors">
-                                    Rapoarte detaliate
                                 </Link>
                             </div>
                         </div>

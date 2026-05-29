@@ -148,7 +148,7 @@ class WebOffersController extends Controller
             ->pluck('cnt', 'owner_type');
 
         $totalCount = ScrapedListing::count();
-        $lastSyncedAt = ScrapedListing::max('updated_at');
+        $lastSyncedAt = optional(ScrapedListing::max('updated_at') ? \Carbon\Carbon::parse(ScrapedListing::max('updated_at'), 'UTC') : null)->toIso8601String();
 
         // Distinct districts (for the location dropdown)
         $districts = ScrapedListing::query()

@@ -1,53 +1,38 @@
 import AppLayout from '@/Layouts/AppLayout';
 import { Head, router } from '@inertiajs/react';
 import { useState } from 'react';
+import {
+    PieChart, Pie, Cell,
+    LineChart, Line,
+    BarChart, Bar,
+    XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+} from 'recharts';
+
+// ─── Constants ───────────────────────────────────────────────────────────────
 
 const MONTH_NAMES = ['Ian', 'Feb', 'Mar', 'Apr', 'Mai', 'Iun', 'Iul', 'Aug', 'Sep', 'Oct', 'Noi', 'Dec'];
 
 const PERIOD_LABELS = { week: 'Săptămână', month: 'Lună', year: 'An' };
 
-function todayISO() {
-    return new Date().toISOString().slice(0, 10);
-}
-function daysAgoISO(n) {
-    const d = new Date();
-    d.setDate(d.getDate() - n);
-    return d.toISOString().slice(0, 10);
-}
-
-/**
- * Format a trend percentage for a KPI card.
- *   null      → "Nou" gray (no prior data to compare against)
- *   0         → "0%"  gray (flat)
- *   positive  → "+X%" green
- *   negative  → "X%"  red
- */
-function formatTrend(pct) {
-    if (pct === null || pct === undefined) {
-        return { text: 'Nou', color: 'text-slate-400', icon: '•', appendCompare: false };
-    }
-    if (pct === 0) {
-        return { text: '0%', color: 'text-slate-500', icon: '—', appendCompare: true };
-    }
-    if (pct > 0) {
-        return { text: `+${pct}%`, color: 'text-emerald-600', icon: '▲', appendCompare: true };
-    }
-    return { text: `${pct}%`, color: 'text-rose-600', icon: '▼', appendCompare: true };
-}
-
 const TYPE_LABELS = {
-    apartment: 'Apartamente',
-    house:     'Case',
-    commercial:'Comercial',
-    land:      'Teren',
+    apartment:  'Apartamente',
+    house:      'Case',
+    cottage:    'Vile',
+    land:       'Terenuri',
+    garage:     'Garaje',
+    commercial: 'Comercial',
+    office:     'Birouri',
 };
 
-const TYPE_COLORS = {
-    apartment: 'bg-blue-500',
-    house:     'bg-emerald-500',
-    commercial:'bg-amber-500',
-    land:      'bg-purple-500',
+const CONTACT_TYPE_LABELS = {
+    buyer:    'Cumpărători',
+    seller:   'Vânzători',
+    tenant:   'Chiriași',
+    landlord: 'Proprietari',
+    developer:'Dezvoltatori',
 };
+
+const COLORS = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ef4444', '#64748b', '#14b8a6'];
 
 const ADMIN_EXPORT_SECTIONS = [
     { id: 'summary',         label: 'Sumar agenție (proprietăți, contacte, apeluri, tranzacții, venit)' },
@@ -64,6 +49,127 @@ const REALTOR_EXPORT_SECTIONS = [
     { id: 'top_properties',  label: 'Top 3 proprietăți după vizualizări' },
     { id: 'revenue_monthly', label: 'Venit pe luni (anul curent)' },
 ];
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function todayISO() {
+    return new Date().toISOString().slice(0, 10);
+}
+function daysAgoISO(n) {
+    const d = new Date();
+    d.setDate(d.getDate() - n);
+    return d.toISOString().slice(0, 10);
+}
+
+/**
+ * 4-state trend formatting:
+ *   null      → "Nou" (no prior data)
+ *   0         → "0%" flat
+ *   positive  → "+X%" green
+ *   negative  → "X%" red
+ */
+function formatTrend(pct) {
+    if (pct === null || pct === undefined) {
+        return { text: 'Nou', color: 'text-slate-400', icon: '•' };
+    }
+    if (pct === 0) {
+        return { text: '0%', color: 'text-slate-500', icon: '—' };
+    }
+    if (pct > 0) {
+        return { text: `+${pct}%`, color: 'text-emerald-600', icon: '▲' };
+    }
+    return { text: `${pct}%`, color: 'text-red-600', icon: '▼' };
+}
+
+function formatMoney(n) {
+    if (!n || n <= 0) return null;
+    return `€${Number(n).toLocaleString('ro', { maximumFractionDigits: 0 })}`;
+}
+
+// Recharts shared tooltip style — flat white card with subtle border.
+const TOOLTIP_STYLE = {
+    background:   'white',
+    border:       '1px solid #e2e8f0',
+    borderRadius: 8,
+    fontSize:     12,
+    padding:      '6px 10px',
+};
+
+// ─── Primitive components ────────────────────────────────────────────────────
+
+function TrendIndicator({ pct }) {
+    const t = formatTrend(pct);
+    return <span className={`font-medium ${t.color}`}>{t.icon} {t.text}</span>;
+}
+
+function Sparkline({ data, color = '#3b82f6' }) {
+    if (!data || data.length === 0) return <div className="h-8" />;
+    const chartData = data.map((value, i) => ({ i, value: Number(value) || 0 }));
+    return (
+        <ResponsiveContainer width="100%" height={32}>
+            <LineChart data={chartData} margin={{ top: 2, right: 0, bottom: 2, left: 0 }}>
+                <Line
+                    type="monotone"
+                    dataKey="value"
+                    stroke={color}
+                    strokeWidth={1.5}
+                    dot={false}
+                    isAnimationActive={false}
+                />
+            </LineChart>
+        </ResponsiveContainer>
+    );
+}
+
+function KpiCard({ label, value, trend, sub, sparkline, sparklineColor }) {
+    return (
+        <div className="bg-white border border-slate-200 rounded-xl p-5 hover:border-slate-300 transition">
+            <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500 mb-1.5">{label}</p>
+            <p className="text-3xl font-semibold tracking-tight text-slate-900">{value}</p>
+            {sub && <p className="text-xs text-slate-500 mt-1">{sub}</p>}
+            {trend !== undefined && (
+                <div className="mt-2 flex items-center gap-1.5 text-xs">
+                    <TrendIndicator pct={trend} />
+                    <span className="text-slate-500">vs perioadă</span>
+                </div>
+            )}
+            {sparkline && sparkline.length > 0 && (
+                <div className="mt-2">
+                    <Sparkline data={sparkline} color={sparklineColor} />
+                </div>
+            )}
+        </div>
+    );
+}
+
+function Card({ title, subtitle, children, padding = 'p-6' }) {
+    return (
+        <div className={`bg-white border border-slate-200 rounded-xl ${padding}`}>
+            {title && <h3 className="text-sm font-semibold text-slate-900">{title}</h3>}
+            {subtitle && <p className="text-xs text-slate-500 mt-1">{subtitle}</p>}
+            {(title || subtitle) && <div className="mb-4" />}
+            {children}
+        </div>
+    );
+}
+
+function Badge({ children, color = 'slate' }) {
+    const palette = {
+        slate:   'bg-slate-100 text-slate-700',
+        green:   'bg-emerald-100 text-emerald-700',
+        amber:   'bg-amber-100 text-amber-700',
+        blue:    'bg-blue-100 text-blue-700',
+        red:     'bg-red-100 text-red-700',
+        violet:  'bg-violet-100 text-violet-700',
+    };
+    return (
+        <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${palette[color] ?? palette.slate}`}>
+            {children}
+        </span>
+    );
+}
+
+// ─── Export modal (preserved logic; restyled lightly) ────────────────────────
 
 function ExportModal({ open, onClose, format, period, isAdmin }) {
     const sectionsList = isAdmin ? ADMIN_EXPORT_SECTIONS : REALTOR_EXPORT_SECTIONS;
@@ -89,30 +195,36 @@ function ExportModal({ open, onClose, format, period, isAdmin }) {
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={onClose}>
-            <div className="w-full max-w-lg rounded-4xl bg-white p-7 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="w-full max-w-lg bg-white border border-slate-200 rounded-xl p-6 shadow-xl" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center justify-between mb-1">
-                    <h3 className="text-lg font-bold text-slate-900">
-                        {format === 'pdf' ? '📄 Export PDF' : '📊 Export Excel'}
+                    <h3 className="text-lg font-semibold text-slate-900">
+                        {format === 'pdf' ? 'Export PDF' : 'Export Excel'}
                     </h3>
-                    <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center text-sm">✕</button>
+                    <button
+                        onClick={onClose}
+                        className="w-8 h-8 rounded-full hover:bg-slate-100 text-slate-500 flex items-center justify-center text-sm"
+                        aria-label="Închide"
+                    >
+                        ✕
+                    </button>
                 </div>
                 <p className="text-xs text-slate-500 mb-5">
-                    Perioadă: <strong className="text-slate-700">{PERIOD_LABELS[period] ?? period}</strong>. Bifează secțiunile pe care vrei să le incluzi în raport.
+                    Perioadă: <strong className="text-slate-700">{PERIOD_LABELS[period] ?? period ?? '—'}</strong>. Bifează secțiunile dorite.
                 </p>
 
-                <div className="flex gap-2 mb-3">
-                    <button onClick={all}  className="text-xs font-semibold text-blue-700 hover:underline">Selectează tot</button>
-                    <button onClick={none} className="text-xs font-semibold text-slate-500 hover:underline">Deselectează tot</button>
+                <div className="flex gap-3 mb-3">
+                    <button onClick={all}  className="text-xs font-medium text-blue-600 hover:underline">Selectează tot</button>
+                    <button onClick={none} className="text-xs font-medium text-slate-500 hover:underline">Deselectează tot</button>
                 </div>
 
-                <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                <div className="space-y-1.5 max-h-80 overflow-y-auto pr-1">
                     {sectionsList.map(s => (
-                        <label key={s.id} className="flex items-start gap-3 p-3 rounded-2xl border border-slate-100 hover:bg-slate-50 cursor-pointer">
+                        <label key={s.id} className="flex items-start gap-3 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
                             <input
                                 type="checkbox"
                                 checked={selected.includes(s.id)}
                                 onChange={() => toggle(s.id)}
-                                className="mt-0.5 h-4 w-4 rounded border-gray-300 accent-blue-500 shrink-0"
+                                className="mt-0.5 h-4 w-4 rounded border-gray-300 accent-blue-600 shrink-0"
                             />
                             <span className="text-sm text-slate-700">{s.label}</span>
                         </label>
@@ -120,11 +232,13 @@ function ExportModal({ open, onClose, format, period, isAdmin }) {
                 </div>
 
                 <div className="mt-6 flex items-center justify-end gap-2">
-                    <button onClick={onClose} className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">Anulează</button>
+                    <button onClick={onClose} className="border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 rounded-lg hover:bg-slate-50">
+                        Anulează
+                    </button>
                     <button
                         onClick={download}
                         disabled={selected.length === 0}
-                        className="rounded-2xl bg-slate-900 px-5 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="bg-blue-600 px-5 py-2 text-sm font-medium text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         Descarcă ({selected.length})
                     </button>
@@ -134,153 +248,590 @@ function ExportModal({ open, onClose, format, period, isAdmin }) {
     );
 }
 
-// ─── Primitive Components ────────────────────────────────────────────────────
+// ─── Admin: Overview tab ─────────────────────────────────────────────────────
 
-function MiniBar({ value, max, color = 'bg-blue-500' }) {
-    const pct = max > 0 ? Math.min(Math.round((value / max) * 100), 100) : 0;
-    return (
-        <div className="flex items-center gap-2">
-            <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
-                <div className={`h-full ${color} rounded-full transition-all`} style={{ width: `${pct}%` }} />
-            </div>
-            <span className="text-xs font-semibold text-slate-500 w-8 text-right">{value}</span>
-        </div>
-    );
-}
-
-function KpiCard({ icon, label, value, sub, trend, color = 'blue' }) {
-    const palette = {
-        blue:   'bg-blue-50   text-blue-700   border-blue-100',
-        green:  'bg-emerald-50 text-emerald-700 border-emerald-100',
-        amber:  'bg-amber-50  text-amber-700  border-amber-100',
-        purple: 'bg-purple-50 text-purple-700 border-purple-100',
-        rose:   'bg-rose-50   text-rose-700   border-rose-100',
-        slate:  'bg-slate-50  text-slate-700  border-slate-100',
-    };
-    return (
-        <div className={`rounded-3xl border p-5 ${palette[color]}`}>
-            <div className="text-2xl mb-2">{icon}</div>
-            <div className="text-xs font-bold uppercase tracking-wide opacity-60">{label}</div>
-            <div className="text-3xl font-black mt-1">{value}</div>
-            {sub   && <div className="text-xs opacity-60 mt-0.5">{sub}</div>}
-            {trend !== undefined && (() => {
-                const t = formatTrend(trend);
-                return (
-                    <div className={`text-xs font-bold mt-1 ${t.color}`}>
-                        {t.icon} {t.text}{t.appendCompare && ' față de perioada anterioară'}
-                    </div>
-                );
-            })()}
-        </div>
-    );
-}
-
-function SectionCard({ title, children, action }) {
-    return (
-        <div className="rounded-4xl bg-white border border-slate-100 shadow-xl p-6">
-            <div className="flex items-center justify-between mb-5">
-                <h3 className="font-bold text-slate-900">{title}</h3>
-                {action}
-            </div>
-            {children}
-        </div>
-    );
-}
-
-function Badge({ children, color = 'slate' }) {
-    const c = {
-        green:  'bg-emerald-100 text-emerald-700',
-        amber:  'bg-amber-100 text-amber-700',
-        blue:   'bg-blue-100 text-blue-700',
-        slate:  'bg-slate-100 text-slate-600',
-        rose:   'bg-rose-100 text-rose-700',
-    };
-    return <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${c[color]}`}>{children}</span>;
-}
-
-function RevenueChart({ data }) {
-    const max = Math.max(...data.map(r => r.total), 1);
-    if (data.length === 0) {
-        return <div className="text-center py-8 text-slate-400 text-sm">Nicio tranzacție finalizată.</div>;
-    }
-    return (
-        <div className="space-y-3">
-            {data.map(r => (
-                <div key={r.month} className="flex items-center gap-3">
-                    <span className="text-xs text-slate-500 w-8 shrink-0">{MONTH_NAMES[r.month - 1]}</span>
-                    <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                            className="h-full bg-blue-500 rounded-full transition-all"
-                            style={{ width: `${Math.round((r.total / max) * 100)}%` }}
-                        />
-                    </div>
-                    <span className="text-xs font-bold text-slate-700 w-20 text-right shrink-0">
-                        €{Number(r.total).toLocaleString('ro')}
-                    </span>
-                </div>
-            ))}
-        </div>
-    );
-}
-
-function PctChange({ current, prev }) {
-    if (!prev || prev === 0) return null;
-    const pct = Math.round(((current - prev) / prev) * 100);
-    return (
-        <span className={`text-sm font-bold ${pct >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
-            {pct >= 0 ? '▲' : '▼'} {Math.abs(pct)}%
-        </span>
-    );
-}
-
-// ─── Admin View ──────────────────────────────────────────────────────────────
-
-function AdminDashboard({
+function OverviewTab({
     propertiesTotal, propertiesActive, propertiesByType,
-    propertiesThisPeriod, propertiesPrevPeriod, propertiesTrendPct,
-    scrapedTotal, scrapedByWeek, avgPriceByDistrict, top5Districts,
+    propertiesTrendPct,
+    scrapedTotal, scrapedByWeek,
     contactsTotal, contactsByType,
-    callsTotal, callsPeriod, callsPrevPeriod, callConversion, callsTrendPct,
-    dealsPeriod, revenuePeriod, revenuePrev, revenueTrendPct, avgCommission,
-    avgDaysToClose, agentStats, revenueByMonth, aiInsights,
-    period, periodLabel,
+    callsPeriod, callsTotal, callConversion, callsTrendPct,
+    dealsPeriod, revenuePeriod, revenuePrev, revenueTrendPct,
+    avgCommission, avgDaysToClose,
+    revenueByMonth,
+    periodLabel,
 }) {
+    const periodTag = periodLabel ?? 'Ultimele 30 zile';
+
+    const propertiesByTypeArray = Object.entries(propertiesByType || {})
+        .map(([key, value]) => ({ name: TYPE_LABELS[key] ?? key, value: Number(value) }))
+        .filter(d => d.value > 0);
+
+    const contactsByTypeArray = Object.entries(contactsByType || {})
+        .map(([key, value]) => ({ name: CONTACT_TYPE_LABELS[key] ?? key, value: Number(value) }))
+        .filter(d => d.value > 0);
+
+    const scrapedSparkline = (scrapedByWeek || []).slice(-7).map(r => Number(r.total) || 0);
+
+    const scrapedLineData = (scrapedByWeek || []).map(r => ({
+        week:  `S${r.week}`,
+        total: Number(r.total) || 0,
+    }));
+
+    const revenueLineData = (revenueByMonth || []).map(r => ({
+        month: MONTH_NAMES[(Number(r.month) || 1) - 1] ?? r.month,
+        total: Number(r.total) || 0,
+    }));
+
+    return (
+        <div className="space-y-6">
+            {/* KPI cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <KpiCard
+                    label="Total anunțuri"
+                    value={Number(propertiesTotal || 0).toLocaleString('ro')}
+                    sub={`${propertiesActive ?? 0} active`}
+                    trend={propertiesTrendPct}
+                />
+                <KpiCard
+                    label="Anunțuri piață"
+                    value={Number(scrapedTotal || 0).toLocaleString('ro')}
+                    sub="surse externe"
+                    sparkline={scrapedSparkline}
+                    sparklineColor="#8b5cf6"
+                />
+                <KpiCard
+                    label={`Apeluri (${periodTag})`}
+                    value={Number(callsPeriod || 0).toLocaleString('ro')}
+                    sub={`Conversie ${callConversion ?? 0}% · total ${Number(callsTotal || 0).toLocaleString('ro')}`}
+                    trend={callsTrendPct}
+                />
+                <KpiCard
+                    label={`Venit (${periodTag})`}
+                    value={
+                        revenuePeriod > 0
+                            ? `€${Number(revenuePeriod).toLocaleString('ro', { maximumFractionDigits: 0 })}`
+                            : <span className="text-sm text-slate-400 font-normal">Niciun deal închis</span>
+                    }
+                    sub={revenuePrev > 0 ? `Anterior: ${formatMoney(revenuePrev)}` : undefined}
+                    trend={revenuePeriod > 0 ? revenueTrendPct : undefined}
+                />
+            </div>
+
+            {/* Two donuts side-by-side */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <Card title="Anunțuri pe tipuri" subtitle="distribuția portofoliului">
+                    {propertiesByTypeArray.length === 0 ? (
+                        <p className="text-sm text-slate-400 text-center py-12">Niciun anunț înregistrat.</p>
+                    ) : (
+                        <ResponsiveContainer width="100%" height={240}>
+                            <PieChart>
+                                <Pie
+                                    data={propertiesByTypeArray}
+                                    dataKey="value"
+                                    nameKey="name"
+                                    innerRadius={60}
+                                    outerRadius={90}
+                                    paddingAngle={2}
+                                    isAnimationActive={false}
+                                >
+                                    {propertiesByTypeArray.map((_, i) => (
+                                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip contentStyle={TOOLTIP_STYLE} />
+                                <Legend
+                                    verticalAlign="bottom"
+                                    iconType="circle"
+                                    wrapperStyle={{ fontSize: 11, paddingTop: 12 }}
+                                />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    )}
+                </Card>
+
+                <Card title="Clienți după tip" subtitle="contacte CRM">
+                    {contactsByTypeArray.length === 0 ? (
+                        <p className="text-sm text-slate-400 text-center py-12">Niciun contact înregistrat.</p>
+                    ) : (
+                        <ResponsiveContainer width="100%" height={240}>
+                            <PieChart>
+                                <Pie
+                                    data={contactsByTypeArray}
+                                    dataKey="value"
+                                    nameKey="name"
+                                    innerRadius={60}
+                                    outerRadius={90}
+                                    paddingAngle={2}
+                                    isAnimationActive={false}
+                                >
+                                    {contactsByTypeArray.map((_, i) => (
+                                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip contentStyle={TOOLTIP_STYLE} />
+                                <Legend
+                                    verticalAlign="bottom"
+                                    iconType="circle"
+                                    wrapperStyle={{ fontSize: 11, paddingTop: 12 }}
+                                />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    )}
+                </Card>
+            </div>
+
+            {/* Calls / conversion / time-to-close strip */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card padding="p-5">
+                    <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500 mb-1.5">Total apeluri</p>
+                    <p className="text-2xl font-semibold tracking-tight text-slate-900">{Number(callsTotal || 0).toLocaleString('ro')}</p>
+                    <p className="text-xs text-slate-500 mt-1">din toată perioada</p>
+                </Card>
+                <Card padding="p-5">
+                    <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500 mb-1.5">Conversie apel → deal</p>
+                    <p className="text-2xl font-semibold tracking-tight text-emerald-600">{callConversion ?? 0}%</p>
+                    <p className="text-xs text-slate-500 mt-1">deals închise / total apeluri</p>
+                </Card>
+                <Card padding="p-5">
+                    <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500 mb-1.5">Zile medii până la tranzacție</p>
+                    {avgDaysToClose ? (
+                        <p className="text-2xl font-semibold tracking-tight text-blue-600">{avgDaysToClose}</p>
+                    ) : (
+                        <p className="text-sm font-medium text-slate-400 mt-1">Date insuficiente</p>
+                    )}
+                    <p className="text-xs text-slate-500 mt-1">de la publicare la închidere</p>
+                </Card>
+            </div>
+
+            {/* Revenue line chart + financial summary */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div className="lg:col-span-2">
+                    <Card title={`Venituri pe luni (${new Date().getFullYear()})`} subtitle="comision închis lunar">
+                        {revenueLineData.length === 0 ? (
+                            <p className="text-sm text-slate-400 text-center py-12">Niciun deal închis în acest an.</p>
+                        ) : (
+                            <ResponsiveContainer width="100%" height={260}>
+                                <LineChart data={revenueLineData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={{ stroke: '#e2e8f0' }} />
+                                    <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={{ stroke: '#e2e8f0' }}
+                                           tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v} />
+                                    <Tooltip
+                                        contentStyle={TOOLTIP_STYLE}
+                                        formatter={(v) => [`€${Number(v).toLocaleString('ro')}`, 'Venit']}
+                                    />
+                                    <Line
+                                        type="monotone"
+                                        dataKey="total"
+                                        stroke="#10b981"
+                                        strokeWidth={2}
+                                        dot={{ fill: '#10b981', r: 3 }}
+                                        activeDot={{ r: 5 }}
+                                        isAnimationActive={false}
+                                    />
+                                </LineChart>
+                            </ResponsiveContainer>
+                        )}
+                    </Card>
+                </div>
+
+                <Card title="Indicatori financiari" subtitle={periodTag}>
+                    <div className="space-y-3 text-sm">
+                        <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                            <span className="text-slate-600">Venit perioadă</span>
+                            <span className="font-medium text-slate-900">
+                                {revenuePeriod > 0 ? formatMoney(revenuePeriod) : '—'}
+                            </span>
+                        </div>
+                        <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                            <span className="text-slate-600">Anterior</span>
+                            <span className="font-medium text-slate-900">
+                                {revenuePrev > 0 ? formatMoney(revenuePrev) : '—'}
+                            </span>
+                        </div>
+                        <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                            <span className="text-slate-600">Comision mediu</span>
+                            <span className="font-medium text-slate-900">
+                                {avgCommission > 0 ? formatMoney(avgCommission) : '—'}
+                            </span>
+                        </div>
+                        <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                            <span className="text-slate-600">Tranzacții perioadă</span>
+                            <span className="font-medium text-slate-900">{dealsPeriod ?? 0}</span>
+                        </div>
+                        <div className="flex items-center justify-between py-2">
+                            <span className="text-slate-600">Clienți activi</span>
+                            <span className="font-medium text-slate-900">{contactsTotal ?? 0}</span>
+                        </div>
+                    </div>
+                </Card>
+            </div>
+
+            {/* Scraped weekly line chart */}
+            <Card title="Evoluție anunțuri piață" subtitle="anunțuri noi 999.md, pe săptămâni">
+                {scrapedLineData.length === 0 ? (
+                    <p className="text-sm text-slate-400 text-center py-12">Nu există date de piață.</p>
+                ) : (
+                    <ResponsiveContainer width="100%" height={280}>
+                        <LineChart data={scrapedLineData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                            <XAxis dataKey="week" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={{ stroke: '#e2e8f0' }} />
+                            <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={{ stroke: '#e2e8f0' }} />
+                            <Tooltip contentStyle={TOOLTIP_STYLE} />
+                            <Line
+                                type="monotone"
+                                dataKey="total"
+                                stroke="#3b82f6"
+                                strokeWidth={2}
+                                dot={{ fill: '#3b82f6', r: 2 }}
+                                activeDot={{ r: 5 }}
+                                isAnimationActive={false}
+                            />
+                        </LineChart>
+                    </ResponsiveContainer>
+                )}
+            </Card>
+        </div>
+    );
+}
+
+// ─── Admin: Agents tab ───────────────────────────────────────────────────────
+
+function AgentsTab({ agentStats }) {
+    const stats = agentStats ?? [];
+
+    if (stats.length === 0) {
+        return (
+            <Card title="Eficiență agenți" subtitle="Vizualizări → Apeluri → Tranzacții">
+                <p className="text-sm text-slate-400 text-center py-12">Niciun agent înregistrat.</p>
+            </Card>
+        );
+    }
+
+    const withDays = stats.filter(a => a.avg_days_close != null);
+    const maxDays  = Math.max(1, ...withDays.map(a => a.avg_days_close));
+
+    return (
+        <div className="space-y-6">
+            <Card padding="p-0">
+                <div className="px-6 py-4 border-b border-slate-200">
+                    <h3 className="text-sm font-semibold text-slate-900">Eficiență agenți</h3>
+                    <p className="text-xs text-slate-500 mt-1">Vizualizări → Apeluri → Tranzacții</p>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                        <thead className="bg-slate-50 border-b border-slate-200">
+                            <tr>
+                                <th rowSpan={2} className="px-6 py-3 text-left text-[10px] font-medium uppercase tracking-wider text-slate-500 align-bottom">Agent</th>
+                                <th rowSpan={2} className="px-3 py-3 text-right text-[10px] font-medium uppercase tracking-wider text-slate-500 align-bottom">Anunțuri</th>
+                                <th rowSpan={2} className="px-3 py-3 text-right text-[10px] font-medium uppercase tracking-wider text-slate-500 align-bottom">Vizualizări</th>
+                                <th colSpan={3} className="px-3 py-1.5 text-center text-[10px] font-medium uppercase tracking-wider text-slate-400 border-b border-slate-200">Web Offers</th>
+                                <th colSpan={3} className="px-3 py-1.5 text-center text-[10px] font-medium uppercase tracking-wider text-slate-400 border-b border-slate-200">Anunțuri proprii</th>
+                                <th rowSpan={2} className="px-3 py-3 text-right text-[10px] font-medium uppercase tracking-wider text-slate-500 align-bottom">Tranzacții</th>
+                                <th rowSpan={2} className="px-3 py-3 text-right text-[10px] font-medium uppercase tracking-wider text-slate-500 align-bottom">Venit</th>
+                                <th rowSpan={2} className="px-6 py-3 text-right text-[10px] font-medium uppercase tracking-wider text-slate-500 align-bottom">Zile medii</th>
+                            </tr>
+                            <tr>
+                                <th className="px-3 py-2 text-right text-[10px] font-medium uppercase tracking-wider text-slate-400">Văz.</th>
+                                <th className="px-3 py-2 text-right text-[10px] font-medium uppercase tracking-wider text-slate-400">Înc.</th>
+                                <th className="px-3 py-2 text-right text-[10px] font-medium uppercase tracking-wider text-slate-400">Reuș.</th>
+                                <th className="px-3 py-2 text-right text-[10px] font-medium uppercase tracking-wider text-slate-400">Înc.</th>
+                                <th className="px-3 py-2 text-right text-[10px] font-medium uppercase tracking-wider text-slate-400">Reuș.</th>
+                                <th className="px-3 py-2 text-right text-[10px] font-medium uppercase tracking-wider text-slate-400">Ref.</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200">
+                            {stats.map(a => (
+                                <tr key={a.id} className="hover:bg-slate-50 transition">
+                                    <td className="px-6 py-3 font-medium text-slate-900">{a.name}</td>
+                                    <td className="px-3 py-3 text-right text-slate-700">{a.properties_count ?? 0}</td>
+                                    <td className="px-3 py-3 text-right text-slate-700">{Number(a.views_total ?? 0).toLocaleString('ro')}</td>
+                                    <td className="px-3 py-3 text-right text-slate-700">{a.wo_views ?? 0}</td>
+                                    <td className="px-3 py-3 text-right text-slate-700">{a.wo_attempts ?? 0}</td>
+                                    <td className="px-3 py-3 text-right font-medium text-emerald-600">{a.wo_success ?? 0}</td>
+                                    <td className="px-3 py-3 text-right text-slate-700">{a.own_attempts ?? 0}</td>
+                                    <td className="px-3 py-3 text-right font-medium text-emerald-600">{a.own_success ?? 0}</td>
+                                    <td className="px-3 py-3 text-right text-rose-600">{a.own_refused ?? 0}</td>
+                                    <td className="px-3 py-3 text-right font-semibold text-slate-900">{a.deals_count ?? 0}</td>
+                                    <td className="px-3 py-3 text-right font-medium text-slate-900">
+                                        {a.revenue > 0 ? formatMoney(a.revenue) : '—'}
+                                    </td>
+                                    <td className="px-6 py-3 text-right text-slate-500">
+                                        {a.avg_days_close != null ? `${a.avg_days_close}z` : '—'}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </Card>
+
+            {/* Speed ranking */}
+            <Card title="Ritm de realizare" subtitle="zile medii până la închiderea unei tranzacții (mai puține = mai rapid)">
+                {withDays.length === 0 ? (
+                    <p className="text-sm text-slate-400 text-center py-6">Date insuficiente.</p>
+                ) : (
+                    <div className="space-y-3">
+                        {withDays
+                            .slice()
+                            .sort((a, b) => a.avg_days_close - b.avg_days_close)
+                            .map((a, i) => (
+                                <div key={a.id} className="flex items-center gap-3">
+                                    <span className="text-xs text-slate-400 w-4 tabular-nums">{i + 1}</span>
+                                    <span className="text-sm font-medium text-slate-700 w-40 shrink-0 truncate">{a.name}</span>
+                                    <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                        <div
+                                            className="h-full bg-blue-500 rounded-full"
+                                            style={{ width: `${Math.round((a.avg_days_close / maxDays) * 100)}%` }}
+                                        />
+                                    </div>
+                                    <span className="text-xs font-medium text-slate-700 w-14 text-right tabular-nums">{a.avg_days_close} zile</span>
+                                </div>
+                            ))}
+                    </div>
+                )}
+            </Card>
+        </div>
+    );
+}
+
+// ─── Admin: Market tab ───────────────────────────────────────────────────────
+
+function MarketTab({ scrapedTotal, scrapedByWeek, avgPriceByDistrict, top5Districts }) {
+    const scrapedLineData = (scrapedByWeek || []).map(r => ({
+        week:  `S${r.week}`,
+        total: Number(r.total) || 0,
+    }));
+
+    const districtBarData = (avgPriceByDistrict || []).map(r => ({
+        district: r.district,
+        price:    Number(r.avg_price) || 0,
+        count:    Number(r.count) || 0,
+    }));
+
+    return (
+        <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <KpiCard
+                    label="Total anunțuri piață"
+                    value={Number(scrapedTotal || 0).toLocaleString('ro')}
+                    sub="surse externe agregate"
+                />
+                <KpiCard
+                    label="Districte monitorizate"
+                    value={(avgPriceByDistrict || []).length}
+                    sub="cu date de preț (≥5 anunțuri)"
+                />
+                <KpiCard
+                    label="Top district activ"
+                    value={top5Districts?.[0]?.district ?? '—'}
+                    sub={top5Districts?.[0] ? `${top5Districts[0].count} anunțuri săpt.` : 'fără date recente'}
+                />
+            </div>
+
+            <Card title="Dinamica pieței" subtitle="anunțuri noi 999.md pe săptămâni (anul curent)">
+                {scrapedLineData.length === 0 ? (
+                    <p className="text-sm text-slate-400 text-center py-12">Nu există date de piață.</p>
+                ) : (
+                    <ResponsiveContainer width="100%" height={280}>
+                        <LineChart data={scrapedLineData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                            <XAxis dataKey="week" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={{ stroke: '#e2e8f0' }} />
+                            <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={{ stroke: '#e2e8f0' }} />
+                            <Tooltip contentStyle={TOOLTIP_STYLE} />
+                            <Line
+                                type="monotone"
+                                dataKey="total"
+                                stroke="#3b82f6"
+                                strokeWidth={2}
+                                dot={{ fill: '#3b82f6', r: 2 }}
+                                activeDot={{ r: 5 }}
+                                isAnimationActive={false}
+                            />
+                        </LineChart>
+                    </ResponsiveContainer>
+                )}
+            </Card>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <Card title="Preț mediu €/m² pe districte" subtitle="top 8 după preț (apartamente + case)">
+                    {districtBarData.length === 0 ? (
+                        <p className="text-sm text-slate-400 text-center py-12">Nu există date de preț.</p>
+                    ) : (
+                        <ResponsiveContainer width="100%" height={320}>
+                            <BarChart
+                                data={districtBarData}
+                                layout="vertical"
+                                margin={{ top: 8, right: 12, left: 0, bottom: 0 }}
+                            >
+                                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
+                                <XAxis type="number" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={{ stroke: '#e2e8f0' }} />
+                                <YAxis dataKey="district" type="category" width={120}
+                                       tick={{ fontSize: 11, fill: '#64748b' }} axisLine={{ stroke: '#e2e8f0' }} />
+                                <Tooltip
+                                    contentStyle={TOOLTIP_STYLE}
+                                    formatter={(v) => [`€${Number(v).toLocaleString('ro')}/m²`, 'Preț mediu']}
+                                />
+                                <Bar dataKey="price" fill="#3b82f6" radius={[0, 4, 4, 0]} isAnimationActive={false} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    )}
+                </Card>
+
+                <Card title="Top 5 districte după cerere" subtitle="anunțuri noi în ultimele 7 zile">
+                    {(top5Districts || []).length === 0 ? (
+                        <p className="text-sm text-slate-400 text-center py-12">Nu există date recente.</p>
+                    ) : (
+                        <div className="space-y-3">
+                            {top5Districts.map((d, i) => {
+                                const max = Math.max(1, ...top5Districts.map(x => x.count));
+                                return (
+                                    <div key={d.district} className="flex items-center gap-3">
+                                        <span className="text-xs text-slate-400 w-4 tabular-nums">{i + 1}</span>
+                                        <span className="text-sm font-medium text-slate-700 w-32 shrink-0 truncate">{d.district}</span>
+                                        <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full bg-blue-500 rounded-full"
+                                                style={{ width: `${Math.round((d.count / max) * 100)}%` }}
+                                            />
+                                        </div>
+                                        <span className="text-xs font-medium text-slate-700 w-12 text-right tabular-nums">{d.count}</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </Card>
+            </div>
+        </div>
+    );
+}
+
+// ─── Admin: AI Insights tab ──────────────────────────────────────────────────
+
+function AIInsightsTab({ aiInsights }) {
+    const trends           = aiInsights?.trends ?? [];
+    const recommendations  = aiInsights?.priceRecommendations ?? [];
+    const forecast         = aiInsights?.forecast;
+
+    return (
+        <div className="space-y-6">
+            <Card padding="p-5">
+                <div className="flex items-start gap-3">
+                    <span className="text-xl">🤖</span>
+                    <div>
+                        <p className="text-sm font-semibold text-slate-900">AI Insights</p>
+                        <p className="text-xs text-slate-500 mt-1">
+                            Analiza predictivă pe datele istorice ale agenției și tendințele pieței.
+                            Recomandările sunt generate automat și nu constituie garanții financiare.
+                        </p>
+                    </div>
+                </div>
+            </Card>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <Card title="Predicții tendințe" subtitle="segmente cu cea mai mare schimbare în ultimele 30 zile">
+                    {trends.length === 0 ? (
+                        <p className="text-sm text-slate-400 text-center py-8">
+                            Nu există suficiente date de piață. Reîncearcă după ≥60 zile de anunțuri colectate.
+                        </p>
+                    ) : (
+                        <div className="space-y-3">
+                            {trends.map((item, i) => (
+                                <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-slate-50 border border-slate-100">
+                                    <span className="text-xl shrink-0">{item.icon}</span>
+                                    <p className="flex-1 text-sm text-slate-700">{item.text}</p>
+                                    <Badge color={item.color}>{item.badge}</Badge>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </Card>
+
+                <Card title="Recomandări optimizare prețuri" subtitle="per agent, vs. mediana pieței">
+                    {recommendations.length === 0 ? (
+                        <p className="text-sm text-slate-400 text-center py-8">Niciun agent înregistrat.</p>
+                    ) : (
+                        <div className="space-y-3">
+                            {recommendations.map((rec, i) => (
+                                <div key={i} className="p-3 rounded-lg bg-slate-50 border border-slate-100">
+                                    <p className="text-sm font-medium text-slate-900 mb-0.5">{rec.name}</p>
+                                    <p className="text-xs text-slate-600">{rec.text}</p>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </Card>
+            </div>
+
+            <Card title="Prognoză venit (estimat AI)" subtitle={forecast ? forecast.basis : 'fără date suficiente'}>
+                {forecast ? (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {[
+                            { label: 'Luna viitoare',     data: forecast.next_month,   color: 'text-emerald-600' },
+                            { label: 'Trimestrul viitor', data: forecast.next_quarter, color: 'text-blue-600' },
+                            { label: 'Sfârșitul anului',  data: forecast.next_year,    color: 'text-violet-600' },
+                        ].map(item => {
+                            const pct  = item.data?.pct ?? 0;
+                            const sign = pct >= 0 ? '+' : '';
+                            return (
+                                <div key={item.label} className="rounded-lg bg-slate-50 border border-slate-100 p-4 text-center">
+                                    <p className="text-xs text-slate-500 mb-1">{item.label}</p>
+                                    <p className={`text-2xl font-semibold tracking-tight ${item.color}`}>{sign}{pct}%</p>
+                                    <p className="text-xs text-slate-400 mt-1">~ €{Number(item.data?.amount ?? 0).toLocaleString('ro')}</p>
+                                </div>
+                            );
+                        })}
+                    </div>
+                ) : (
+                    <p className="text-sm text-slate-400 text-center py-8">
+                        Sunt necesare cel puțin 2 luni de tranzacții închise pentru a genera o prognoză.
+                    </p>
+                )}
+            </Card>
+        </div>
+    );
+}
+
+// ─── Admin dashboard shell (tabs + content) ──────────────────────────────────
+
+function AdminDashboard(props) {
     const [activeTab, setActiveTab] = useState('overview');
     const [exportFormat, setExportFormat] = useState(null);
 
     const tabs = [
-        { id: 'overview', label: '📊 Prezentare generală' },
-        { id: 'agents',   label: '👤 Agenți' },
-        { id: 'market',   label: '🏙️ Piață' },
-        { id: 'ai',       label: '🤖 AI Insights' },
+        { id: 'overview', label: 'Prezentare generală' },
+        { id: 'agents',   label: 'Agenți' },
+        { id: 'market',   label: 'Piață' },
+        { id: 'ai',       label: 'AI Insights' },
     ];
 
-    const maxScrapeWeek = Math.max(...(scrapedByWeek || []).map(r => r.total), 1);
-    const maxDistrict   = Math.max(...(avgPriceByDistrict || []).map(r => r.avg_price), 1);
-
     return (
-        <div className="space-y-6">
-            {/* Tabs */}
-            <div className="flex flex-wrap gap-2">
-                {tabs.map(t => (
-                    <button
-                        key={t.id}
-                        onClick={() => setActiveTab(t.id)}
-                        className={`rounded-2xl px-4 py-2 text-sm font-semibold transition-colors ${
-                            activeTab === t.id
-                                ? 'bg-slate-900 text-white'
-                                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-                        }`}
-                    >
-                        {t.label}
-                    </button>
-                ))}
+        <>
+            {/* Tabs row + export buttons */}
+            <div className="flex items-center justify-between gap-3 flex-wrap mb-6">
+                <div className="flex gap-1 bg-slate-100 rounded-lg p-1">
+                    {tabs.map(t => (
+                        <button
+                            key={t.id}
+                            onClick={() => setActiveTab(t.id)}
+                            className={`px-3 py-1.5 text-xs font-medium rounded-md transition ${
+                                activeTab === t.id
+                                    ? 'bg-white text-slate-900 shadow-sm'
+                                    : 'text-slate-600 hover:text-slate-900'
+                            }`}
+                        >
+                            {t.label}
+                        </button>
+                    ))}
+                </div>
 
-                <div className="ml-auto flex gap-2">
+                <div className="flex gap-2">
                     <button
                         type="button"
                         onClick={() => setExportFormat('pdf')}
-                        className="rounded-2xl px-4 py-2 text-sm font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+                        className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-700"
                         title="Configurează și descarcă PDF"
                     >
                         📄 PDF
@@ -288,7 +839,7 @@ function AdminDashboard({
                     <button
                         type="button"
                         onClick={() => setExportFormat('csv')}
-                        className="rounded-2xl px-4 py-2 text-sm font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+                        className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-700"
                         title="Configurează și descarcă Excel/CSV"
                     >
                         📊 Excel
@@ -300,398 +851,19 @@ function AdminDashboard({
                 open={exportFormat !== null}
                 onClose={() => setExportFormat(null)}
                 format={exportFormat}
-                period={period}
+                period={props.period}
                 isAdmin={true}
             />
 
-            {/* ── Tab: Overview ── */}
-            {activeTab === 'overview' && (
-                <div className="space-y-6">
-                    {/* KPI grid */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <KpiCard
-                            icon="🏠" color="blue"
-                            label="Total anunțuri agenție"
-                            value={propertiesTotal}
-                            sub={`${propertiesActive} active`}
-                            trend={propertiesTrendPct}
-                        />
-                        <KpiCard
-                            icon="🌐" color="purple"
-                            label="Anunțuri unice piață"
-                            value={scrapedTotal.toLocaleString('ro')}
-                            sub="surse externe"
-                        />
-                        <KpiCard
-                            icon="📞" color="amber"
-                            label={`Apeluri (${periodLabel ?? PERIOD_LABELS[period] ?? 'Lună'})`}
-                            value={callsPeriod}
-                            sub={`Conversie: ${callConversion}%`}
-                            trend={callsTrendPct}
-                        />
-                        <KpiCard
-                            icon="💰" color="green"
-                            label={`Venit (${periodLabel ?? PERIOD_LABELS[period] ?? 'Lună'})`}
-                            value={revenuePeriod > 0
-                                ? `€${Number(revenuePeriod).toLocaleString('ro')}`
-                                : <span className="text-sm font-semibold text-slate-400">Niciun deal închis</span>}
-                            sub={revenuePrev > 0 ? `Anterior: €${Number(revenuePrev).toLocaleString('ro')}` : undefined}
-                            trend={revenueTrendPct}
-                        />
-                    </div>
-
-                    {/* Properties by type + Contacts by type */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <SectionCard title="Anunțuri pe tipuri de proprietate">
-                            <div className="space-y-4">
-                                {Object.entries(propertiesByType || {}).map(([type, count]) => (
-                                    <div key={type}>
-                                        <div className="flex justify-between text-sm mb-1">
-                                            <span className="font-semibold text-slate-700">{TYPE_LABELS[type] ?? type}</span>
-                                            <span className="font-bold text-slate-900">{count}</span>
-                                        </div>
-                                        <MiniBar value={count} max={propertiesTotal} color={TYPE_COLORS[type] ?? 'bg-slate-400'} />
-                                    </div>
-                                ))}
-                                {Object.keys(propertiesByType || {}).length === 0 && (
-                                    <p className="text-sm text-slate-400 text-center py-4">Niciun anunț înregistrat.</p>
-                                )}
-                            </div>
-                        </SectionCard>
-
-                        <SectionCard title="Clienți după tip">
-                            <div className="space-y-4">
-                                {[
-                                    { key: 'buyer',    label: 'Cumpărători', color: 'bg-blue-500' },
-                                    { key: 'seller',   label: 'Vânzători',   color: 'bg-emerald-500' },
-                                    { key: 'tenant',   label: 'Chiriași',    color: 'bg-amber-500' },
-                                    { key: 'landlord', label: 'Proprietari', color: 'bg-purple-500' },
-                                ].map(t => {
-                                    const val = contactsByType?.[t.key] ?? 0;
-                                    const maxC = Math.max(...Object.values(contactsByType || {}), 1);
-                                    return (
-                                        <div key={t.key}>
-                                            <div className="flex justify-between text-sm mb-1">
-                                                <span className="font-semibold text-slate-700">{t.label}</span>
-                                                <span className="font-bold text-slate-900">{val}</span>
-                                            </div>
-                                            <MiniBar value={val} max={maxC} color={t.color} />
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </SectionCard>
-                    </div>
-
-                    {/* Calls & Deals dynamics */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="rounded-3xl bg-amber-50 border border-amber-100 p-5">
-                            <div className="text-2xl mb-2">📞</div>
-                            <div className="text-xs font-bold uppercase tracking-wide text-amber-700 opacity-70">Total apeluri</div>
-                            <div className="text-3xl font-black text-amber-700 mt-1">{callsTotal}</div>
-                            <div className="text-xs text-amber-600 mt-0.5">din toată perioada</div>
-                        </div>
-                        <div className="rounded-3xl bg-emerald-50 border border-emerald-100 p-5">
-                            <div className="text-2xl mb-2">✅</div>
-                            <div className="text-xs font-bold uppercase tracking-wide text-emerald-700 opacity-70">Conversie apel → deal</div>
-                            <div className="text-3xl font-black text-emerald-700 mt-1">{callConversion}%</div>
-                            <div className="text-xs text-emerald-600 mt-0.5">contacte de succes</div>
-                        </div>
-                        <div className="rounded-3xl bg-blue-50 border border-blue-100 p-5">
-                            <div className="text-2xl mb-2">⏱</div>
-                            <div className="text-xs font-bold uppercase tracking-wide text-blue-700 opacity-70">Zile medii până la tranzacție</div>
-                            <div className={avgDaysToClose ? 'text-3xl font-black text-blue-700 mt-1' : 'text-sm font-semibold text-slate-400 mt-2'}>
-                                {avgDaysToClose || 'Date insuficiente'}
-                            </div>
-                            <div className="text-xs text-blue-600 mt-0.5">de la publicare la închidere</div>
-                        </div>
-                    </div>
-
-                    {/* Revenue chart + financial summary */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <SectionCard title={`Venituri pe luni (${new Date().getFullYear()})`}>
-                            <RevenueChart data={revenueByMonth} />
-                        </SectionCard>
-
-                        <SectionCard title="Indicatori financiari">
-                            <div className="space-y-4">
-                                <div className="flex items-center justify-between py-3 border-b border-slate-100">
-                                    <span className="text-sm font-semibold text-slate-700">Venit luna curentă</span>
-                                    <div className="flex items-center gap-2">
-                                        <span className="font-bold text-slate-900">
-                                            {revenuePeriod > 0 ? `€${Number(revenuePeriod).toLocaleString('ro')}` : '—'}
-                                        </span>
-                                        <PctChange current={revenuePeriod} prev={revenuePrev} />
-                                    </div>
-                                </div>
-                                <div className="flex items-center justify-between py-3 border-b border-slate-100">
-                                    <span className="text-sm font-semibold text-slate-700">Comision mediu / tranzacție</span>
-                                    <span className="font-bold text-slate-900">
-                                        {avgCommission > 0 ? `€${Number(avgCommission).toLocaleString('ro', { maximumFractionDigits: 0 })}` : '—'}
-                                    </span>
-                                </div>
-                                <div className="flex items-center justify-between py-3 border-b border-slate-100">
-                                    <span className="text-sm font-semibold text-slate-700">Tranzacții în perioadă</span>
-                                    <span className="font-bold text-slate-900">{dealsPeriod}</span>
-                                </div>
-                                <div className="flex items-center justify-between py-3">
-                                    <span className="text-sm font-semibold text-slate-700">Total clienți activi</span>
-                                    <span className="font-bold text-slate-900">{contactsTotal}</span>
-                                </div>
-                            </div>
-                        </SectionCard>
-                    </div>
-                </div>
-            )}
-
-            {/* ── Tab: Agents ── */}
-            {activeTab === 'agents' && (
-                <div className="space-y-6">
-                    <SectionCard title="Tabel eficiență agenți (Vizualizări → Apeluri → Tranzacții)">
-                        {agentStats.length === 0 ? (
-                            <p className="text-sm text-slate-400 text-center py-8">Niciun agent înregistrat.</p>
-                        ) : (
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-sm">
-                                    <thead>
-                                        <tr className="text-[10px] text-slate-400 font-bold uppercase border-b border-slate-100">
-                                            <th rowSpan={2} className="text-left pb-3 align-bottom">Agent</th>
-                                            <th rowSpan={2} className="text-right pb-3 align-bottom">Anunțuri</th>
-                                            <th rowSpan={2} className="text-right pb-3 align-bottom">Vizualizări</th>
-                                            <th colSpan={3} className="text-center pb-1 border-b border-slate-100 text-slate-500">Web Offers</th>
-                                            <th colSpan={3} className="text-center pb-1 border-b border-slate-100 text-slate-500">Anunțuri proprii</th>
-                                            <th rowSpan={2} className="text-right pb-3 align-bottom">Tranzacții</th>
-                                            <th rowSpan={2} className="text-right pb-3 align-bottom">Venit (€)</th>
-                                            <th rowSpan={2} className="text-right pb-3 align-bottom">Zile medii</th>
-                                        </tr>
-                                        <tr className="text-[10px] text-slate-400 font-bold uppercase border-b border-slate-100">
-                                            <th className="text-right pb-3" title="Numere văzute">👁 Văz.</th>
-                                            <th className="text-right pb-3" title="Apeluri încercate">📞 Înc.</th>
-                                            <th className="text-right pb-3" title="Apeluri reușite">✓ Reuș.</th>
-                                            <th className="text-right pb-3" title="Apeluri încercate">📞 Înc.</th>
-                                            <th className="text-right pb-3" title="Apeluri reușite">✓ Reuș.</th>
-                                            <th className="text-right pb-3" title="Refuzuri">❌ Ref.</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-50">
-                                        {agentStats.map((agent, i) => (
-                                            <tr key={agent.id} className="hover:bg-slate-50 transition-colors">
-                                                <td className="py-3">
-                                                    <div className="flex items-center gap-2">
-                                                        {i < 3 && (
-                                                            <span className="text-base">{['🥇','🥈','🥉'][i]}</span>
-                                                        )}
-                                                        <span className="font-semibold text-slate-800">{agent.name}</span>
-                                                    </div>
-                                                </td>
-                                                <td className="py-3 text-right text-slate-600">{agent.properties_count}</td>
-                                                <td className="py-3 text-right text-slate-600">{agent.views_total.toLocaleString('ro')}</td>
-                                                <td className="py-3 text-right text-slate-600">{agent.wo_views ?? 0}</td>
-                                                <td className="py-3 text-right text-slate-600">{agent.wo_attempts ?? 0}</td>
-                                                <td className="py-3 text-right font-semibold text-emerald-700">{agent.wo_success ?? 0}</td>
-                                                <td className="py-3 text-right text-slate-600">{agent.own_attempts ?? 0}</td>
-                                                <td className="py-3 text-right font-semibold text-emerald-700">{agent.own_success ?? 0}</td>
-                                                <td className="py-3 text-right text-rose-600">{agent.own_refused ?? 0}</td>
-                                                <td className="py-3 text-right font-bold text-slate-900">{agent.deals_count}</td>
-                                                <td className="py-3 text-right font-bold text-emerald-700">
-                                                    {agent.revenue > 0 ? `€${Number(agent.revenue).toLocaleString('ro', { maximumFractionDigits: 0 })}` : '—'}
-                                                </td>
-                                                <td className="py-3 text-right text-slate-500">
-                                                    {agent.avg_days_close != null ? `${agent.avg_days_close}z` : '—'}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
-                    </SectionCard>
-
-                    {/* Speed ranking */}
-                    <SectionCard title="⏱ Ratingul vitezei de realizare a anunțurilor">
-                        <div className="space-y-3">
-                            {agentStats
-                                .filter(a => a.avg_days_close != null)
-                                .sort((a, b) => a.avg_days_close - b.avg_days_close)
-                                .map((agent, i) => {
-                                    const maxDays = Math.max(...agentStats.filter(a => a.avg_days_close != null).map(a => a.avg_days_close), 1);
-                                    return (
-                                        <div key={agent.id} className="flex items-center gap-3">
-                                            <span className="text-xs text-slate-500 w-4">{i + 1}</span>
-                                            <span className="text-sm font-semibold text-slate-700 w-32 shrink-0 truncate">{agent.name}</span>
-                                            <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
-                                                <div
-                                                    className="h-full bg-emerald-500 rounded-full"
-                                                    style={{ width: `${Math.round((agent.avg_days_close / maxDays) * 100)}%` }}
-                                                />
-                                            </div>
-                                            <span className="text-xs font-bold text-slate-700 w-12 text-right">{agent.avg_days_close} zile</span>
-                                        </div>
-                                    );
-                                })}
-                            {agentStats.filter(a => a.avg_days_close != null).length === 0 && (
-                                <p className="text-sm text-slate-400 text-center py-4">Date insuficiente.</p>
-                            )}
-                        </div>
-                    </SectionCard>
-                </div>
-            )}
-
-            {/* ── Tab: Market ── */}
-            {activeTab === 'market' && (
-                <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <KpiCard icon="📋" color="blue" label="Total anunțuri piață" value={scrapedTotal.toLocaleString('ro')} sub="surse externe agregate" />
-                        <KpiCard icon="🏘️" color="purple" label="Districte monitorizate" value={avgPriceByDistrict.length} sub="cu date de preț" />
-                        <KpiCard icon="🔥" color="amber" label="Top district activ" value={top5Districts[0]?.district ?? '—'} sub={top5Districts[0] ? `${top5Districts[0].count} anunțuri săpt.` : undefined} />
-                    </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {/* Scraped by week */}
-                        <SectionCard title="Dinamica pieței — anunțuri noi pe săptămâni">
-                            {scrapedByWeek.length === 0 ? (
-                                <p className="text-sm text-slate-400 text-center py-8">Nu există date de piață.</p>
-                            ) : (
-                                <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                                    {scrapedByWeek.map(r => (
-                                        <div key={r.week} className="flex items-center gap-3">
-                                            <span className="text-xs text-slate-500 w-14 shrink-0">Săpt. {r.week}</span>
-                                            <div className="flex-1 h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                                                <div
-                                                    className="h-full bg-purple-500 rounded-full"
-                                                    style={{ width: `${Math.round((r.total / maxScrapeWeek) * 100)}%` }}
-                                                />
-                                            </div>
-                                            <span className="text-xs font-bold text-slate-700 w-8 text-right">{r.total}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </SectionCard>
-
-                        {/* Avg price by district */}
-                        <SectionCard title="Prețul mediu €/m² pe districte">
-                            {avgPriceByDistrict.length === 0 ? (
-                                <p className="text-sm text-slate-400 text-center py-8">Nu există date de preț.</p>
-                            ) : (
-                                <div className="space-y-3">
-                                    {avgPriceByDistrict.map(r => (
-                                        <div key={r.district}>
-                                            <div className="flex justify-between text-sm mb-1">
-                                                <span className="font-semibold text-slate-700 truncate max-w-35">{r.district}</span>
-                                                <span className="font-bold text-slate-900 shrink-0">€{r.avg_price.toLocaleString('ro')}</span>
-                                            </div>
-                                            <MiniBar value={r.avg_price} max={maxDistrict} color="bg-amber-400" />
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </SectionCard>
-                    </div>
-
-                    {/* Top 5 districts by demand */}
-                    <SectionCard title="🔥 TOP-5 districte după creșterea cererii (ultimele 7 zile)">
-                        {top5Districts.length === 0 ? (
-                            <p className="text-sm text-slate-400 text-center py-6">Nu există date recente.</p>
-                        ) : (
-                            <div className="flex flex-wrap gap-3">
-                                {top5Districts.map((d, i) => (
-                                    <div key={d.district} className="flex items-center gap-2 rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3">
-                                        <span className="text-lg">{['🥇','🥈','🥉','4️⃣','5️⃣'][i]}</span>
-                                        <div>
-                                            <div className="font-bold text-slate-800 text-sm">{d.district}</div>
-                                            <div className="text-xs text-slate-500">{d.count} anunțuri noi</div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </SectionCard>
-                </div>
-            )}
-
-            {/* ── Tab: AI Insights ── */}
-            {activeTab === 'ai' && (
-                <div className="space-y-6">
-                    <div className="rounded-3xl bg-linear-to-r from-violet-50 to-blue-50 border border-violet-100 p-5 flex items-start gap-4">
-                        <span className="text-3xl">🤖</span>
-                        <div>
-                            <div className="font-bold text-violet-900 mb-1">Modul AI Insights — Preview</div>
-                            <div className="text-sm text-violet-700">
-                                Analiza predictivă se bazează pe datele istorice ale agenției și tendințele pieței.
-                                Recomandările sunt generate automat pentru a optimiza prețurile și strategia de vânzare.
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <SectionCard title="📈 Predicții tendințe">
-                            <div className="space-y-3">
-                                {(aiInsights?.trends ?? []).length === 0 ? (
-                                    <p className="text-sm text-slate-400 text-center py-6">Nu există suficiente date de piață pentru detectarea tendințelor. Reîncearcă după ce platforma colectează cel puțin 60 de zile de anunțuri.</p>
-                                ) : (aiInsights.trends).map((item, i) => (
-                                    <div key={i} className="flex items-start gap-3 p-3 rounded-2xl bg-slate-50">
-                                        <span className="text-xl shrink-0">{item.icon}</span>
-                                        <div className="flex-1">
-                                            <p className="text-sm text-slate-700">{item.text}</p>
-                                        </div>
-                                        <Badge color={item.color}>{item.badge}</Badge>
-                                    </div>
-                                ))}
-                            </div>
-                        </SectionCard>
-
-                        <SectionCard title="💡 Recomandări optimizare prețuri">
-                            <div className="space-y-3">
-                                {(aiInsights?.priceRecommendations ?? []).length === 0 ? (
-                                    <p className="text-sm text-slate-400 text-center py-4">Niciun agent înregistrat.</p>
-                                ) : aiInsights.priceRecommendations.map((rec, i) => (
-                                    <div key={i} className="p-3 rounded-2xl bg-slate-50">
-                                        <div className="font-semibold text-slate-800 text-sm mb-1">{rec.name}</div>
-                                        <p className="text-xs text-slate-600">{rec.text}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        </SectionCard>
-                    </div>
-
-                    <SectionCard title="🔮 Prognoză venit (estimat AI)">
-                        {aiInsights?.forecast ? (
-                            <>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    {[
-                                        { label: 'Luna viitoare',     data: aiInsights.forecast.next_month,   color: 'text-emerald-600' },
-                                        { label: 'Trimestrul viitor', data: aiInsights.forecast.next_quarter, color: 'text-blue-600' },
-                                        { label: 'Sfârșitul anului',  data: aiInsights.forecast.next_year,    color: 'text-violet-600' },
-                                    ].map(item => {
-                                        const pct  = item.data?.pct ?? 0;
-                                        const sign = pct >= 0 ? '+' : '';
-                                        return (
-                                            <div key={item.label} className="rounded-2xl bg-slate-50 p-4 text-center">
-                                                <div className="text-xs text-slate-500 mb-1">{item.label}</div>
-                                                <div className={`text-2xl font-black ${item.color}`}>{sign}{pct}%</div>
-                                                <div className="text-xs text-slate-400 mt-1">~ €{Number(item.data?.amount ?? 0).toLocaleString('ro')}</div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                                <p className="text-xs text-slate-400 mt-4 text-center">
-                                    {aiInsights.forecast.basis} * Estimările se bazează pe datele istorice ale agenției și nu constituie garanții financiare.
-                                </p>
-                            </>
-                        ) : (
-                            <p className="text-sm text-slate-400 text-center py-6">
-                                Sunt necesare cel puțin 2 luni de tranzacții închise pentru a genera o prognoză.
-                            </p>
-                        )}
-                    </SectionCard>
-                </div>
-            )}
-        </div>
+            {activeTab === 'overview' && <OverviewTab {...props} />}
+            {activeTab === 'agents'   && <AgentsTab   {...props} />}
+            {activeTab === 'market'   && <MarketTab   {...props} />}
+            {activeTab === 'ai'       && <AIInsightsTab {...props} />}
+        </>
     );
 }
 
-// ─── Realtor View ────────────────────────────────────────────────────────────
+// ─── Realtor view ────────────────────────────────────────────────────────────
 
 function RealtorDashboard({
     propertiesTotal, propertiesActive, propertiesArchived,
@@ -702,26 +874,30 @@ function RealtorDashboard({
     period, periodLabel,
 }) {
     const [exportFormat, setExportFormat] = useState(null);
+    const periodTag = periodLabel ?? PERIOD_LABELS[period] ?? 'Lună';
+
+    const revenueLineData = (revenueByMonth || []).map(r => ({
+        month: MONTH_NAMES[(Number(r.month) || 1) - 1] ?? r.month,
+        total: Number(r.total) || 0,
+    }));
 
     return (
-        <div className="space-y-6">
-            {/* Notice + Export */}
-            <div className="rounded-3xl bg-blue-50 border border-blue-100 p-4 flex items-center gap-3 flex-wrap">
-                <span className="text-xl">ℹ️</span>
-                <p className="text-sm text-blue-700 flex-1 min-w-0">
-                    Vizualizezi <strong>statisticile tale personale</strong>. Administratorul agenției are acces la datele complete.
+        <>
+            <div className="flex items-center justify-end gap-2 mb-6 flex-wrap">
+                <p className="text-sm text-slate-500 mr-auto">
+                    Statistici personale. Administratorul agenției are acces la datele complete.
                 </p>
                 <button
                     type="button"
                     onClick={() => setExportFormat('pdf')}
-                    className="rounded-xl px-3 py-1.5 text-xs font-semibold bg-white border border-blue-200 text-blue-700 hover:bg-blue-100 transition-colors"
+                    className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-700"
                 >
                     📄 PDF
                 </button>
                 <button
                     type="button"
                     onClick={() => setExportFormat('csv')}
-                    className="rounded-xl px-3 py-1.5 text-xs font-semibold bg-white border border-blue-200 text-blue-700 hover:bg-blue-100 transition-colors"
+                    className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-700"
                 >
                     📊 Excel
                 </button>
@@ -735,107 +911,121 @@ function RealtorDashboard({
                 isAdmin={false}
             />
 
-            {/* Personal KPIs */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <KpiCard icon="🏠" color="blue"   label="Imobiliare" value={propertiesTotal} sub={`${propertiesActive} active, ${propertiesArchived} arhivate`} />
-                <KpiCard icon="👁" color="purple" label="Total vizualizări" value={viewsTotal.toLocaleString('ro')} sub="cumulativ" />
-                <KpiCard icon="📞" color="amber"  label={`Apeluri (${periodLabel ?? PERIOD_LABELS[period] ?? 'Lună'})`} value={myCallsPeriod} sub={`Conversie: ${callConversion}%`} />
-                <KpiCard icon="💰" color="green"  label={`Venit (${periodLabel ?? PERIOD_LABELS[period] ?? 'Lună'})`} value={revenuePeriod > 0 ? `€${Number(revenuePeriod).toLocaleString('ro')}` : '—'} sub={`Total: €${Number(revenueTotal).toLocaleString('ro')}`} />
-            </div>
+            <div className="space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <KpiCard
+                        label="Imobiliare"
+                        value={Number(propertiesTotal || 0).toLocaleString('ro')}
+                        sub={`${propertiesActive ?? 0} active · ${propertiesArchived ?? 0} arhivate`}
+                    />
+                    <KpiCard
+                        label="Total vizualizări"
+                        value={Number(viewsTotal || 0).toLocaleString('ro')}
+                        sub="cumulativ"
+                    />
+                    <KpiCard
+                        label={`Apeluri (${periodTag})`}
+                        value={Number(myCallsPeriod || 0).toLocaleString('ro')}
+                        sub={`Conversie ${callConversion ?? 0}% · total ${Number(myCallsTotal || 0).toLocaleString('ro')}`}
+                    />
+                    <KpiCard
+                        label={`Venit (${periodTag})`}
+                        value={
+                            revenuePeriod > 0
+                                ? formatMoney(revenuePeriod)
+                                : <span className="text-sm text-slate-400 font-normal">Niciun deal închis</span>
+                        }
+                        sub={revenueTotal > 0 ? `Total: ${formatMoney(revenueTotal)}` : undefined}
+                    />
+                </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Top 3 properties by views */}
-                <SectionCard title="🏆 TOP-3 anunțuri după vizualizări">
-                    {top3Properties.length === 0 ? (
-                        <p className="text-sm text-slate-400 text-center py-8">Niciun anunț adăugat.</p>
-                    ) : (
-                        <div className="space-y-4">
-                            {top3Properties.map((p, i) => (
-                                <div key={p.id} className="flex items-center gap-3">
-                                    <span className="text-xl shrink-0">{['🥇','🥈','🥉'][i]}</span>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="font-semibold text-slate-800 text-sm truncate">{p.title || 'Fără titlu'}</div>
-                                        <div className="flex items-center gap-2 mt-0.5">
-                                            <Badge color={p.status === 'active' ? 'green' : 'slate'}>
-                                                {p.status === 'active' ? 'Activ' : p.status}
-                                            </Badge>
-                                            <span className="text-xs text-slate-400">{TYPE_LABELS[p.type] ?? p.type}</span>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Card padding="p-5">
+                        <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500 mb-1.5">Tranzacții închise</p>
+                        <p className="text-2xl font-semibold tracking-tight text-emerald-600">{myDealsTotal ?? 0}</p>
+                        <p className="text-xs text-slate-500 mt-1">total carieră</p>
+                    </Card>
+                    <Card padding="p-5">
+                        <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500 mb-1.5">Tranzacții în lucru</p>
+                        <p className="text-2xl font-semibold tracking-tight text-blue-600">{myDealsInProgress ?? 0}</p>
+                        <p className="text-xs text-slate-500 mt-1">în desfășurare</p>
+                    </Card>
+                    <Card padding="p-5">
+                        <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500 mb-1.5">Tranzacții perioadă</p>
+                        <p className="text-2xl font-semibold tracking-tight text-slate-900">{dealsPeriod ?? 0}</p>
+                        <p className="text-xs text-slate-500 mt-1">închise în {periodTag.toLowerCase()}</p>
+                    </Card>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <Card title="Top 3 anunțuri" subtitle="după număr vizualizări">
+                        {(top3Properties || []).length === 0 ? (
+                            <p className="text-sm text-slate-400 text-center py-8">Niciun anunț adăugat.</p>
+                        ) : (
+                            <div className="space-y-3">
+                                {top3Properties.map((p, i) => (
+                                    <div key={p.id} className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-100">
+                                        <span className="text-xs text-slate-400 w-4 tabular-nums">{i + 1}</span>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium text-slate-900 truncate">{p.title || 'Fără titlu'}</p>
+                                            <div className="flex items-center gap-2 mt-0.5">
+                                                <Badge color={p.status === 'active' ? 'green' : 'slate'}>
+                                                    {p.status === 'active' ? 'Activ' : p.status}
+                                                </Badge>
+                                                <span className="text-xs text-slate-500">{TYPE_LABELS[p.type] ?? p.type}</span>
+                                            </div>
+                                        </div>
+                                        <div className="shrink-0 text-right">
+                                            <p className="text-lg font-semibold tracking-tight text-slate-900">{p.views_count}</p>
+                                            <p className="text-xs text-slate-500">vizualizări</p>
                                         </div>
                                     </div>
-                                    <div className="shrink-0 text-right">
-                                        <div className="font-black text-slate-900 text-lg">{p.views_count}</div>
-                                        <div className="text-xs text-slate-400">vizualizări</div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </SectionCard>
+                                ))}
+                            </div>
+                        )}
+                    </Card>
 
-                {/* Calls & Deals */}
-                <SectionCard title="📊 Apeluri și tranzacții">
-                    <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="rounded-2xl bg-amber-50 border border-amber-100 p-4 text-center">
-                                <div className="text-2xl font-black text-amber-700">{myCallsTotal}</div>
-                                <div className="text-xs text-amber-600 mt-0.5">Total apeluri</div>
-                            </div>
-                            <div className="rounded-2xl bg-emerald-50 border border-emerald-100 p-4 text-center">
-                                <div className="text-2xl font-black text-emerald-700">{callConversion}%</div>
-                                <div className="text-xs text-emerald-600 mt-0.5">Conversie apel → deal</div>
-                            </div>
-                        </div>
-                        <div className="border-t border-slate-100 pt-4 space-y-3">
-                            <div className="flex justify-between items-center">
-                                <span className="text-sm font-semibold text-slate-700">Tranzacții finalizate</span>
-                                <span className="font-bold text-slate-900">{myDealsTotal}</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                                <span className="text-sm font-semibold text-slate-700">Tranzacții în lucru</span>
-                                <Badge color="amber">{myDealsInProgress}</Badge>
-                            </div>
-                            <div className="flex justify-between items-center">
-                                <span className="text-sm font-semibold text-slate-700">Tranzacții în perioadă</span>
-                                <span className="font-bold text-emerald-700">{dealsPeriod}</span>
-                            </div>
-                        </div>
-                    </div>
-                </SectionCard>
+                    <Card title={`Venituri pe luni (${new Date().getFullYear()})`} subtitle="comision închis lunar">
+                        {revenueLineData.length === 0 ? (
+                            <p className="text-sm text-slate-400 text-center py-8">Niciun deal închis în acest an.</p>
+                        ) : (
+                            <ResponsiveContainer width="100%" height={240}>
+                                <LineChart data={revenueLineData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={{ stroke: '#e2e8f0' }} />
+                                    <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={{ stroke: '#e2e8f0' }}
+                                           tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v} />
+                                    <Tooltip
+                                        contentStyle={TOOLTIP_STYLE}
+                                        formatter={(v) => [`€${Number(v).toLocaleString('ro')}`, 'Venit']}
+                                    />
+                                    <Line
+                                        type="monotone"
+                                        dataKey="total"
+                                        stroke="#10b981"
+                                        strokeWidth={2}
+                                        dot={{ fill: '#10b981', r: 3 }}
+                                        activeDot={{ r: 5 }}
+                                        isAnimationActive={false}
+                                    />
+                                </LineChart>
+                            </ResponsiveContainer>
+                        )}
+                    </Card>
+                </div>
+
+                <Card title="Contacte" subtitle="clienți activi în portofoliul tău">
+                    <p className="text-2xl font-semibold tracking-tight text-slate-900">{contactsTotal ?? 0}</p>
+                </Card>
             </div>
-
-            {/* Personal revenue chart */}
-            <SectionCard title={`Venitul meu pe luni (${new Date().getFullYear()})`}>
-                <RevenueChart data={revenueByMonth} />
-            </SectionCard>
-        </div>
+        </>
     );
-}
-
-// ─── CSV Export helper ────────────────────────────────────────────────────────
-
-function exportCSV(agentStats) {
-    const header = ['Agent', 'Anunțuri', 'Vizualizări', 'Apeluri', 'Tranzacții', 'Venit (€)', 'Zile medii'];
-    const rows = agentStats.map(a => [
-        a.name,
-        a.properties_count,
-        a.views_total,
-        a.calls_count,
-        a.deals_count,
-        a.revenue.toFixed(2),
-        a.avg_days_close ?? '',
-    ]);
-    const csv = [header, ...rows].map(r => r.join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href = url; a.download = 'statistici-agenti.csv'; a.click();
-    URL.revokeObjectURL(url);
 }
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function Index(props) {
-    const { isAdmin, from, to } = props;
+    const { isAdmin, from, to, periodLabel } = props;
 
     const [fromDate, setFromDate] = useState(from || daysAgoISO(30));
     const [toDate,   setToDate]   = useState(to   || todayISO());
@@ -857,67 +1047,74 @@ export default function Index(props) {
     }
 
     return (
-        <AppLayout title="Statistici">
+        <AppLayout title="">
             <Head title="Statistici" />
-            <div className="space-y-6">
 
-                {/* Period filter — 3 shortcuts + custom from/to range */}
-                <div className="flex flex-wrap items-center gap-3">
-                    <span className="text-sm font-semibold text-slate-500 mr-1">Perioadă:</span>
+            {/* Sticky header — title + period filter. -mx-3 sm:-mx-6 cancels
+                AppLayout's content padding so the divider line stretches edge
+                to edge; the inner div restores the breathable horizontal pad. */}
+            <div className="sticky top-0 z-10 -mx-3 sm:-mx-6 mb-6 bg-white/80 backdrop-blur-sm border-b border-slate-200">
+                <div className="px-3 sm:px-6 py-4">
+                    <div className="flex items-end justify-between flex-wrap gap-3 mb-3">
+                        <div>
+                            <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Statistici</h1>
+                            <p className="text-xs text-slate-500 mt-0.5">{periodLabel ?? 'Ultimele 30 zile'}</p>
+                        </div>
+                    </div>
 
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                         <button
                             type="button"
                             onClick={() => applyShortcut(0)}
-                            className="rounded-2xl px-4 py-2 text-sm font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+                            className="px-3 py-1.5 text-xs font-medium rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
                         >
                             Azi
                         </button>
                         <button
                             type="button"
                             onClick={() => applyShortcut(7)}
-                            className="rounded-2xl px-4 py-2 text-sm font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+                            className="px-3 py-1.5 text-xs font-medium rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
                         >
                             7 zile
                         </button>
                         <button
                             type="button"
                             onClick={() => applyShortcut(30)}
-                            className="rounded-2xl px-4 py-2 text-sm font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+                            className="px-3 py-1.5 text-xs font-medium rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
                         >
                             30 zile
                         </button>
-                    </div>
 
-                    <div className="flex items-center gap-2 ml-auto flex-wrap">
+                        <span className="text-slate-300 mx-1">|</span>
+
                         <input
                             type="date"
                             value={fromDate}
                             onChange={(e) => setFromDate(e.target.value)}
                             max={toDate}
-                            className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700"
+                            className="px-2 py-1 text-xs border border-slate-200 rounded-md text-slate-700"
                         />
-                        <span className="text-slate-400">—</span>
+                        <span className="text-slate-400 text-xs">—</span>
                         <input
                             type="date"
                             value={toDate}
                             onChange={(e) => setToDate(e.target.value)}
                             min={fromDate}
                             max={todayISO()}
-                            className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700"
+                            className="px-2 py-1 text-xs border border-slate-200 rounded-md text-slate-700"
                         />
                         <button
                             type="button"
                             onClick={() => applyRange(fromDate, toDate)}
-                            className="rounded-2xl px-4 py-2 text-sm font-semibold bg-slate-900 text-white hover:bg-slate-800 transition-colors"
+                            className="px-3 py-1.5 text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-md transition"
                         >
                             Aplică
                         </button>
                     </div>
                 </div>
-
-                {isAdmin ? <AdminDashboard {...props} /> : <RealtorDashboard {...props} />}
             </div>
+
+            {isAdmin ? <AdminDashboard {...props} /> : <RealtorDashboard {...props} />}
         </AppLayout>
     );
 }

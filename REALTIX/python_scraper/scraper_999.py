@@ -2660,6 +2660,14 @@ def main() -> int:
                         # Selenium / Firefox died mid-fetch. Skip this listing,
                         # try to restart the driver under the global retry budget,
                         # then continue with the next card.
+                        # Defensive: if the crash happened between an upsert and
+                        # its commit, the psycopg2 tx is now aborted and the next
+                        # iteration's first cur.execute() would re-raise
+                        # InFailedSqlTransaction. Rollback to clear that state.
+                        try:
+                            conn.rollback()
+                        except Exception:
+                            pass
                         log.error(f"WebDriver crash on {external_id}: {type(e).__name__}: {str(e)[:120]}")
                         stats["errors"] += 1
                         cat_stats["errors"] += 1
@@ -2687,6 +2695,17 @@ def main() -> int:
                         stats["errors"] += 1
                         cat_stats["errors"] += 1
                         cat_stats["failed_urls"].append(url[:200])
+                        # Defensive rollback: when upsert_listing/update_price_only
+                        # raises a psycopg2 error (IntegrityError, DataError, etc.),
+                        # the transaction is left ABORTED. Every subsequent
+                        # cur.execute() in the loop then re-raises InFailedSqlTransaction
+                        # and the run dies with "Scraper aborted". This cost runs
+                        # #3, #36 and #44 between 104 and 193 listings each — clear
+                        # the aborted tx before continuing the loop.
+                        try:
+                            conn.rollback()
+                        except Exception:
+                            pass
                         print(f"  ❌ {url}: {type(e).__name__}: {str(e)[:80]}")
 
                     time.sleep(random.uniform(args.delay_min, args.delay_max))

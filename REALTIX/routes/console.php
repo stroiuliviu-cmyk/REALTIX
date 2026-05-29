@@ -352,22 +352,18 @@ Schedule::call(function () {
 // ─────────────────────────────────────────────────────────────────────
 $canRunScraper = fn () => ! app(ScraperHealthService::class)->isBlocked();
 
-Schedule::command('portal:999:scrape:morning')
-    ->cron('0 6 * * *')
-    ->timezone('Europe/Chisinau')
-    ->when($canRunScraper)
-    ->name('999md-morning-initial-sync')
-    ->withoutOverlapping(75)
-    ->onOneServer()
-    ->runInBackground()
-    ->emailOutputOnFailure(env('MAIL_FROM_ADDRESS'));
+// Morning sync schedule removed — the parallel hourly_a/_b pair now runs
+// 24/7 and covers the night window the old `portal:999:scrape:morning`
+// was for. The Artisan command itself stays available for manual catch-up
+// runs (`php artisan portal:999:scrape:morning`).
 
-// Parallel hourly pair. Both fire at minute 0; their --group argv keeps the
-// orphan-kill paths from cross-killing each other. The legacy single-process
-// 'portal:999:scrape:hourly' artisan command stays available for manual use
-// but its Schedule entry has been replaced by these two.
+// Parallel hourly pair. Both fire at minute 0 of every hour (24/7); their
+// --group argv keeps the orphan-kill paths from cross-killing each other.
+// The legacy single-process 'portal:999:scrape:hourly' artisan command
+// stays available for manual use but its Schedule entry has been replaced
+// by these two.
 Schedule::command('portal:999:scrape:hourly-a')
-    ->cron('0 7-22 * * *')
+    ->cron('0 * * * *')
     ->timezone('Europe/Chisinau')
     ->when($canRunScraper)
     ->name('999md-hourly-a')
@@ -376,7 +372,7 @@ Schedule::command('portal:999:scrape:hourly-a')
     ->runInBackground();
 
 Schedule::command('portal:999:scrape:hourly-b')
-    ->cron('0 7-22 * * *')
+    ->cron('0 * * * *')
     ->timezone('Europe/Chisinau')
     ->when($canRunScraper)
     ->name('999md-hourly-b')

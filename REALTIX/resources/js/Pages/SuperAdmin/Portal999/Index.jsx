@@ -137,7 +137,11 @@ function formatDuration(seconds) {
 
 function formatDateTime(iso) {
     if (!iso) return '—';
+    // Server stores timestamps in UTC; the admin watching this dashboard is
+    // tracking Moldovan scraper activity, so we always render in EEST/EET
+    // (Europe/Chișinău) regardless of where the browser happens to live.
     return new Date(iso).toLocaleString('ro-RO', {
+        timeZone: 'Europe/Chisinau',
         day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
     });
 }
@@ -275,7 +279,7 @@ export default function Index({
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-sm font-bold text-slate-900">Anunțuri scrapate / zi (30 zile)</h3>
                         <span className="text-xs text-slate-400">
-                            Ultima sync: {stats.last_sync_at ? new Date(stats.last_sync_at).toLocaleString('ro-RO') : '—'}
+                            Ultima sync: {stats.last_sync_at ? new Date(stats.last_sync_at).toLocaleString('ro-RO', { timeZone: 'Europe/Chisinau' }) : '—'}
                         </span>
                     </div>
                     <MiniBars data={byDay} />
@@ -296,7 +300,7 @@ export default function Index({
                                 Auto-refresh 30s
                             </label>
                             <span className="text-xs text-slate-400">
-                                Ultim refresh: {lastRefresh.toLocaleTimeString('ro-RO')}
+                                Ultim refresh: {lastRefresh.toLocaleTimeString('ro-RO', { timeZone: 'Europe/Chisinau' })}
                             </span>
                         </div>
                     </div>
@@ -404,6 +408,7 @@ export default function Index({
                                         const subData    = bySubtypeDaily[`${type}:${sub.subtype}`] ?? [];
                                         const lastScraped = sub.last_scraped_at
                                             ? new Date(sub.last_scraped_at).toLocaleString('ro-RO', {
+                                                timeZone: 'Europe/Chisinau',
                                                 day: '2-digit', month: '2-digit',
                                                 hour: '2-digit', minute: '2-digit',
                                               })
@@ -689,7 +694,7 @@ export default function Index({
                             {syncLogs.map(l => (
                                 <div key={l.id} className="px-5 py-2.5 flex items-center gap-3 text-sm">
                                     <span className="text-[10px] font-mono text-slate-400 whitespace-nowrap">
-                                        {new Date(l.created_at).toLocaleString('ro-RO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                        {new Date(l.created_at).toLocaleString('ro-RO', { timeZone: 'Europe/Chisinau', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                                     </span>
                                     <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">{l.action}</span>
                                     <span className="text-slate-700 flex-1 truncate">{l.description ?? '—'}</span>

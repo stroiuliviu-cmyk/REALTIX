@@ -215,7 +215,7 @@ export default function Index({
                     <h2 className="text-lg font-bold text-slate-900 mb-4">Indicatori cheie</h2>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                         <StatCard
-                            icon="🏠" label="Anunțurile mele"
+                            icon="🏠" label="Imobiliare"
                             value={Number(stats.properties ?? 0).toLocaleString('ro')}
                             sub={`${stats.active_properties ?? 0} active`}
                             href="/properties" color="#3b82f6"

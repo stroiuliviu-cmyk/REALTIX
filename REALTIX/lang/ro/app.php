@@ -5,7 +5,7 @@ return [
     /* ──────────────── NAV ──────────────── */
     'nav' => [
         'navigate'    => 'Navigare',
-        'my_listings' => 'Anunțurile mele',
+        'my_listings' => 'Imobiliare',
         'web_offers'  => 'Web Oferte',
         'add_listing' => 'Adaugă anunț',
         'ai_tools'    => 'Instrumente AI',
@@ -274,7 +274,7 @@ return [
 
     /* ──────────────── PROPERTIES ──────────────── */
     'properties' => [
-        'page_title'          => 'Anunțurile mele',
+        'page_title'          => 'Imobiliare',
         'create_title'        => 'Adaugă anunț nou',
         'no_results'          => 'Niciun anunț găsit',
         'no_results_sub'      => 'Încearcă să ajustezi filtrele sau adaugă un anunț nou.',
@@ -330,7 +330,7 @@ return [
 
         'save_btn'       => 'Salvează în anunțurile mele',
         'draft_btn'      => 'Salvează ca ciornă',
-        'saved_success'  => 'Anunț adăugat cu succes în "Anunțurile mele".',
+        'saved_success'  => 'Anunț adăugat cu succes în "Imobiliare".',
         'ai_price_title' => 'Evaluare AI preț',
         'ai_est'         => 'Estimare AI',
         'market_avg'     => 'Medie regională',

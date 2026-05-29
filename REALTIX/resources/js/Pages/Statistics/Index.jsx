@@ -708,7 +708,7 @@ function RealtorDashboard({
 
             {/* Personal KPIs */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <KpiCard icon="🏠" color="blue"   label="Anunțurile mele" value={propertiesTotal} sub={`${propertiesActive} active, ${propertiesArchived} arhivate`} />
+                <KpiCard icon="🏠" color="blue"   label="Imobiliare" value={propertiesTotal} sub={`${propertiesActive} active, ${propertiesArchived} arhivate`} />
                 <KpiCard icon="👁" color="purple" label="Total vizualizări" value={viewsTotal.toLocaleString('ro')} sub="cumulativ" />
                 <KpiCard icon="📞" color="amber"  label={`Apeluri (${PERIOD_LABELS[period]})`} value={myCallsPeriod} sub={`Conversie: ${callConversion}%`} />
                 <KpiCard icon="💰" color="green"  label={`Venit (${PERIOD_LABELS[period]})`} value={revenuePeriod > 0 ? `€${Number(revenuePeriod).toLocaleString('ro')}` : '—'} sub={`Total: €${Number(revenueTotal).toLocaleString('ro')}`} />

@@ -5,7 +5,7 @@ return [
     /* ──────────────── NAV ──────────────── */
     'nav' => [
         'navigate'    => 'Navigation',
-        'my_listings' => 'My Listings',
+        'my_listings' => 'Real Estate',
         'web_offers'  => 'Web Offers',
         'add_listing' => 'Add Listing',
         'ai_tools'    => 'AI Tools',

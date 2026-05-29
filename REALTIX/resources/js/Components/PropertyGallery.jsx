@@ -34,7 +34,7 @@ export default function PropertyGallery({ media = [] }) {
 
     if (images.length === 0) {
         return (
-            <div className="aspect-[16/10] bg-slate-100 rounded-xl flex items-center justify-center">
+            <div className="h-[500px] bg-slate-100 rounded-xl flex items-center justify-center">
                 <span className="text-6xl text-slate-300">🏠</span>
             </div>
         );
@@ -57,7 +57,7 @@ export default function PropertyGallery({ media = [] }) {
             <button
                 type="button"
                 onClick={() => setLightboxOpen(true)}
-                className="relative w-full aspect-[16/10] rounded-xl overflow-hidden group block"
+                className="relative w-full h-[500px] rounded-xl overflow-hidden group block"
                 aria-label="Deschide galerie foto"
             >
                 <img

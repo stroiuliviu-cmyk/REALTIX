@@ -6,6 +6,15 @@ const MONTH_NAMES = ['Ian', 'Feb', 'Mar', 'Apr', 'Mai', 'Iun', 'Iul', 'Aug', 'Se
 
 const PERIOD_LABELS = { week: 'Săptămână', month: 'Lună', year: 'An' };
 
+function todayISO() {
+    return new Date().toISOString().slice(0, 10);
+}
+function daysAgoISO(n) {
+    const d = new Date();
+    d.setDate(d.getDate() - n);
+    return d.toISOString().slice(0, 10);
+}
+
 const TYPE_LABELS = {
     apartment: 'Apartamente',
     house:     'Case',
@@ -211,7 +220,7 @@ function AdminDashboard({
     callsTotal, callsPeriod, callConversion,
     dealsPeriod, revenuePeriod, revenuePrev, avgCommission,
     avgDaysToClose, agentStats, revenueByMonth, aiInsights,
-    period,
+    period, periodLabel,
 }) {
     const [activeTab, setActiveTab] = useState('overview');
     const [exportFormat, setExportFormat] = useState(null);
@@ -300,13 +309,13 @@ function AdminDashboard({
                         />
                         <KpiCard
                             icon="📞" color="amber"
-                            label={`Apeluri (${PERIOD_LABELS[period]})`}
+                            label={`Apeluri (${periodLabel ?? PERIOD_LABELS[period] ?? 'Lună'})`}
                             value={callsPeriod}
                             sub={`Conversie: ${callConversion}%`}
                         />
                         <KpiCard
                             icon="💰" color="green"
-                            label={`Venit (${PERIOD_LABELS[period]})`}
+                            label={`Venit (${periodLabel ?? PERIOD_LABELS[period] ?? 'Lună'})`}
                             value={revenuePeriod > 0 ? `€${Number(revenuePeriod).toLocaleString('ro')}` : '—'}
                             sub={revenuePrev > 0 ? `Anterior: €${Number(revenuePrev).toLocaleString('ro')}` : undefined}
                             trend={revenueChange}
@@ -670,7 +679,7 @@ function RealtorDashboard({
     myCallsTotal, myCallsPeriod, callConversion,
     myDealsTotal, myDealsInProgress,
     dealsPeriod, revenuePeriod, revenueTotal, revenueByMonth,
-    period,
+    period, periodLabel,
 }) {
     const [exportFormat, setExportFormat] = useState(null);
 
@@ -710,8 +719,8 @@ function RealtorDashboard({
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <KpiCard icon="🏠" color="blue"   label="Imobiliare" value={propertiesTotal} sub={`${propertiesActive} active, ${propertiesArchived} arhivate`} />
                 <KpiCard icon="👁" color="purple" label="Total vizualizări" value={viewsTotal.toLocaleString('ro')} sub="cumulativ" />
-                <KpiCard icon="📞" color="amber"  label={`Apeluri (${PERIOD_LABELS[period]})`} value={myCallsPeriod} sub={`Conversie: ${callConversion}%`} />
-                <KpiCard icon="💰" color="green"  label={`Venit (${PERIOD_LABELS[period]})`} value={revenuePeriod > 0 ? `€${Number(revenuePeriod).toLocaleString('ro')}` : '—'} sub={`Total: €${Number(revenueTotal).toLocaleString('ro')}`} />
+                <KpiCard icon="📞" color="amber"  label={`Apeluri (${periodLabel ?? PERIOD_LABELS[period] ?? 'Lună'})`} value={myCallsPeriod} sub={`Conversie: ${callConversion}%`} />
+                <KpiCard icon="💰" color="green"  label={`Venit (${periodLabel ?? PERIOD_LABELS[period] ?? 'Lună'})`} value={revenuePeriod > 0 ? `€${Number(revenuePeriod).toLocaleString('ro')}` : '—'} sub={`Total: €${Number(revenueTotal).toLocaleString('ro')}`} />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -806,10 +815,25 @@ function exportCSV(agentStats) {
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function Index(props) {
-    const { isAdmin, period } = props;
+    const { isAdmin, from, to } = props;
 
-    function changePeriod(p) {
-        router.get(route('statistics.index'), { period: p }, { preserveState: true, replace: true });
+    const [fromDate, setFromDate] = useState(from || daysAgoISO(30));
+    const [toDate,   setToDate]   = useState(to   || todayISO());
+
+    function applyRange(newFrom, newTo) {
+        setFromDate(newFrom);
+        setToDate(newTo);
+        router.get(
+            route('statistics.index'),
+            { from: newFrom, to: newTo },
+            { preserveState: true, replace: true },
+        );
+    }
+
+    function applyShortcut(days) {
+        const newTo   = todayISO();
+        const newFrom = days === 0 ? newTo : daysAgoISO(days);
+        applyRange(newFrom, newTo);
     }
 
     return (
@@ -817,22 +841,59 @@ export default function Index(props) {
             <Head title="Statistici" />
             <div className="space-y-6">
 
-                {/* Period filter */}
-                <div className="flex items-center gap-2 flex-wrap">
+                {/* Period filter — 3 shortcuts + custom from/to range */}
+                <div className="flex flex-wrap items-center gap-3">
                     <span className="text-sm font-semibold text-slate-500 mr-1">Perioadă:</span>
-                    {Object.entries(PERIOD_LABELS).map(([p, label]) => (
+
+                    <div className="flex gap-2">
                         <button
-                            key={p}
-                            onClick={() => changePeriod(p)}
-                            className={`rounded-2xl px-4 py-2 text-sm font-semibold transition-colors ${
-                                period === p
-                                    ? 'bg-slate-900 text-white'
-                                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-                            }`}
+                            type="button"
+                            onClick={() => applyShortcut(0)}
+                            className="rounded-2xl px-4 py-2 text-sm font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
                         >
-                            {label}
+                            Azi
                         </button>
-                    ))}
+                        <button
+                            type="button"
+                            onClick={() => applyShortcut(7)}
+                            className="rounded-2xl px-4 py-2 text-sm font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+                        >
+                            7 zile
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => applyShortcut(30)}
+                            className="rounded-2xl px-4 py-2 text-sm font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+                        >
+                            30 zile
+                        </button>
+                    </div>
+
+                    <div className="flex items-center gap-2 ml-auto flex-wrap">
+                        <input
+                            type="date"
+                            value={fromDate}
+                            onChange={(e) => setFromDate(e.target.value)}
+                            max={toDate}
+                            className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700"
+                        />
+                        <span className="text-slate-400">—</span>
+                        <input
+                            type="date"
+                            value={toDate}
+                            onChange={(e) => setToDate(e.target.value)}
+                            min={fromDate}
+                            max={todayISO()}
+                            className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700"
+                        />
+                        <button
+                            type="button"
+                            onClick={() => applyRange(fromDate, toDate)}
+                            className="rounded-2xl px-4 py-2 text-sm font-semibold bg-slate-900 text-white hover:bg-slate-800 transition-colors"
+                        >
+                            Aplică
+                        </button>
+                    </div>
                 </div>
 
                 {isAdmin ? <AdminDashboard {...props} /> : <RealtorDashboard {...props} />}

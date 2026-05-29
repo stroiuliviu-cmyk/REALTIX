@@ -9,6 +9,7 @@ use App\Models\Property;
 use App\Models\ScrapedListing;
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -22,20 +23,81 @@ class StatisticsController extends Controller
         $isAdmin = $user->hasRole('admin');
         $period = $request->get('period', 'month');
 
-        $from = match($period) {
-            'week' => now()->startOfWeek(),
-            'year' => now()->startOfYear(),
-            default => now()->startOfMonth(),
-        };
+        [$dateFrom, $dateTo, $periodLabel, $isCustom] = $this->resolveDateRange($request);
+
+        // When from+to are explicitly provided we mark the period as 'custom'
+        // so the prev-period match() inside the stats helpers derives length
+        // from the actual range instead of falling back to a calendar boundary.
+        $internalPeriod = $isCustom ? 'custom' : $period;
 
         $data = $isAdmin
-            ? $this->adminStats($user, $from, $period)
-            : $this->realtorStats($user, $from);
+            ? $this->adminStats($user, $dateFrom, $internalPeriod, $dateTo)
+            : $this->realtorStats($user, $dateFrom, $dateTo);
 
         return Inertia::render('Statistics/Index', array_merge($data, [
-            'isAdmin' => $isAdmin,
-            'period'  => $period,
+            'isAdmin'     => $isAdmin,
+            'period'      => $period,                  // kept for ExportModal links
+            'from'        => $dateFrom->toDateString(),
+            'to'          => $dateTo->toDateString(),
+            'periodLabel' => $periodLabel,
         ]));
+    }
+
+    /**
+     * Resolve the active date range for stats queries.
+     * Priority: explicit ?from=&to= → period preset (week/month/year) → default
+     * (last 30 days). Returns [Carbon $from, Carbon $to, string $humanLabel,
+     * bool $isCustom]. Custom ranges get range-length swap protection and a
+     * cap at today so a future $to never widens the window past now().
+     */
+    private function resolveDateRange(Request $request): array
+    {
+        $rawFrom = $request->get('from');
+        $rawTo   = $request->get('to');
+
+        if ($rawFrom && $rawTo) {
+            try {
+                $from = Carbon::parse($rawFrom)->startOfDay();
+                $to   = Carbon::parse($rawTo)->endOfDay();
+                if ($from->gt($to)) {
+                    [$from, $to] = [
+                        $to->copy()->startOfDay(),
+                        $from->copy()->endOfDay(),
+                    ];
+                }
+                if ($to->gt(now())) {
+                    $to = now()->endOfDay();
+                }
+                if ($from->isSameDay($to)) {
+                    $label = $from->locale('ro')->isoFormat('D MMM YYYY');
+                } else {
+                    $label = $from->locale('ro')->isoFormat('D MMM') . ' – '
+                           . $to->locale('ro')->isoFormat('D MMM YYYY');
+                }
+                return [$from, $to, $label, true];
+            } catch (\Exception $e) {
+                // Fall through to period preset on unparseable dates.
+            }
+        }
+
+        $period = $request->get('period', 'month');
+        $to     = now()->endOfDay();
+        switch ($period) {
+            case 'week':
+                $from  = now()->subDays(7)->startOfDay();
+                $label = 'Ultimele 7 zile';
+                break;
+            case 'year':
+                $from  = now()->subYear()->startOfDay();
+                $label = 'Ultimul an';
+                break;
+            case 'month':
+            default:
+                $from  = now()->subDays(30)->startOfDay();
+                $label = 'Ultimele 30 zile';
+                break;
+        }
+        return [$from, $to, $label, false];
     }
 
     public function exportPdf(Request $request)
@@ -281,9 +343,10 @@ class StatisticsController extends Controller
         };
     }
 
-    private function adminStats(User $user, $from, string $period): array
+    private function adminStats(User $user, $from, string $period, ?Carbon $to = null): array
     {
         $agencyId = $user->agency_id;
+        $to       = $to ?? now();
 
         // ── Properties (own listings only — exclude imported from scraped sites) ──
         $ownProperties = fn () => Property::withoutGlobalScopes()
@@ -299,18 +362,23 @@ class StatisticsController extends Controller
             ->pluck('total', 'type');
 
         $propertiesThisPeriod = $ownProperties()
-            ->where('created_at', '>=', $from)
+            ->whereBetween('created_at', [$from, $to])
             ->count();
 
+        // Previous period — same length offset back for custom ranges; calendar
+        // boundary for the period presets (preserves export behaviour).
+        $rangeSeconds = max(1, (int) $from->diffInSeconds($to));
         $prevFrom = match($period) {
-            'week'  => now()->subWeek()->startOfWeek(),
-            'year'  => now()->subYear()->startOfYear(),
-            default => now()->subMonth()->startOfMonth(),
+            'week'   => now()->subWeek()->startOfWeek(),
+            'year'   => now()->subYear()->startOfYear(),
+            'custom' => $from->copy()->subSecond()->subSeconds($rangeSeconds),
+            default  => now()->subMonth()->startOfMonth(),
         };
         $prevTo = match($period) {
-            'week'  => now()->subWeek()->endOfWeek(),
-            'year'  => now()->subYear()->endOfYear(),
-            default => now()->subMonth()->endOfMonth(),
+            'week'   => now()->subWeek()->endOfWeek(),
+            'year'   => now()->subYear()->endOfYear(),
+            'custom' => $from->copy()->subSecond(),
+            default  => now()->subMonth()->endOfMonth(),
         };
         $propertiesPrevPeriod = $ownProperties()
             ->whereBetween('created_at', [$prevFrom, $prevTo])
@@ -365,7 +433,7 @@ class StatisticsController extends Controller
 
         $callsPeriod = ContactInteraction::whereHas('contact', fn($q) => $q->where('agency_id', $agencyId))
             ->where('type', 'call')
-            ->where('created_at', '>=', $from)
+            ->whereBetween('created_at', [$from, $to])
             ->count();
 
         $dealsClosedTotal = Deal::withoutGlobalScopes()
@@ -381,13 +449,13 @@ class StatisticsController extends Controller
         $dealsPeriod = Deal::withoutGlobalScopes()
             ->where('agency_id', $agencyId)
             ->where('status', 'closed')
-            ->where('closed_at', '>=', $from)
+            ->whereBetween('closed_at', [$from, $to])
             ->count();
 
         $revenuePeriod = (float) Deal::withoutGlobalScopes()
             ->where('agency_id', $agencyId)
             ->where('status', 'closed')
-            ->where('closed_at', '>=', $from)
+            ->whereBetween('closed_at', [$from, $to])
             ->sum('commission');
 
         $revenuePrev = (float) Deal::withoutGlobalScopes()
@@ -416,7 +484,7 @@ class StatisticsController extends Controller
         // Phone interactions aggregated once: split by subject type + outcome.
         $phoneAgg = \DB::table('phone_interactions')
             ->where('agency_id', $agencyId)
-            ->where('created_at', '>=', $from)
+            ->whereBetween('created_at', [$from, $to])
             ->selectRaw('user_id, subject_type, outcome, COUNT(*) AS c')
             ->groupBy('user_id', 'subject_type', 'outcome')
             ->get()
@@ -697,8 +765,10 @@ class StatisticsController extends Controller
         ];
     }
 
-    private function realtorStats(User $user, $from): array
+    private function realtorStats(User $user, $from, ?Carbon $to = null): array
     {
+        $to = $to ?? now();
+
         $propertiesTotal    = Property::where('user_id', $user->id)->count();
         $propertiesActive   = Property::where('user_id', $user->id)->where('status', 'active')->count();
         $propertiesArchived = Property::where('user_id', $user->id)->where('status', 'archived')->count();
@@ -719,7 +789,8 @@ class StatisticsController extends Controller
             ]);
 
         $myCallsTotal    = ContactInteraction::where('user_id', $user->id)->where('type', 'call')->count();
-        $myCallsPeriod   = ContactInteraction::where('user_id', $user->id)->where('type', 'call')->where('created_at', '>=', $from)->count();
+        $myCallsPeriod   = ContactInteraction::where('user_id', $user->id)->where('type', 'call')
+            ->whereBetween('created_at', [$from, $to])->count();
         $myDealsTotal    = Deal::where('user_id', $user->id)->where('status', 'closed')->count();
         $myDealsInProgress = Deal::where('user_id', $user->id)->where('status', 'in_progress')->count();
 
@@ -729,12 +800,12 @@ class StatisticsController extends Controller
 
         $dealsPeriod = Deal::where('user_id', $user->id)
             ->where('status', 'closed')
-            ->where('closed_at', '>=', $from)
+            ->whereBetween('closed_at', [$from, $to])
             ->count();
 
         $revenuePeriod = (float) Deal::where('user_id', $user->id)
             ->where('status', 'closed')
-            ->where('closed_at', '>=', $from)
+            ->whereBetween('closed_at', [$from, $to])
             ->sum('commission');
 
         $revenueTotal = (float) Deal::where('user_id', $user->id)

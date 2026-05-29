@@ -1,0 +1,146 @@
+/* ============================================================================
+   REALTIX — Colors & Type foundations
+   Real-estate SaaS CRM (Moldova). Tailwind-derived tokens lifted from the
+   production Laravel + Inertia + React codebase, then refined toward a sober,
+   enterprise direction: flat fills, a single blue accent over a slate-neutral
+   base, restrained shadows, and gradients reserved for dark surfaces only.
+   Load Inter + Montserrat from Google Fonts (the app's actual fonts):
+   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Montserrat:wght@700;800&display=swap" rel="stylesheet">
+   ============================================================================ */
+
+:root {
+  /* ---- Brand --------------------------------------------------------------
+     The logo wordmark navy + gold roof + bright-blue swoosh.               */
+  --rt-logo-navy:   #06196A;  /* REALTIX wordmark / deep brand navy        */
+  --rt-logo-blue:   #1A97FB;  /* swoosh / lighter wordmark tail            */
+  --rt-gold:        #F0AB29;  /* roof + window grid accent                 */
+  --rt-gold-deep:   #EEA624;
+
+  /* ---- Primary (interactive blue) ----------------------------------------
+     The UI's working blue — buttons, active nav, links, focus.            */
+  --rt-blue-50:   #eff6ff;
+  --rt-blue-100:  #dbeafe;
+  --rt-blue-500:  #3b82f6;   /* icons, focus ring, accents                */
+  --rt-blue-600:  #2563eb;   /* PRIMARY — buttons, active states          */
+  --rt-blue-700:  #1d4ed8;   /* primary hover / pressed, link text        */
+  --rt-blue-800:  #1e40af;
+  --rt-blue-900:  #1e3a8a;
+
+  /* ---- Neutrals (slate) — the entire surface + text system --------------- */
+  --rt-white:     #ffffff;
+  --rt-slate-50:  #f8fafc;   /* app canvas, input fill                    */
+  --rt-slate-100: #f1f5f9;   /* hover fills, segmented track, borders     */
+  --rt-slate-200: #e2e8f0;   /* default borders, dividers                 */
+  --rt-slate-300: #cbd5e1;   /* scrollbar, disabled border                */
+  --rt-slate-400: #94a3b8;   /* placeholder, muted icons                  */
+  --rt-slate-500: #64748b;   /* secondary text, captions                  */
+  --rt-slate-600: #475569;   /* body text on light                        */
+  --rt-slate-700: #334155;   /* strong body, labels                       */
+  --rt-slate-900: #0f172a;   /* headings, dark surfaces base              */
+  --rt-navy-950:  #0b1120;   /* sidebar gradient floor                    */
+  --rt-navy-blk:  #020617;   /* deepest panel (auth)                      */
+
+  /* ---- Semantic state ----------------------------------------------------- */
+  --rt-success:        #10b981;  /* emerald — active listing, paid, AI cheap */
+  --rt-success-bg:     #d1fae5;
+  --rt-success-text:   #047857;
+  --rt-warning:        #f59e0b;  /* amber — trial, archive, pending          */
+  --rt-warning-bg:     #fef3c7;
+  --rt-warning-text:   #b45309;
+  --rt-danger:         #ef4444;  /* red — delete, errors, expensive          */
+  --rt-danger-bg:      #fee2e2;
+  --rt-danger-text:    #b91c1c;
+  --rt-admin:          #e11d48;  /* rose — super-admin surfaces              */
+  --rt-admin-bg:       #ffe4e6;
+
+  /* ---- Category accents (USE SPARINGLY) ----------------------------------
+     The enterprise direction renders category/stat tiles NEUTRAL (slate icon
+     on a slate-100 square). These hues remain only for charts/data-viz where
+     multiple series must be distinguished. Do not scatter them across tiles. */
+  --rt-teal:    #14b8a6;
+  --rt-pink:    #ec4899;
+  --rt-violet:  #8b5cf6;
+
+  /* ---- Signature gradients (reserved for DARK surfaces only) -------------
+     Enterprise refinement: buttons & accents are FLAT. Gradients live on
+     dark panels and the whisper-faint page canvas — never on controls.     */
+  --rt-grad-primary:  #2563eb;                                            /* primary button = flat blue-600 */
+  --rt-grad-brand:    linear-gradient(90deg, #3b82f6, #10b981);           /* DEPRECATED — prefer solid blue accent */
+  --rt-grad-sidebar:  linear-gradient(to bottom, #0f172a, #0b1120);       /* nav rail */
+  --rt-grad-hero:     linear-gradient(135deg, #0f172a, #172a52);          /* dashboard hero / AI header */
+  --rt-grad-auth:     linear-gradient(145deg, #020617 0%, #0f172a 50%, #0c1a2e 100%); /* login panel */
+  --rt-grad-canvas:   linear-gradient(to bottom right, #f8fafc, #ffffff, #eff6ff);    /* page bg */
+
+  /* ---- Radii -------------------------------------------------------------- */
+  --rt-r-md:   8px;    /* small chips, tags, table cells   */
+  --rt-r-lg:   12px;   /* buttons, inputs, nav items (xl)  */
+  --rt-r-xl:   16px;   /* cards, menus, badges (2xl)       */
+  --rt-r-2xl:  24px;   /* hero cards, login card (3xl)     */
+  --rt-r-3xl:  32px;   /* big surfaces, filter rail (4xl)  */
+  --rt-r-full: 9999px; /* pills, avatars, FAB, dots        */
+
+  /* ---- Shadows (soft, minimal — no colored glow) -------------------------- */
+  --rt-shadow-sm:   0 1px 2px rgba(15,23,42,.05);
+  --rt-shadow-card: 0 1px 2px rgba(15,23,42,.04);
+  --rt-shadow-lg:   0 8px 24px rgba(15,23,42,.08);   /* hover lift          */
+  --rt-shadow-xl:   0 12px 32px rgba(15,23,42,.08);  /* prominent panels    */
+  --rt-shadow-menu: 0 12px 40px rgba(15,23,42,.14);  /* dropdowns           */
+  --rt-shadow-blue: 0 1px 2px rgba(15,23,42,.08);    /* primary button (flat, subtle) */
+
+  /* ---- Typography --------------------------------------------------------- */
+  --rt-font-sans:    'Inter', system-ui, -apple-system, sans-serif;
+  --rt-font-display: 'Montserrat', 'Inter', sans-serif;  /* wordmark + heroes */
+  --rt-font-mono:    'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
+
+  /* Type scale (px) */
+  --rt-text-xs:   12px;   /* captions, badges, micro-labels       */
+  --rt-text-sm:   14px;   /* body, controls, table                */
+  --rt-text-base: 16px;   /* default body                         */
+  --rt-text-lg:   18px;   /* card titles                          */
+  --rt-text-xl:   20px;   /* section headings                     */
+  --rt-text-2xl:  24px;   /* page titles                          */
+  --rt-text-3xl:  30px;   /* big stat numbers                     */
+  --rt-text-5xl:  48px;   /* hero (auth)                          */
+
+  --rt-fw-normal:   400;
+  --rt-fw-medium:   500;
+  --rt-fw-semibold: 600;
+  --rt-fw-bold:     700;
+  --rt-fw-black:    900;  /* stat numbers, wordmark               */
+
+  --rt-tracking-wide:  0.025em;
+  --rt-tracking-label: 0.08em;   /* uppercase eyebrow labels      */
+  --rt-tracking-brand: 0.16em;   /* REALTIX wordmark              */
+}
+
+/* ============================================================================
+   Base element styling — apply on a page wrapper or :root as you like.
+   ============================================================================ */
+body {
+  font-family: var(--rt-font-sans);
+  color: var(--rt-slate-900);
+  background: var(--rt-slate-50);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ---- Semantic typographic roles ---- */
+.rt-wordmark {
+  font-family: var(--rt-font-display);
+  font-weight: var(--rt-fw-bold);
+  letter-spacing: var(--rt-tracking-brand);
+  text-transform: uppercase;
+}
+.rt-h1 { font-family: var(--rt-font-display); font-weight: 700; font-size: var(--rt-text-2xl); line-height: 1.2; color: var(--rt-slate-900); }
+.rt-h2 { font-weight: 700; font-size: var(--rt-text-xl); line-height: 1.25; color: var(--rt-slate-900); }
+.rt-h3 { font-weight: 700; font-size: var(--rt-text-lg); line-height: 1.3;  color: var(--rt-slate-900); }
+.rt-stat { font-weight: var(--rt-fw-bold); font-size: var(--rt-text-3xl); line-height: 1; color: var(--rt-slate-900); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.rt-p  { font-size: var(--rt-text-sm); line-height: 1.55; color: var(--rt-slate-600); }
+.rt-label {
+  font-size: var(--rt-text-xs); font-weight: 600; text-transform: uppercase;
+  letter-spacing: var(--rt-tracking-label); color: var(--rt-slate-500);
+}
+.rt-caption { font-size: var(--rt-text-xs); color: var(--rt-slate-400); }
+.rt-mono { font-family: var(--rt-font-mono); font-size: var(--rt-text-xs); }
+.rt-link { color: var(--rt-blue-700); font-weight: 600; text-decoration: none; }
+.rt-link:hover { text-decoration: underline; }

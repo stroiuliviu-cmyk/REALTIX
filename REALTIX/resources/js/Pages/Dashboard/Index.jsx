@@ -1,27 +1,45 @@
 import AppLayout from '@/Layouts/AppLayout';
 import { Head, Link, usePage } from '@inertiajs/react';
 import { useTranslation } from '@/Hooks/useTranslation';
+import Badge from '@/Components/ui/Badge';
+import {
+    AlertTriangle, ArrowRight, BarChart3, Banknote, Building,
+    CalendarCheck, Clock, Globe, MapPin, RefreshCw, Sparkles,
+    TrendingDown, TrendingUp, Users,
+} from 'lucide-react';
 
-// ── Cards ───────────────────────────────────────────────────────────────────
-function StatCard({ icon, label, value, sub, href, color = '#3b82f6' }) {
+// ─── Stat tile (enterprise) ──────────────────────────────────────────────────
+// Neutral slate icon square (not the old colored circle + emoji). Optional
+// `trend` prop renders a green/red TrendingUp|Down badge top-right when
+// supplied as { dir: 'up' | 'down', value: '+6' | '-2' }. Call sites can
+// skip it (controller doesn't ship per-card trend yet — future enhancement).
+function StatCard({ Icon, label, value, sub, href, trend }) {
     const Wrapper = href ? Link : 'div';
+    const TrendIcon = trend?.dir === 'down' ? TrendingDown : TrendingUp;
+    const trendColor = trend?.dir === 'down' ? 'text-rose-600' : 'text-emerald-600';
+
     return (
         <Wrapper
             href={href}
-            className="rounded-2xl bg-white border border-slate-100 p-5 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 group block"
+            className="block rounded-xl bg-white border border-slate-200/70 p-5 shadow-sm hover:shadow-lg hover:border-slate-300/70 transition-all duration-200"
         >
-            <div className="flex items-start gap-3">
-                <div
-                    className="w-12 h-12 rounded-full flex items-center justify-center text-xl shrink-0"
-                    style={{ background: `${color}1f`, color }}
-                >
-                    {icon}
+            <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
+                        <Icon className="w-5 h-5" strokeWidth={2} />
+                    </div>
+                    <div>
+                        <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
+                        <div className="text-[28px] font-bold text-slate-900 mt-0.5 tabular-nums leading-tight">{value}</div>
+                        {sub && <div className="text-xs text-slate-400 mt-0.5">{sub}</div>}
+                    </div>
                 </div>
-                <div className="flex-1">
-                    <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
-                    <div className="text-3xl font-black text-slate-900 mt-0.5 tabular-nums">{value}</div>
-                    {sub && <div className="text-xs text-slate-400 mt-0.5">{sub}</div>}
-                </div>
+                {trend && (
+                    <span className={`text-xs font-semibold inline-flex items-center gap-0.5 shrink-0 ${trendColor}`}>
+                        <TrendIcon className="w-3.5 h-3.5" />
+                        {trend.value}
+                    </span>
+                )}
             </div>
         </Wrapper>
     );
@@ -33,42 +51,77 @@ function resolveImg(path) {
     return `/storage/${path}`;
 }
 
+// ─── AI deal card (enterprise) ───────────────────────────────────────────────
+// rounded-xl, building placeholder (no emoji), enterprise "Recomandat AI"
+// badge on slate-900/85, valuation tag uses the design-system Badge primitive.
 function AiDealCard({ listing, t }) {
-    const badge = {
-        cheap:     { label: t('dashboard.valuation_cheap'),    cls: 'bg-emerald-100 text-emerald-700' },
-        average:   { label: t('dashboard.valuation_average'),  cls: 'bg-amber-100 text-amber-700' },
-        expensive: { label: t('dashboard.valuation_expensive'), cls: 'bg-red-100 text-red-700' },
+    const VALUATION_LABEL = {
+        cheap:     t('dashboard.valuation_cheap'),
+        average:   t('dashboard.valuation_average'),
+        expensive: t('dashboard.valuation_expensive'),
     };
-    const b = badge[listing.ai_valuation] ?? badge.average;
-    const img = resolveImg(listing.images?.[0]);
+    const tone  = listing.ai_valuation ?? 'average';
+    const label = VALUATION_LABEL[tone] ?? VALUATION_LABEL.average;
+    const img   = resolveImg(listing.images?.[0]);
 
     return (
-        <div className="rounded-3xl bg-white border border-slate-100 overflow-hidden hover:shadow-xl transition-shadow group">
+        <div className="rounded-xl bg-white border border-slate-200/70 overflow-hidden shadow-sm hover:shadow-lg hover:border-slate-300/70 transition-all duration-200 group">
             <div className="h-40 bg-slate-100 overflow-hidden relative">
                 {img ? (
-                    <img src={img} alt={listing.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                    <img
+                        src={img}
+                        alt={listing.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
                 ) : (
-                    <div className="w-full h-full flex items-center justify-center text-3xl text-slate-300">🏠</div>
+                    <div className="w-full h-full flex items-center justify-center">
+                        <Building className="w-12 h-12 text-slate-300" strokeWidth={1.5} />
+                    </div>
                 )}
-                <span className="absolute top-3 left-3 text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-500 text-white shadow">
-                    Potrivit
+                {/* "Recomandat AI" pill — enterprise replacement for the old
+                    emerald "Potrivit" tag. Sits top-left. */}
+                <span className="absolute top-3 left-3 text-[11px] font-semibold px-2.5 py-1 rounded-md bg-slate-900/85 text-white backdrop-blur-sm">
+                    Recomandat AI
                 </span>
-                <span className={`absolute top-3 right-3 text-xs font-bold px-2.5 py-1 rounded-full ${b.cls}`}>{b.label}</span>
+                {/* Valuation tag uses the design-system Badge primitive so
+                    tone styling stays consistent with the rest of the app. */}
+                <span className="absolute top-3 right-3">
+                    <Badge tone={tone}>{label}</Badge>
+                </span>
             </div>
             <div className="p-4">
-                <div className="text-sm font-bold text-slate-900 line-clamp-1">{listing.title}</div>
-                <div className="text-xs text-slate-500 mt-0.5">{listing.city ?? ''}{listing.district ? ` • ${listing.district}` : ''}</div>
+                <div className="text-sm font-semibold text-slate-900 line-clamp-1">{listing.title}</div>
+                <div className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
+                    <MapPin className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">
+                        {listing.city ?? ''}{listing.district ? ` • ${listing.district}` : ''}
+                    </span>
+                </div>
                 <div className="mt-2 flex items-end justify-between">
                     <div>
-                        <div className="text-lg font-black text-slate-900">{listing.price ? `€${Number(listing.price).toLocaleString('ro')}` : '—'}</div>
+                        <div className="text-lg font-bold text-slate-900 tabular-nums">
+                            {listing.price ? `€${Number(listing.price).toLocaleString('ro')}` : '—'}
+                        </div>
                         {listing.area && <div className="text-xs text-slate-400">{listing.area} m²</div>}
                     </div>
                     {listing.external_url ? (
-                        <a href={listing.external_url} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-blue-700 hover:underline">
+                        <a
+                            href={listing.external_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs font-semibold text-blue-600 hover:text-blue-700 inline-flex items-center gap-1"
+                        >
                             {t('common.details')}
+                            <ArrowRight className="w-3.5 h-3.5" />
                         </a>
                     ) : (
-                        <Link href="/web-offers" className="text-xs font-semibold text-blue-700 hover:underline">{t('common.details')}</Link>
+                        <Link
+                            href="/web-offers"
+                            className="text-xs font-semibold text-blue-600 hover:text-blue-700 inline-flex items-center gap-1"
+                        >
+                            {t('common.details')}
+                            <ArrowRight className="w-3.5 h-3.5" />
+                        </Link>
                     )}
                 </div>
             </div>
@@ -92,58 +145,85 @@ export default function Index({
         if (user?.is_super_admin) return null;
         if (agency.subscription_active === false) {
             return {
-                tone: 'red',
+                tone:  'red',
+                Icon:  AlertTriangle,
                 title: 'Trial-ul a expirat',
-                msg: 'Activează un abonament pentru a continua să folosești toate funcțiile.',
-                cta: 'Vezi planuri',
+                msg:   'Activează un abonament pentru a continua să folosești toate funcțiile.',
+                cta:   'Vezi planuri',
             };
         }
         if (agency.on_trial && agency.trial_days_left !== null && agency.trial_days_left <= 7) {
             return {
-                tone: 'amber',
+                tone:  'amber',
+                Icon:  Clock,
                 title: `Trial: ${agency.trial_days_left} ${agency.trial_days_left === 1 ? 'zi rămasă' : 'zile rămase'}`,
-                msg: 'Adaugă o metodă de plată ca să continui după trial fără întrerupere.',
-                cta: 'Activează abonament',
+                msg:   'Adaugă o metodă de plată ca să continui după trial fără întrerupere.',
+                cta:   'Activează abonament',
             };
         }
         return null;
     })();
+
+    // Trial banner palette by tone. Surface tints are slate-aware (theme.css
+    // remaps amber-50 / red-50 to muted dark variants automatically).
+    const TRIAL_PALETTE = {
+        red:   {
+            surface:  'bg-red-50 border-red-200 text-red-900',
+            iconBg:   'bg-red-100 text-red-600',
+            cta:      'bg-red-600 hover:bg-red-700',
+        },
+        amber: {
+            surface:  'bg-amber-50 border-amber-200 text-amber-900',
+            iconBg:   'bg-amber-100 text-amber-600',
+            cta:      'bg-amber-600 hover:bg-amber-700',
+        },
+    };
+
+    // Hero mini-stats — small icons match the StatCard icon family below so
+    // the visual rhythm carries over. Lucide on white/5, text-blue-400 for
+    // sober dark-hero contrast.
+    const heroMiniStats = [
+        { Icon: Building,  label: 'Anunțuri active',    value: Number(stats.active_properties ?? 0).toLocaleString('ro') },
+        { Icon: Users,     label: 'Clienți noi',        value: Number(stats.buyers ?? 0).toLocaleString('ro') },
+        { Icon: RefreshCw, label: 'Tranzacții în curs', value: Number(stats.active_deals ?? 0).toLocaleString('ro') },
+        { Icon: Banknote,  label: 'Venit lunar',        value: formatMoney(stats.monthly_revenue) },
+    ];
 
     return (
         <AppLayout>
             <Head title={t('dashboard.page_title')} />
             <div className="space-y-6">
 
-                {trialBanner && (
-                    <div className={`rounded-3xl border p-5 flex items-center justify-between gap-4 flex-wrap ${
-                        trialBanner.tone === 'red'
-                            ? 'bg-red-50 border-red-200 text-red-900'
-                            : 'bg-amber-50 border-amber-200 text-amber-900'
-                    }`}>
-                        <div className="flex items-start gap-3">
-                            <span className="text-2xl">{trialBanner.tone === 'red' ? '⚠️' : '⏳'}</span>
-                            <div>
-                                <div className="font-bold">{trialBanner.title}</div>
-                                <div className="text-sm opacity-80">{trialBanner.msg}</div>
+                {trialBanner && (() => {
+                    const palette = TRIAL_PALETTE[trialBanner.tone];
+                    const Icon = trialBanner.Icon;
+                    return (
+                        <div className={`rounded-xl border p-5 flex items-center justify-between gap-4 flex-wrap ${palette.surface}`}>
+                            <div className="flex items-start gap-3">
+                                <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${palette.iconBg}`}>
+                                    <Icon className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <div className="font-semibold">{trialBanner.title}</div>
+                                    <div className="text-sm opacity-80">{trialBanner.msg}</div>
+                                </div>
                             </div>
+                            <Link
+                                href="/subscription"
+                                className={`rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-sm ${palette.cta}`}
+                            >
+                                {trialBanner.cta}
+                            </Link>
                         </div>
-                        <Link href="/subscription" className={`rounded-2xl px-4 py-2 text-sm font-bold text-white ${
-                            trialBanner.tone === 'red' ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-600 hover:bg-amber-700'
-                        }`}>
-                            {trialBanner.cta}
-                        </Link>
-                    </div>
-                )}
+                    );
+                })()}
 
-                {/* ── Hero card (navy — pairs with the sidebar gradient).
-                       Welcome (welcome_back + name + subtitle) lives inside
-                       the banner on light text so the page starts with a
-                       single visual block instead of two stacked headers. */}
-                <section className="relative overflow-hidden rounded-3xl bg-linear-to-br from-slate-900 via-blue-900 to-indigo-900 p-5 sm:p-6 text-white shadow-xl">
-                    {/* Skyline silhouette behind content. pointer-events-none keeps
-                        the underlying buttons clickable. */}
+                {/* ── Hero card — sober navy gradient, skyline whisper, welcome
+                       eyebrow + name in Montserrat, agency line with Building
+                       glyph, single CTA. Mini-stats stack on the right. ── */}
+                <section className="relative overflow-hidden rounded-2xl bg-linear-to-br from-slate-900 to-[#172a52] p-5 sm:p-6 text-white shadow-xl">
                     <svg
-                        className="absolute right-12 top-1/2 -translate-y-1/2 w-80 h-80 opacity-[0.08] pointer-events-none hidden md:block"
+                        className="absolute right-12 top-1/2 -translate-y-1/2 w-80 h-80 opacity-[0.06] pointer-events-none hidden md:block"
                         viewBox="0 0 120 100"
                         fill="none"
                         stroke="white"
@@ -172,83 +252,87 @@ export default function Index({
 
                     <div className="relative grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
                         <div>
-                            <div className="text-xs font-bold uppercase tracking-wide text-blue-300">
+                            <div className="text-xs font-semibold uppercase tracking-wide text-blue-300">
                                 {t('dashboard.welcome_back')}
                             </div>
-                            <h1 className="text-2xl sm:text-3xl font-bold text-white mt-0.5 flex items-center gap-2" style={{ fontFamily: 'Montserrat, sans-serif' }}>
-                                <span>{user?.name ?? '—'}</span>
-                                <span aria-hidden="true">👋</span>
+                            <h1
+                                className="text-2xl sm:text-3xl font-bold text-white mt-0.5"
+                                style={{ fontFamily: 'Montserrat, sans-serif' }}
+                            >
+                                {user?.name ?? '—'}
                             </h1>
                             {agency?.name && (
-                                <div className="text-sm text-blue-200 mt-1">{agency.name}</div>
+                                <div className="text-sm text-blue-200 mt-1 flex items-center gap-1.5">
+                                    <Building className="w-3.5 h-3.5 shrink-0" />
+                                    <span className="truncate">{agency.name}</span>
+                                </div>
                             )}
                             <div className="mt-4">
-                                <Link href="/statistics" className="inline-block rounded-xl bg-white text-slate-900 px-4 py-2 text-sm font-bold shadow hover:bg-blue-50 transition-colors">
+                                <Link
+                                    href="/statistics"
+                                    className="inline-flex items-center gap-2 rounded-lg bg-white text-slate-900 px-4 py-2 text-sm font-semibold shadow-sm hover:bg-blue-50 transition-colors"
+                                >
+                                    <BarChart3 className="w-4 h-4" strokeWidth={2.25} />
                                     Vezi statistici
                                 </Link>
                             </div>
                         </div>
                         <div className="grid grid-cols-2 gap-2">
-                            {[
-                                { icon: '🏠', label: 'Anunțuri active',    value: Number(stats.active_properties ?? 0).toLocaleString('ro') },
-                                { icon: '👥', label: 'Clienți noi',        value: Number(stats.buyers ?? 0).toLocaleString('ro') },
-                                { icon: '🔄', label: 'Tranzacții în curs', value: Number(stats.active_deals ?? 0).toLocaleString('ro') },
-                                { icon: '💳', label: 'Venit lunar',        value: formatMoney(stats.monthly_revenue) },
-                            ].map(s => (
-                                <div key={s.label} className="rounded-xl bg-white/6 border border-white/10 backdrop-blur-sm p-3 relative">
+                            {heroMiniStats.map(({ Icon, label, value }) => (
+                                <div key={label} className="rounded-lg bg-white/5 border border-white/10 backdrop-blur-sm p-3 relative">
                                     <span className="absolute top-1.5 right-2.5 text-white/30 text-sm">›</span>
-                                    <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-sm mb-1.5">
-                                        {s.icon}
+                                    <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center mb-1.5">
+                                        <Icon className="w-4 h-4 text-blue-400" strokeWidth={2} />
                                     </div>
-                                    <div className="text-lg font-bold tabular-nums text-white leading-tight">{s.value}</div>
-                                    <div className="text-[11px] text-blue-200">{s.label}</div>
+                                    <div className="text-lg font-bold tabular-nums text-white leading-tight">{value}</div>
+                                    <div className="text-[11px] text-blue-200">{label}</div>
                                 </div>
                             ))}
                         </div>
                     </div>
                 </section>
 
-                {/* ── 6 stat cards. 2/3 grid (2 rows of 3 on md+) so large
-                       numbers like "12.812" never clip — six in a row was
-                       too cramped for the bigger values. ── */}
+                {/* ── 6 stat cards (2/3 grid). Neutral slate icon tiles per the
+                       enterprise system; trend badges available via the
+                       optional `trend` prop once the controller ships deltas. */}
                 <section>
-                    <h2 className="text-lg font-bold text-slate-900 mb-4">Indicatori cheie</h2>
+                    <h2 className="text-lg font-semibold text-slate-900 mb-4">Indicatori cheie</h2>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                         <StatCard
-                            icon="🏠" label="Imobiliare"
+                            Icon={Building} label="Imobiliare"
                             value={Number(stats.properties ?? 0).toLocaleString('ro')}
                             sub={`${stats.active_properties ?? 0} active`}
-                            href="/properties" color="#3b82f6"
+                            href="/properties"
                         />
                         <StatCard
-                            icon="👥" label="Clienți CRM"
+                            Icon={Users} label="Clienți CRM"
                             value={Number(stats.contacts ?? 0).toLocaleString('ro')}
                             sub={`${stats.buyers ?? 0} cumpărători`}
-                            href="/contacts" color="#10b981"
+                            href="/contacts"
                         />
                         <StatCard
-                            icon="🤝" label="Tranzacții / lună"
+                            Icon={RefreshCw} label="Tranzacții / lună"
                             value={Number(stats.deals_month ?? 0).toLocaleString('ro')}
                             sub={`${stats.active_deals ?? 0} în curs`}
-                            href="/deals" color="#14b8a6"
+                            href="/deals"
                         />
                         <StatCard
-                            icon="💰" label="Venit / lună"
+                            Icon={Banknote} label="Venit / lună"
                             value={formatMoney(stats.monthly_revenue)}
                             sub="comision"
-                            href="/statistics" color="#f59e0b"
+                            href="/statistics"
                         />
                         <StatCard
-                            icon="📅" label="Vizionări"
+                            Icon={CalendarCheck} label="Vizionări"
                             value={Number(stats.upcoming_events ?? 0).toLocaleString('ro')}
                             sub="programate"
-                            href="/calendar" color="#ec4899"
+                            href="/calendar"
                         />
                         <StatCard
-                            icon="🌐" label="Web Oferte"
+                            Icon={Globe} label="Web Oferte"
                             value={Number(scrapedStats.total ?? 0).toLocaleString('ro')}
                             sub={`+${Number(scrapedStats.last_7d ?? 0).toLocaleString('ro')} săpt`}
-                            href="/web-offers" color="#8b5cf6"
+                            href="/web-offers"
                         />
                     </div>
                 </section>
@@ -257,8 +341,8 @@ export default function Index({
                 <section>
                     <div className="flex items-end justify-between mb-4 gap-3 flex-wrap">
                         <div>
-                            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                                <span aria-hidden="true">✨</span>
+                            <h2 className="text-xl font-semibold text-slate-900 flex items-center gap-2">
+                                <Sparkles className="w-5 h-5 text-blue-600" />
                                 Oferte recomandate de AI
                             </h2>
                             <p className="text-sm text-slate-500 mt-0.5">
@@ -267,9 +351,10 @@ export default function Index({
                         </div>
                         <Link
                             href="/web-offers"
-                            className="text-sm font-semibold text-blue-600 hover:text-blue-700 hover:underline"
+                            className="text-sm font-semibold text-blue-600 hover:text-blue-700 inline-flex items-center gap-1"
                         >
-                            Vezi toate ofertele →
+                            Vezi toate ofertele
+                            <ArrowRight className="w-4 h-4" />
                         </Link>
                     </div>
 
@@ -280,12 +365,16 @@ export default function Index({
                             ))}
                         </div>
                     ) : (
-                        <div className="rounded-3xl bg-white border border-slate-100 p-12 text-center">
-                            <div className="text-4xl mb-3">✨</div>
-                            <div className="font-bold text-slate-700 mb-1">{t('dashboard.no_web_title')}</div>
+                        <div className="rounded-xl bg-white border border-slate-200/70 p-12 text-center shadow-sm">
+                            <Sparkles className="w-10 h-10 text-slate-300 mx-auto mb-3" strokeWidth={1.5} />
+                            <div className="font-semibold text-slate-700 mb-1">{t('dashboard.no_web_title')}</div>
                             <p className="text-sm text-slate-400 mb-4">{t('dashboard.no_web_sub')}</p>
-                            <Link href="/web-offers" className="inline-block rounded-2xl bg-slate-900 px-5 py-2.5 text-white text-sm font-semibold">
+                            <Link
+                                href="/web-offers"
+                                className="inline-flex items-center gap-2 rounded-lg bg-slate-900 hover:bg-slate-800 px-5 py-2.5 text-white text-sm font-semibold transition-colors"
+                            >
                                 {t('dashboard.explore_web')}
+                                <ArrowRight className="w-4 h-4" />
                             </Link>
                         </div>
                     )}
@@ -297,10 +386,12 @@ export default function Index({
                         {t('dashboard.last_updated')} {lastUpdated ?? new Date().toLocaleTimeString('ro', { hour: '2-digit', minute: '2-digit' })}
                     </span>
                     <button
+                        type="button"
                         onClick={() => window.location.reload()}
-                        className="flex items-center gap-1 hover:text-slate-700 transition-colors"
+                        className="inline-flex items-center gap-1 hover:text-slate-700 transition-colors"
                     >
-                        <span>↻</span> {t('dashboard.refresh')}
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        {t('dashboard.refresh')}
                     </button>
                 </div>
             </div>

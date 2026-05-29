@@ -1,6 +1,7 @@
 import AppLayout from '@/Layouts/AppLayout';
 import TransferOwnershipModal from '@/Components/TransferOwnershipModal';
 import PhoneInteractionModal from '@/Components/PhoneInteractionModal';
+import PropertyGallery from '@/Components/PropertyGallery';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import { getTransactionLabel } from '@/lib/propertyLabels';
@@ -321,23 +322,10 @@ export default function Show({ property, contracts = [], viewings = [], availabl
                 )}
 
 
-                {/* Media gallery */}
-                <div className="bg-white rounded-4xl shadow-xl border border-slate-100 overflow-hidden">
-                    {property.media?.length > 0 ? (
-                        <div className="grid grid-cols-3 gap-1 h-64">
-                            {property.media.slice(0, 3).map((m, i) => (
-                                <img
-                                    key={m.id}
-                                    src={`/storage/${m.path}`}
-                                    className={`object-cover w-full h-full ${i === 0 ? 'col-span-2' : ''}`}
-                                    alt=""
-                                />
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="h-48 bg-slate-100 flex items-center justify-center text-5xl text-slate-300">🏠</div>
-                    )}
-                </div>
+                {/* Media gallery — Storia / Imobiliare.md style hero + thumbs +
+                    lightbox (zoom, fullscreen, swipe). Lives in its own component
+                    so the rest of Show.jsx stays focused on the data layout. */}
+                <PropertyGallery media={property.media} />
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* ── Main info ── */}

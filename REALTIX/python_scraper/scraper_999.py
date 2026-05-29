@@ -1935,7 +1935,12 @@ def _detect_transaction_type_from_breadcrumb(soup: BeautifulSoup) -> str | None:
         if not text:
             continue
         if "închiri" in text or "аренд" in text or "сдам" in text:
-            if "termen scurt" in text or "посуточно" in text or "scurt" in text:
+            # Daily rental requires an EXPLICIT short-term phrase. Bare
+            # "scurt" matched too broadly (e.g. "scurtă descriere",
+            # "termen scurtissim") and produced 1427 false-positive
+            # 'inchiriere_zilnica' classifications, including 340 houses
+            # listed at >50k EUR which are obviously not daily rentals.
+            if "termen scurt" in text or "посуточно" in text or "chirie pe zi" in text:
                 return "inchiriere_zilnica"
             return "rent"
         if "vând" in text or "vînd" in text or "продаж" in text or "продаю" in text:
@@ -1988,8 +1993,11 @@ def _detect_transaction_type(soup: BeautifulSoup, features_text: str) -> str | N
             context += " " + nxt.get_text(" ", strip=True).lower()
 
         # Check the most specific bucket first so "chirie pe zi" doesn't
-        # collapse into the generic rent branch.
-        if "chirie pe zi" in context or "pe zi" in context \
+        # collapse into the generic rent branch. Bare "pe zi" was previously
+        # accepted but matched non-rental copy like "actualizat pe ziua
+        # de…" in the sidebar metadata; require the explicit phrase.
+        if "chirie pe zi" in context or "închiriere pe zi" in context \
+                or "inchiriere pe zi" in context \
                 or "посуточно" in context or "termen scurt" in context:
             return "inchiriere_zilnica"
         if "închiri" in context or "chirie" in context \
@@ -2002,7 +2010,13 @@ def _detect_transaction_type(soup: BeautifulSoup, features_text: str) -> str | N
     # 2) Fallback: scan the whole page text.
     text = (soup.get_text(" ", strip=True) + " " + features_text).lower()
     if "chirie" in text or "аренд" in text or "închiri" in text:
-        if "посуточно" in text or "pe zi" in text or "termen scurt" in text:
+        # Daily rental needs an EXPLICIT short-term phrase. Bare "pe zi"
+        # appeared in unrelated copy ("actualizat pe ziua de…",
+        # "vizualizări pe zi") on the page-wide text scan and was the
+        # main contributor to the 1427 false-positive 'inchiriere_zilnica'
+        # classifications.
+        if "посуточно" in text or "termen scurt" in text \
+                or "chirie pe zi" in text or "închiriere pe zi" in text:
             return "inchiriere_zilnica"
         return "rent"
     if "vânz" in text or "продаж" in text or "vand " in text or "продаю" in text:

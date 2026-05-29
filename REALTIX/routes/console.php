@@ -367,7 +367,7 @@ Schedule::command('portal:999:scrape:hourly-a')
     ->timezone('Europe/Chisinau')
     ->when($canRunScraper)
     ->name('999md-hourly-a')
-    ->withoutOverlapping(15)
+    ->withoutOverlapping(2)
     ->onOneServer()
     ->runInBackground();
 
@@ -376,7 +376,7 @@ Schedule::command('portal:999:scrape:hourly-b')
     ->timezone('Europe/Chisinau')
     ->when($canRunScraper)
     ->name('999md-hourly-b')
-    ->withoutOverlapping(15)
+    ->withoutOverlapping(2)
     ->onOneServer()
     ->runInBackground();
 

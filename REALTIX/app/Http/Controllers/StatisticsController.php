@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Contact;
 use App\Models\ContactInteraction;
 use App\Models\Deal;
+use App\Models\PhoneInteraction;
 use App\Models\Property;
 use App\Models\ScrapedListing;
 use App\Models\User;
@@ -348,10 +349,12 @@ class StatisticsController extends Controller
         $agencyId = $user->agency_id;
         $to       = $to ?? now();
 
-        // ── Properties (own listings only — exclude imported from scraped sites) ──
+        // ── Properties — all listings belonging to the agency, including
+        // those imported from scraped sites. (We used to filter out rows
+        // where meta->imported_from was set, but that hid 11 of 12 props
+        // for agency 1 and made the KPI look broken.)
         $ownProperties = fn () => Property::withoutGlobalScopes()
-            ->where('agency_id', $agencyId)
-            ->whereRaw("(meta->>'imported_from') IS NULL");
+            ->where('agency_id', $agencyId);
 
         $propertiesTotal  = $ownProperties()->count();
         $propertiesActive = $ownProperties()->where('status', 'active')->count();
@@ -426,14 +429,21 @@ class StatisticsController extends Controller
             ->groupBy('type')
             ->pluck('total', 'type');
 
-        // ── Calls ─────────────────────────────────────────────────────────────
-        $callsTotal = ContactInteraction::whereHas('contact', fn($q) => $q->where('agency_id', $agencyId))
-            ->where('type', 'call')
+        // ── Calls (phone_interactions is the real call-tracking table.
+        //     contact_interactions still exists for legacy contact-side
+        //     events but the dashboard uses phone_interactions). ──
+        $callsTotal = PhoneInteraction::withoutGlobalScopes()
+            ->where('agency_id', $agencyId)
             ->count();
 
-        $callsPeriod = ContactInteraction::whereHas('contact', fn($q) => $q->where('agency_id', $agencyId))
-            ->where('type', 'call')
+        $callsPeriod = PhoneInteraction::withoutGlobalScopes()
+            ->where('agency_id', $agencyId)
             ->whereBetween('created_at', [$from, $to])
+            ->count();
+
+        $callsPrevPeriod = PhoneInteraction::withoutGlobalScopes()
+            ->where('agency_id', $agencyId)
+            ->whereBetween('created_at', [$prevFrom, $prevTo])
             ->count();
 
         $dealsClosedTotal = Deal::withoutGlobalScopes()
@@ -562,15 +572,35 @@ class StatisticsController extends Controller
 
         $aiInsights = $this->aiInsights($agencyId, $agentStats);
 
+        // Trend percentages for the headline KPI cards. Returning null when
+        // prev=0 and current>0 lets the UI label the metric as "Nou" instead
+        // of an arbitrary "+100%" or "▲ 0%".
+        $propertiesTrendPct = $this->trendPct($propertiesThisPeriod, $propertiesPrevPeriod);
+        $callsTrendPct      = $this->trendPct($callsPeriod, $callsPrevPeriod);
+        $revenueTrendPct    = $this->trendPct((int) round($revenuePeriod), (int) round($revenuePrev));
+
         return compact(
             'propertiesTotal', 'propertiesActive', 'propertiesByType',
-            'propertiesThisPeriod', 'propertiesPrevPeriod',
+            'propertiesThisPeriod', 'propertiesPrevPeriod', 'propertiesTrendPct',
             'scrapedTotal', 'scrapedByWeek', 'avgPriceByDistrict', 'top5Districts',
             'contactsTotal', 'contactsByType',
-            'callsTotal', 'callsPeriod', 'callConversion',
-            'dealsPeriod', 'revenuePeriod', 'revenuePrev', 'avgCommission',
+            'callsTotal', 'callsPeriod', 'callsPrevPeriod', 'callConversion', 'callsTrendPct',
+            'dealsPeriod', 'revenuePeriod', 'revenuePrev', 'revenueTrendPct', 'avgCommission',
             'avgDaysToClose', 'agentStats', 'revenueByMonth', 'aiInsights'
         );
+    }
+
+    /**
+     * Percentage change from prev → current with the dashboard's three-state
+     * convention: null when prev=0 and current>0 (rendered as "Nou"), 0.0
+     * when both are zero or equal, else rounded float.
+     */
+    private function trendPct(int $current, int $previous): ?float
+    {
+        if ($previous === 0) {
+            return $current > 0 ? null : 0.0;
+        }
+        return round((($current - $previous) / $previous) * 100, 1);
     }
 
     /**
@@ -788,8 +818,12 @@ class StatisticsController extends Controller
                 'type'        => $p->type,
             ]);
 
-        $myCallsTotal    = ContactInteraction::where('user_id', $user->id)->where('type', 'call')->count();
-        $myCallsPeriod   = ContactInteraction::where('user_id', $user->id)->where('type', 'call')
+        // Calls are tracked in phone_interactions (the contact_interactions
+        // model is legacy contact-side and stays 0 for these users).
+        $myCallsTotal  = PhoneInteraction::withoutGlobalScopes()
+            ->where('user_id', $user->id)->count();
+        $myCallsPeriod = PhoneInteraction::withoutGlobalScopes()
+            ->where('user_id', $user->id)
             ->whereBetween('created_at', [$from, $to])->count();
         $myDealsTotal    = Deal::where('user_id', $user->id)->where('status', 'closed')->count();
         $myDealsInProgress = Deal::where('user_id', $user->id)->where('status', 'in_progress')->count();

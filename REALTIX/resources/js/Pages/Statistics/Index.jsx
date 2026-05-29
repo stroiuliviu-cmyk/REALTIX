@@ -15,6 +15,26 @@ function daysAgoISO(n) {
     return d.toISOString().slice(0, 10);
 }
 
+/**
+ * Format a trend percentage for a KPI card.
+ *   null      → "Nou" gray (no prior data to compare against)
+ *   0         → "0%"  gray (flat)
+ *   positive  → "+X%" green
+ *   negative  → "X%"  red
+ */
+function formatTrend(pct) {
+    if (pct === null || pct === undefined) {
+        return { text: 'Nou', color: 'text-slate-400', icon: '•', appendCompare: false };
+    }
+    if (pct === 0) {
+        return { text: '0%', color: 'text-slate-500', icon: '—', appendCompare: true };
+    }
+    if (pct > 0) {
+        return { text: `+${pct}%`, color: 'text-emerald-600', icon: '▲', appendCompare: true };
+    }
+    return { text: `${pct}%`, color: 'text-rose-600', icon: '▼', appendCompare: true };
+}
+
 const TYPE_LABELS = {
     apartment: 'Apartamente',
     house:     'Case',
@@ -143,11 +163,14 @@ function KpiCard({ icon, label, value, sub, trend, color = 'blue' }) {
             <div className="text-xs font-bold uppercase tracking-wide opacity-60">{label}</div>
             <div className="text-3xl font-black mt-1">{value}</div>
             {sub   && <div className="text-xs opacity-60 mt-0.5">{sub}</div>}
-            {trend !== undefined && (
-                <div className={`text-xs font-bold mt-1 ${trend >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
-                    {trend >= 0 ? '▲' : '▼'} {Math.abs(trend)}% față de perioada anterioară
-                </div>
-            )}
+            {trend !== undefined && (() => {
+                const t = formatTrend(trend);
+                return (
+                    <div className={`text-xs font-bold mt-1 ${t.color}`}>
+                        {t.icon} {t.text}{t.appendCompare && ' față de perioada anterioară'}
+                    </div>
+                );
+            })()}
         </div>
     );
 }
@@ -214,11 +237,11 @@ function PctChange({ current, prev }) {
 
 function AdminDashboard({
     propertiesTotal, propertiesActive, propertiesByType,
-    propertiesThisPeriod, propertiesPrevPeriod,
+    propertiesThisPeriod, propertiesPrevPeriod, propertiesTrendPct,
     scrapedTotal, scrapedByWeek, avgPriceByDistrict, top5Districts,
     contactsTotal, contactsByType,
-    callsTotal, callsPeriod, callConversion,
-    dealsPeriod, revenuePeriod, revenuePrev, avgCommission,
+    callsTotal, callsPeriod, callsPrevPeriod, callConversion, callsTrendPct,
+    dealsPeriod, revenuePeriod, revenuePrev, revenueTrendPct, avgCommission,
     avgDaysToClose, agentStats, revenueByMonth, aiInsights,
     period, periodLabel,
 }) {
@@ -231,14 +254,6 @@ function AdminDashboard({
         { id: 'market',   label: '🏙️ Piață' },
         { id: 'ai',       label: '🤖 AI Insights' },
     ];
-
-    const revenueChange = revenuePrev > 0
-        ? Math.round(((revenuePeriod - revenuePrev) / revenuePrev) * 100)
-        : null;
-
-    const propChange = propertiesPrevPeriod > 0
-        ? Math.round(((propertiesThisPeriod - propertiesPrevPeriod) / propertiesPrevPeriod) * 100)
-        : null;
 
     const maxScrapeWeek = Math.max(...(scrapedByWeek || []).map(r => r.total), 1);
     const maxDistrict   = Math.max(...(avgPriceByDistrict || []).map(r => r.avg_price), 1);
@@ -299,7 +314,7 @@ function AdminDashboard({
                             label="Total anunțuri agenție"
                             value={propertiesTotal}
                             sub={`${propertiesActive} active`}
-                            trend={propChange}
+                            trend={propertiesTrendPct}
                         />
                         <KpiCard
                             icon="🌐" color="purple"
@@ -312,13 +327,16 @@ function AdminDashboard({
                             label={`Apeluri (${periodLabel ?? PERIOD_LABELS[period] ?? 'Lună'})`}
                             value={callsPeriod}
                             sub={`Conversie: ${callConversion}%`}
+                            trend={callsTrendPct}
                         />
                         <KpiCard
                             icon="💰" color="green"
                             label={`Venit (${periodLabel ?? PERIOD_LABELS[period] ?? 'Lună'})`}
-                            value={revenuePeriod > 0 ? `€${Number(revenuePeriod).toLocaleString('ro')}` : '—'}
+                            value={revenuePeriod > 0
+                                ? `€${Number(revenuePeriod).toLocaleString('ro')}`
+                                : <span className="text-sm font-semibold text-slate-400">Niciun deal închis</span>}
                             sub={revenuePrev > 0 ? `Anterior: €${Number(revenuePrev).toLocaleString('ro')}` : undefined}
-                            trend={revenueChange}
+                            trend={revenueTrendPct}
                         />
                     </div>
 
@@ -382,7 +400,9 @@ function AdminDashboard({
                         <div className="rounded-3xl bg-blue-50 border border-blue-100 p-5">
                             <div className="text-2xl mb-2">⏱</div>
                             <div className="text-xs font-bold uppercase tracking-wide text-blue-700 opacity-70">Zile medii până la tranzacție</div>
-                            <div className="text-3xl font-black text-blue-700 mt-1">{avgDaysToClose || '—'}</div>
+                            <div className={avgDaysToClose ? 'text-3xl font-black text-blue-700 mt-1' : 'text-sm font-semibold text-slate-400 mt-2'}>
+                                {avgDaysToClose || 'Date insuficiente'}
+                            </div>
                             <div className="text-xs text-blue-600 mt-0.5">de la publicare la închidere</div>
                         </div>
                     </div>

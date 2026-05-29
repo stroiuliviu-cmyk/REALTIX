@@ -2266,6 +2266,198 @@ def upsert_listing(
     return True
 
 
+# ── Targeted rescrape (--rescrape-ids-file) ──────────────────────────────────
+def _run_rescrape_mode(args) -> int:
+    """Re-fetch a specific set of external_ids and re-upsert them, preserving
+    the existing `type` (we don't re-derive category from the breadcrumb) but
+    refreshing transaction_type, subtype, extra_flags, price, images, etc.
+
+    Called by main() when --rescrape-ids-file is passed; main() short-circuits
+    the category loop and returns whatever this function returns. Self-contained
+    setup: opens driver, opens DB, inserts run row, runs the loop, finalises.
+    """
+    global _current_driver, _current_db_conn, _current_db_dialect
+    global SCRAPER_RUN_ID, _run_finalized
+
+    rescrape_path = Path(args.rescrape_ids_file)
+    if not rescrape_path.exists():
+        log.critical(f"Rescrape file not found: {rescrape_path}")
+        return 2
+
+    ids = [
+        line.strip()
+        for line in rescrape_path.read_text(encoding="utf-8", errors="replace").splitlines()
+        if line.strip() and not line.strip().startswith("#")
+    ]
+    if not ids:
+        log.critical(f"Rescrape file is empty: {rescrape_path}")
+        return 2
+
+    log.info(f"Targeted rescrape: {len(ids)} external_ids from {rescrape_path}")
+    print(f"🎯 Rescrape mode — {len(ids)} listings from {rescrape_path.name}")
+    print(f"📁 Pause hourly_a/b crons before running this if you want isolation.")
+
+    driver = make_driver(headless=not args.no_headless)
+    _current_driver = driver
+
+    repo_root = Path(__file__).resolve().parent.parent
+    db_path = Path(args.db)
+    conn, dialect = open_db_connection(
+        repo_root,
+        sqlite_path_override=str(db_path) if str(db_path) != str(REALTIX_DB_DEFAULT) else None,
+    )
+    _current_db_conn = conn
+    _current_db_dialect = dialect
+    print(f"🗄  DB driver: {dialect}")
+
+    SCRAPER_RUN_ID = _init_run_row(conn, dialect, mode="rescrape", pid=os.getpid())
+    if SCRAPER_RUN_ID:
+        log.info(f"Scraper run ID: {SCRAPER_RUN_ID} (mode=rescrape)")
+
+    stats = {"processed": 0, "new": 0, "updated": 0, "skipped": 0, "errors": 0}
+    failed_urls: list[str] = []
+    _write_heartbeat()
+
+    try:
+        for idx, ext_id in enumerate(ids, start=1):
+            # Periodic heartbeat + run-row stats flush so the dashboard's live
+            # progress card reflects rescrape activity, not just standard mode.
+            if idx % 25 == 0:
+                _write_heartbeat()
+                _update_run_row(
+                    conn, dialect, SCRAPER_RUN_ID,
+                    total_processed=stats["processed"],
+                    total_new=stats["new"],
+                    total_updated=stats["updated"],
+                    total_skipped=stats["skipped"],
+                    total_failed=stats["errors"],
+                )
+
+            # Read existing row so we can preserve type (we don't re-derive
+            # category from the breadcrumb here — that's a stable property).
+            try:
+                cur = conn.cursor()
+                cur.execute(
+                    _ph(
+                        "SELECT id, type, transaction_type FROM scraped_listings "
+                        "WHERE source='999md' AND external_id = ?",
+                        dialect,
+                    ),
+                    [ext_id],
+                )
+                row = cur.fetchone()
+                cur.close()
+            except Exception as e:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                log.warning(f"DB lookup failed for {ext_id}: {e}")
+                stats["errors"] += 1
+                failed_urls.append(ext_id)
+                continue
+
+            if not row:
+                log.warning(f"Skipping {ext_id}: not in DB")
+                stats["skipped"] += 1
+                continue
+
+            existing_type = row[1]
+            old_tx        = row[2]
+            url           = f"{BASE_URL}/ro/{ext_id}"
+
+            try:
+                ad = extract_ad(driver, url)
+                # 3-5 s anti-rate-limit pause between detail fetches —
+                # matches the standard main-loop spacing.
+                time.sleep(random.uniform(3, 5))
+
+                if not ad:
+                    stats["errors"] += 1
+                    failed_urls.append(ext_id)
+                    print(f"  ❌ {ext_id}: extract_ad returned None")
+                    continue
+
+                # Synthetic category with the existing type preserved.
+                # transaction_type fallback is 'sale' but extract_ad's
+                # transaction_type_override (when present) wins inside upsert.
+                synthetic_cat = {
+                    "slug":             "rescrape",
+                    "type":             existing_type,
+                    "transaction_type": ad.get("transaction_type_override") or "sale",
+                    "label":            "Rescrape",
+                }
+
+                derived_subtype, derived_flags = derive_subtype_and_flags(
+                    type_=existing_type,
+                    rooms=ad.get("rooms"),
+                    title=ad.get("title", "") or "",
+                    description=ad.get("description", "") or "",
+                )
+
+                upsert_listing(
+                    conn, dialect, ad, synthetic_cat, args.agency,
+                    subtype=derived_subtype,
+                    extra_flags=derived_flags or None,
+                )
+                conn.commit()
+
+                new_tx = ad.get("transaction_type_override") or synthetic_cat["transaction_type"]
+                marker = "🔄 SAME" if old_tx == new_tx else "✏️  CHANGED"
+                print(f"  {marker} #{ext_id} | {old_tx} → {new_tx}")
+
+                stats["processed"] += 1
+                stats["updated"]   += 1
+
+            except WebDriverException as e:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                log.error(f"WebDriver crash on {ext_id}: {type(e).__name__}: {str(e)[:120]}")
+                stats["errors"] += 1
+                failed_urls.append(ext_id)
+                continue
+            except Exception as e:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                stats["errors"] += 1
+                failed_urls.append(ext_id)
+                print(f"  ❌ {ext_id}: {type(e).__name__}: {str(e)[:80]}")
+                continue
+
+        # Final stats flush + finalize the run row.
+        _update_run_row(
+            conn, dialect, SCRAPER_RUN_ID,
+            total_processed=stats["processed"],
+            total_new=stats["new"],
+            total_updated=stats["updated"],
+            total_skipped=stats["skipped"],
+            total_failed=stats["errors"],
+        )
+        _finalize_run(conn, dialect, SCRAPER_RUN_ID, status="success", exit_code=0)
+        _run_finalized = True
+
+        print()
+        print(f"✅ Rescrape complete: updated={stats['updated']} skipped={stats['skipped']} errors={stats['errors']}")
+        if failed_urls:
+            preview = ", ".join(failed_urls[:20])
+            more = "" if len(failed_urls) <= 20 else f" (+{len(failed_urls) - 20} more)"
+            print(f"Failed external_ids: {preview}{more}")
+        return 0
+
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+        safe_quit_driver(driver)
+        _current_driver = None
+        _clear_heartbeat()
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -2309,6 +2501,13 @@ def main() -> int:
                         help="Test mode: scrape ONE subtype only, format 'category_slug:subtype_key' (e.g. 'land:agricol')")
     parser.add_argument("--verbose", action="store_true",
                         help="Enable DEBUG logging to storage/logs/scraper_999.log")
+    parser.add_argument("--rescrape-ids-file", type=str, default=None,
+                        help="Path to a text file with external_ids (one per line; '#' "
+                             "comments allowed). When set, the scraper SKIPS category "
+                             "listing pages and re-fetches each ID directly via the "
+                             "detail URL. Useful for fixing data quality issues "
+                             "post-hoc — e.g. after a detection bug fix that needs "
+                             "to be applied to existing rows.")
     args = parser.parse_args()
 
     # Setup logger + crash-safe shutdown hooks BEFORE any heavy lifting.
@@ -2341,6 +2540,18 @@ def main() -> int:
         # so each group's stale-detection is independent.
         HEARTBEAT_PATH = HEARTBEAT_PATH.parent / f"scraper_heartbeat_{_GROUP}.txt"
         log.info(f"Parallel group mode: {_GROUP} — heartbeat at {HEARTBEAT_PATH.name}")
+
+    # ── Targeted rescrape mode ────────────────────────────────────────────────
+    # Skips category iteration entirely and re-fetches each external_id from
+    # a text file. Used to fix data quality issues post-hoc (e.g. the 1,427
+    # false-positive inchiriere_zilnica classifications fixed in 0f8511b).
+    # Tag this run as group "rescrape" so safe_quit_driver doesn't kill the
+    # sibling hourly_a/b Firefox processes if a cron happens to overlap.
+    if args.rescrape_ids_file:
+        _GROUP = "rescrape"
+        HEARTBEAT_PATH = HEARTBEAT_PATH.parent / "scraper_heartbeat_rescrape.txt"
+        log.info(f"Rescrape mode — heartbeat at {HEARTBEAT_PATH.name}")
+        return _run_rescrape_mode(args)
 
     # Mode-specific delay defaults — only override if the caller didn't tune them.
     if args.mode == "morning":

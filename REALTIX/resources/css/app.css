@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Montserrat:wght@700;800&display=swap');
 @import 'tailwindcss';
 @source '../**/*.jsx';
 @source '../**/*.js';
@@ -17,4 +17,199 @@ body {
     textarea {
         font-size: 16px;
     }
+}
+
+/* ============================================================================
+   REALTIX Design System — Etapa 0 foundation
+   Tokens + semantic typographic roles + dark-mode utility overrides.
+   Source: resources/js/design-system/{colors_and_type,theme}.css. Read those
+   files for the rationale; the values below are the canonical copies the app
+   actually compiles against. Pages don't need to import anything new — the
+   CSS variables and .rt-* classes are global once this stylesheet ships.
+   ============================================================================ */
+
+:root {
+    /* ---- Brand (logo wordmark navy + gold roof + bright-blue swoosh) -------- */
+    --rt-logo-navy:   #06196A;
+    --rt-logo-blue:   #1A97FB;
+    --rt-gold:        #F0AB29;
+    --rt-gold-deep:   #EEA624;
+
+    /* ---- Primary blue (interactive accent) --------------------------------- */
+    --rt-blue-50:   #eff6ff;
+    --rt-blue-100:  #dbeafe;
+    --rt-blue-500:  #3b82f6;
+    --rt-blue-600:  #2563eb;
+    --rt-blue-700:  #1d4ed8;
+    --rt-blue-800:  #1e40af;
+    --rt-blue-900:  #1e3a8a;
+
+    /* ---- Slate neutrals (entire surface + text system) --------------------- */
+    --rt-white:     #ffffff;
+    --rt-slate-50:  #f8fafc;
+    --rt-slate-100: #f1f5f9;
+    --rt-slate-200: #e2e8f0;
+    --rt-slate-300: #cbd5e1;
+    --rt-slate-400: #94a3b8;
+    --rt-slate-500: #64748b;
+    --rt-slate-600: #475569;
+    --rt-slate-700: #334155;
+    --rt-slate-900: #0f172a;
+    --rt-navy-950:  #0b1120;
+    --rt-navy-blk:  #020617;
+
+    /* ---- Semantic state ---------------------------------------------------- */
+    --rt-success:        #10b981;
+    --rt-success-bg:     #d1fae5;
+    --rt-success-text:   #047857;
+    --rt-warning:        #f59e0b;
+    --rt-warning-bg:     #fef3c7;
+    --rt-warning-text:   #b45309;
+    --rt-danger:         #ef4444;
+    --rt-danger-bg:      #fee2e2;
+    --rt-danger-text:    #b91c1c;
+    --rt-admin:          #e11d48;
+    --rt-admin-bg:       #ffe4e6;
+
+    /* ---- Category accents (use SPARINGLY, charts only) --------------------- */
+    --rt-teal:    #14b8a6;
+    --rt-pink:    #ec4899;
+    --rt-violet:  #8b5cf6;
+
+    /* ---- Signature gradients (DARK surfaces only — buttons stay flat) ------ */
+    --rt-grad-primary:  #2563eb;
+    --rt-grad-sidebar:  linear-gradient(to bottom, #0f172a, #0b1120);
+    --rt-grad-hero:     linear-gradient(135deg, #0f172a, #172a52);
+    --rt-grad-auth:     linear-gradient(145deg, #020617 0%, #0f172a 50%, #0c1a2e 100%);
+    --rt-grad-canvas:   linear-gradient(to bottom right, #f8fafc, #ffffff, #eff6ff);
+
+    /* ---- Radii ------------------------------------------------------------- */
+    --rt-r-md:   8px;
+    --rt-r-lg:   12px;
+    --rt-r-xl:   16px;
+    --rt-r-2xl:  24px;
+    --rt-r-3xl:  32px;
+    --rt-r-full: 9999px;
+
+    /* ---- Shadows (soft, minimal — no colored glow) ------------------------- */
+    --rt-shadow-sm:   0 1px 2px rgba(15,23,42,.05);
+    --rt-shadow-card: 0 1px 2px rgba(15,23,42,.04);
+    --rt-shadow-lg:   0 8px 24px rgba(15,23,42,.08);
+    --rt-shadow-xl:   0 12px 32px rgba(15,23,42,.08);
+    --rt-shadow-menu: 0 12px 40px rgba(15,23,42,.14);
+    --rt-shadow-blue: 0 1px 2px rgba(15,23,42,.08);
+
+    /* ---- Typography -------------------------------------------------------- */
+    --rt-font-sans:    'Inter', system-ui, -apple-system, sans-serif;
+    --rt-font-display: 'Montserrat', 'Inter', sans-serif;
+    --rt-font-mono:    'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
+
+    --rt-text-xs:   12px;
+    --rt-text-sm:   14px;
+    --rt-text-base: 16px;
+    --rt-text-lg:   18px;
+    --rt-text-xl:   20px;
+    --rt-text-2xl:  24px;
+    --rt-text-3xl:  30px;
+    --rt-text-5xl:  48px;
+
+    --rt-fw-normal:   400;
+    --rt-fw-medium:   500;
+    --rt-fw-semibold: 600;
+    --rt-fw-bold:     700;
+    --rt-fw-black:    900;
+
+    --rt-tracking-wide:  0.025em;
+    --rt-tracking-label: 0.08em;
+    --rt-tracking-brand: 0.16em;
+}
+
+/* ---- Semantic typographic roles ---------------------------------------- */
+.rt-wordmark {
+    font-family: var(--rt-font-display);
+    font-weight: var(--rt-fw-bold);
+    letter-spacing: var(--rt-tracking-brand);
+    text-transform: uppercase;
+}
+.rt-h1 { font-family: var(--rt-font-display); font-weight: 700; font-size: var(--rt-text-2xl); line-height: 1.2; color: var(--rt-slate-900); }
+.rt-h2 { font-weight: 700; font-size: var(--rt-text-xl); line-height: 1.25; color: var(--rt-slate-900); }
+.rt-h3 { font-weight: 700; font-size: var(--rt-text-lg); line-height: 1.3;  color: var(--rt-slate-900); }
+.rt-stat { font-weight: var(--rt-fw-bold); font-size: var(--rt-text-3xl); line-height: 1; color: var(--rt-slate-900); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.rt-p  { font-size: var(--rt-text-sm); line-height: 1.55; color: var(--rt-slate-600); }
+.rt-label {
+    font-size: var(--rt-text-xs); font-weight: 600; text-transform: uppercase;
+    letter-spacing: var(--rt-tracking-label); color: var(--rt-slate-500);
+}
+.rt-caption { font-size: var(--rt-text-xs); color: var(--rt-slate-400); }
+.rt-mono { font-family: var(--rt-font-mono); font-size: var(--rt-text-xs); }
+.rt-link { color: var(--rt-blue-700); font-weight: 600; text-decoration: none; }
+.rt-link:hover { text-decoration: underline; }
+
+/* ---- Page canvas (light + dark override) ------------------------------- */
+.rt-canvas { background: linear-gradient(180deg, #e9eef6 0%, #f4f7fb 55%); background-attachment: fixed; }
+.dark .rt-canvas { background: #0b1120; }
+
+/* ============================================================================
+   Dark-mode utility overrides — class-based theming.
+   Toggling `dark` on <html> remaps the Tailwind utilities we actually use.
+   Higher specificity (.dark .x) wins over Tailwind's base utility without
+   needing !important. Inline dark navy surfaces (sidebar/hero/auth) are
+   already dark, so they're untouched.
+   ============================================================================ */
+
+/* surfaces */
+.dark .bg-white            { background-color: #161e2e; }
+.dark .bg-slate-50         { background-color: #0f1827; }
+.dark .bg-slate-50\/60     { background-color: rgba(15,24,39,.6); }
+.dark .bg-slate-50\/50     { background-color: rgba(15,24,39,.5); }
+.dark .bg-slate-100        { background-color: rgba(255,255,255,.06); }
+.dark .bg-slate-100\/70    { background-color: rgba(255,255,255,.06); }
+.dark .bg-slate-100\/60    { background-color: rgba(255,255,255,.05); }
+.dark .hover\:bg-slate-50:hover     { background-color: rgba(255,255,255,.04); }
+.dark .hover\:bg-slate-100:hover    { background-color: rgba(255,255,255,.07); }
+.dark .hover\:bg-slate-100\/70:hover{ background-color: rgba(255,255,255,.07); }
+
+/* text */
+.dark .text-slate-900 { color: #f1f5f9; }
+.dark .text-slate-800 { color: #e2e8f0; }
+.dark .text-slate-700 { color: #cbd5e1; }
+.dark .text-slate-600 { color: #cbd5e1; }
+.dark .text-slate-500 { color: #94a3b8; }
+.dark .text-slate-400 { color: #64748b; }
+.dark .hover\:text-slate-900:hover { color: #f8fafc; }
+.dark .hover\:text-slate-700:hover { color: #e2e8f0; }
+
+/* borders */
+.dark .border-slate-100      { border-color: rgba(255,255,255,.07); }
+.dark .border-slate-200      { border-color: rgba(255,255,255,.10); }
+.dark .border-slate-200\/70  { border-color: rgba(255,255,255,.08); }
+.dark .border-slate-300      { border-color: rgba(255,255,255,.16); }
+.dark .hover\:border-slate-300:hover { border-color: rgba(255,255,255,.18); }
+.dark .divide-slate-100 > * + * { border-color: rgba(255,255,255,.07); }
+
+/* soft semantic tint badges (muted for dark cards) */
+.dark .bg-emerald-50 { background-color: rgba(16,185,129,.14); }
+.dark .text-emerald-700 { color: #6ee7b7; }
+.dark .bg-amber-50   { background-color: rgba(245,158,11,.15); }
+.dark .text-amber-700 { color: #fcd34d; }
+.dark .bg-amber-50.border-amber-200 { border-color: rgba(245,158,11,.25); }
+.dark .border-amber-200 { border-color: rgba(245,158,11,.25); }
+.dark .text-amber-900 { color: #fcd34d; }
+.dark .bg-red-50     { background-color: rgba(220,38,38,.15); }
+.dark .text-red-700  { color: #fca5a5; }
+.dark .bg-blue-50    { background-color: rgba(37,99,235,.16); }
+.dark .text-blue-700 { color: #93c5fd; }
+.dark .text-blue-600 { color: #60a5fa; }
+.dark .bg-violet-50  { background-color: rgba(139,92,246,.16); }
+.dark .text-violet-700 { color: #c4b5fd; }
+.dark .bg-blue-600   { background-color: #2563eb; }   /* keep accent vivid */
+
+/* header glass + inputs */
+.dark .rt-header { background: rgba(15,23,42,.85) !important; border-color: rgba(255,255,255,.08); }
+.dark .rt-input { background-color:#0f1827 !important; border-color:rgba(255,255,255,.12) !important; color:#e2e8f0 !important; }
+.dark input::placeholder, .dark textarea::placeholder { color:#64748b; }
+
+/* smooth theme transition on the most common surface props */
+.rt-canvas, .bg-white, .border-slate-100, .border-slate-200, .text-slate-900 {
+    transition: background-color .2s ease, border-color .2s ease, color .2s ease;
 }

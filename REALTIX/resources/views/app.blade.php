@@ -17,6 +17,12 @@
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 
+        {{-- No-flash dark-mode init: applied BEFORE any CSS loads so users who
+             prefer dark don't see a white flash. Reads localStorage `rt-theme`
+             and sets the `dark` class on <html> synchronously. The React
+             ThemeProvider takes over once hydration kicks in. --}}
+        <script>(function(){try{var t=localStorage.getItem('rt-theme');if(t==='dark')document.documentElement.classList.add('dark');}catch(e){}})();</script>
+
         <!-- Scripts -->
         @routes
         @viteReactRefresh

@@ -4,6 +4,7 @@ import './bootstrap';
 import { createInertiaApp } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createRoot } from 'react-dom/client';
+import { ThemeProvider } from '@/Components/ui/ThemeProvider';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
@@ -17,7 +18,14 @@ createInertiaApp({
     setup({ el, App, props }) {
         const root = createRoot(el);
 
-        root.render(<App {...props} />);
+        // Wrap Inertia <App/> with ThemeProvider so any page can read or
+        // toggle the theme via useTheme(). The provider keeps the `dark`
+        // class on <html> in sync with localStorage `rt-theme`.
+        root.render(
+            <ThemeProvider>
+                <App {...props} />
+            </ThemeProvider>,
+        );
     },
     progress: {
         color: '#4B5563',

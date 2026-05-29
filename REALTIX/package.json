@@ -25,6 +25,7 @@
     "dependencies": {
         "browser-image-compression": "^2.0.2",
         "lucide-react": "^1.16.0",
-        "recharts": "^3.8.1"
+        "recharts": "^3.8.1",
+        "yet-another-react-lightbox": "^3.32.0"
     }
 }

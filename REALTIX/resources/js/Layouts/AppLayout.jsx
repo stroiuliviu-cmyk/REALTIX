@@ -2,9 +2,13 @@ import { useState, useRef, useEffect } from 'react';
 import { Link, usePage, router } from '@inertiajs/react';
 import { useTranslation } from '@/Hooks/useTranslation';
 import NotificationsBell from '@/Components/NotificationsBell';
+import ThemeToggle from '@/Components/ui/ThemeToggle';
 import {
     Home, Globe, Plus, Send, FileText, Calendar, Users,
     Settings, LifeBuoy, ChevronDown, LayoutGrid, MoreHorizontal,
+    // Etapa 1 enterprise pass — replaces emoji + status glyphs.
+    Building, Shield, Check, X, AlertTriangle,
+    User, Bell, CreditCard, HelpCircle, LogOut,
 } from 'lucide-react';
 
 function ProfileDropdown({ user }) {
@@ -69,7 +73,9 @@ function ProfileDropdown({ user }) {
                                     {a.logo_path ? (
                                         <img src={`/storage/${a.logo_path}`} alt={a.name} className="w-6 h-6 rounded-md object-cover shrink-0" />
                                     ) : (
-                                        <div className="w-6 h-6 rounded-md bg-slate-100 flex items-center justify-center text-xs shrink-0">🏢</div>
+                                        <div className="w-6 h-6 rounded-md bg-slate-100 flex items-center justify-center shrink-0">
+                                            <Building className="w-4 h-4 text-blue-400" />
+                                        </div>
                                     )}
                                     <span className="flex-1 truncate text-left">{a.name}</span>
                                     {a.is_active && <span className="text-blue-600">✓</span>}
@@ -79,16 +85,16 @@ function ProfileDropdown({ user }) {
                     )}
 
                     <Link href="/settings" className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
-                        <span>👤</span> {t('profile.my_profile')}
+                        <User className="w-4 h-4 text-slate-500" /> {t('profile.my_profile')}
                     </Link>
                     <Link href="/settings?tab=notifications" className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
-                        <span>🔔</span> {t('profile.notifications')}
+                        <Bell className="w-4 h-4 text-slate-500" /> {t('profile.notifications')}
                     </Link>
                     <Link href="/subscription" className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
-                        <span>💳</span> {t('profile.subscription')}
+                        <CreditCard className="w-4 h-4 text-slate-500" /> {t('profile.subscription')}
                     </Link>
                     <Link href="/suport" className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
-                        <span>❓</span> {t('profile.support')}
+                        <HelpCircle className="w-4 h-4 text-slate-500" /> {t('profile.support')}
                     </Link>
                     <div className="border-t border-slate-100 mt-1 pt-1">
                         <Link
@@ -97,7 +103,7 @@ function ProfileDropdown({ user }) {
                             as="button"
                             className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
                         >
-                            <span>🚪</span> {t('profile.logout')}
+                            <LogOut className="w-4 h-4" /> {t('profile.logout')}
                         </Link>
                     </div>
                 </div>
@@ -181,7 +187,7 @@ export default function AppLayout({ children, title }) {
             {isPastDue && (
                 <div className="bg-red-600 text-white text-xs sm:text-sm font-semibold px-4 py-2.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4 shadow-md lg:pl-64">
                     <div className="flex items-start sm:items-center gap-2">
-                        <span className="text-base shrink-0">⚠</span>
+                        <AlertTriangle className="w-4 h-4 shrink-0" />
                         <span>
                             Plata abonamentului a eșuat. Accesul la unele funcții poate fi restricționat. Actualizează metoda de plată.
                         </span>
@@ -196,8 +202,9 @@ export default function AppLayout({ children, title }) {
                     )}
                 </div>
             )}
-            {/* Header */}
-            <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl lg:pl-64">
+            {/* Header. rt-header class makes the glass swap to the dark
+                slate-900/85 variant in dark mode (mapping lives in app.css). */}
+            <header className="rt-header sticky top-0 z-20 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl lg:pl-64">
                 <div className="mx-auto flex max-w-screen-2xl items-center justify-between px-4 sm:px-6 py-3 gap-3">
                     {/* Hamburger (mobile only) */}
                     <button
@@ -220,13 +227,14 @@ export default function AppLayout({ children, title }) {
                                     <Link
                                         key={item.href}
                                         href={item.href}
-                                        className={`px-4 py-2 rounded-xl transition-colors font-semibold ${
+                                        className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl transition-colors font-semibold ${
                                             isActive
                                                 ? 'bg-rose-600 text-white'
                                                 : 'bg-rose-100 text-rose-700 hover:bg-rose-200'
                                         }`}
                                     >
-                                        🛡 {item.label}
+                                        <Shield className="w-3.5 h-3.5" />
+                                        {item.label}
                                     </Link>
                                 );
                             }
@@ -277,13 +285,15 @@ export default function AppLayout({ children, title }) {
                             );
                         })()}
 
-                        {/* Quick add */}
+                        {/* Quick add — flat blue per the enterprise design system */}
                         <Link
                             href="/properties/create"
-                            className="hidden md:flex items-center gap-1.5 rounded-xl bg-linear-to-r from-slate-900 to-blue-700 px-4 py-2 text-white text-sm font-semibold hover:opacity-90 transition-opacity"
+                            className="hidden md:flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 px-4 py-2 text-white text-sm font-semibold transition-colors shadow-sm"
                         >
-                            <span className="text-base">+</span> {t('nav.new_listing')}
+                            <Plus className="w-4 h-4" strokeWidth={2.5} /> {t('nav.new_listing')}
                         </Link>
+
+                        <ThemeToggle />
 
                         <NotificationsBell unreadCount={user?.unread_notifications_count ?? 0} />
 
@@ -297,17 +307,17 @@ export default function AppLayout({ children, title }) {
                 <div className="mx-auto max-w-screen-2xl px-6 pt-3 lg:pl-64">
                     {flash?.success && (
                         <div className="rounded-2xl bg-emerald-50 border border-emerald-200 px-5 py-3 text-emerald-700 text-sm font-medium flex items-center gap-2">
-                            <span>✓</span> {flash.success}
+                            <Check className="w-4 h-4 shrink-0" /> {flash.success}
                         </div>
                     )}
                     {flash?.error && (
                         <div className="rounded-2xl bg-red-50 border border-red-200 px-5 py-3 text-red-700 text-sm font-medium flex items-center gap-2">
-                            <span>✕</span> {flash.error}
+                            <X className="w-4 h-4 shrink-0" /> {flash.error}
                         </div>
                     )}
                     {flash?.warning && (
                         <div className="rounded-2xl bg-amber-50 border border-amber-200 px-5 py-3 text-amber-700 text-sm font-medium flex items-center gap-2">
-                            <span>⚠</span> {flash.warning}
+                            <AlertTriangle className="w-4 h-4 shrink-0" /> {flash.warning}
                         </div>
                     )}
                 </div>
@@ -367,7 +377,7 @@ export default function AppLayout({ children, title }) {
                                                 : 'text-slate-300 hover:bg-slate-800 hover:text-white'
                                     }`}
                                 >
-                                    {item.highlight && <span>🛡</span>}
+                                    {item.highlight && <Shield className="w-4 h-4" />}
                                     <span>{item.label}</span>
                                 </Link>
                             ))}
@@ -503,9 +513,9 @@ export default function AppLayout({ children, title }) {
                                 <Link
                                     key={item.key}
                                     href={item.href}
-                                    className={`group relative flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-sm transition-all duration-200 ${
+                                    className={`group relative flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors duration-200 ${
                                         isActive
-                                            ? 'bg-linear-to-r from-blue-600 to-blue-500 text-white font-semibold shadow-lg shadow-blue-600/25'
+                                            ? 'bg-blue-600 text-white font-semibold'
                                             : 'text-slate-400 hover:text-white hover:bg-white/5 font-medium'
                                     }`}
                                 >
@@ -529,9 +539,9 @@ export default function AppLayout({ children, title }) {
 
                         <Link
                             href="/settings"
-                            className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all duration-200 ${
+                            className={`group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors duration-200 ${
                                 currentPath.startsWith('/settings')
-                                    ? 'bg-linear-to-r from-blue-600 to-blue-500 text-white font-semibold shadow-lg shadow-blue-600/25'
+                                    ? 'bg-blue-600 text-white font-semibold'
                                     : 'text-slate-400 hover:text-white hover:bg-white/5 font-medium'
                             }`}
                         >

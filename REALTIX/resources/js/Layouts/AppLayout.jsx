@@ -554,7 +554,7 @@ export default function AppLayout({ children, title }) {
 
                 {/* Content. pb-20 on mobile reserves space for the fixed
                     bottom nav so the last item isn't hidden behind it. */}
-                <main className="flex-1 min-w-0 min-h-150 lg:ml-64 pb-20 lg:pb-0">
+                <main className="flex-1 min-w-0 lg:ml-64 pb-20 lg:pb-0">
                     {title && (
                         <h1 className="text-xl sm:text-2xl font-bold text-slate-900 mb-4 sm:mb-5">{title}</h1>
                     )}

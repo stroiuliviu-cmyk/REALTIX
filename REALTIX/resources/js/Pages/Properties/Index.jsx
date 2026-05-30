@@ -3,7 +3,10 @@ import { Head, Link, router } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
 import { MOLDOVA_LOCALITIES, CHISINAU_DISTRICTS } from '@/Constants/moldova';
 import Combobox from '@/Components/Combobox';
-import { MapPin, Camera, Star, Image as ImageIcon } from 'lucide-react';
+import {
+    MapPin, Camera, Star, Image as ImageIcon, Eye, Phone, Handshake,
+    Edit, Archive, Trash2, Filter, Plus, ArrowDown, ArrowUp, MoreHorizontal, X as XIcon,
+} from 'lucide-react';
 import { getTypeLabel, getTransactionLabel, TYPE_OPTIONS } from '@/lib/propertyLabels';
 
 /* ─── Constants ─────────────────────────────────────────────────────────── */
@@ -85,26 +88,32 @@ function ActionsMenu({ p, canEdit, onArchive, onDelete }) {
     }, []);
 
     const items = [
-        canEdit && { icon: '✏️', label: 'Editează', action: () => router.visit(route('properties.edit', p.id)) },
-        canEdit && { icon: '🗃️', label: 'Arhivează', cls: 'text-amber-600', action: () => { onArchive(p.id); setOpen(false); } },
-        canEdit && { icon: '🗑️', label: 'Șterge', cls: 'text-red-500', action: () => { onDelete(p.id); setOpen(false); } },
+        canEdit && { Icon: Edit,    label: 'Editează',  action: () => router.visit(route('properties.edit', p.id)) },
+        canEdit && { Icon: Archive, label: 'Arhivează', cls: 'text-amber-600', action: () => { onArchive(p.id); setOpen(false); } },
+        canEdit && { Icon: Trash2,  label: 'Șterge',    cls: 'text-red-600',   action: () => { onDelete(p.id); setOpen(false); } },
     ].filter(Boolean);
 
     return (
         <div ref={ref} className="relative">
             <button
+                type="button"
                 onClick={() => setOpen(o => !o)}
-                className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors font-bold text-lg"
-            >⋯</button>
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                aria-label="Acțiuni"
+            >
+                <MoreHorizontal className="w-4 h-4" />
+            </button>
             {open && (
-                <div className="absolute right-0 top-9 z-30 w-52 rounded-2xl bg-white border border-slate-100 shadow-2xl py-1.5 overflow-hidden">
-                    {items.map((item, i) => (
+                <div className="absolute right-0 top-9 z-30 w-52 rounded-xl bg-white border border-slate-200/70 shadow-lg py-1.5 overflow-hidden">
+                    {items.map(({ Icon, label, cls, action }, i) => (
                         <button
                             key={i}
-                            onClick={() => { item.action(); setOpen(false); }}
-                            className={`w-full text-left flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50 transition-colors ${item.cls ?? 'text-slate-700'}`}
+                            type="button"
+                            onClick={() => { action(); setOpen(false); }}
+                            className={`w-full text-left flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-slate-50 transition-colors ${cls ?? 'text-slate-700'}`}
                         >
-                            <span>{item.icon}</span>{item.label}
+                            <Icon className="w-4 h-4 shrink-0" />
+                            {label}
                         </button>
                     ))}
                 </div>
@@ -228,9 +237,9 @@ function PropertyRow({ p, isFavorite, isSelected, isAdmin, authUserId, onFav, on
                                 {[p.city, p.district].filter(Boolean).join(' · ')}
                             </span>
                         )}
-                        <span className="inline-flex items-center gap-1">👁 {p.views_count ?? 0}</span>
-                        <span className="inline-flex items-center gap-1">📞 {p.meta?.calls_count ?? 0}</span>
-                        <span className="inline-flex items-center gap-1">🤝 {p.deals_count ?? 0}</span>
+                        <span className="inline-flex items-center gap-1"><Eye className="w-3.5 h-3.5" /> {p.views_count ?? 0}</span>
+                        <span className="inline-flex items-center gap-1"><Phone className="w-3.5 h-3.5" /> {p.meta?.calls_count ?? 0}</span>
+                        <span className="inline-flex items-center gap-1"><Handshake className="w-3.5 h-3.5" /> {p.deals_count ?? 0}</span>
                     </div>
                 </div>
             </div>
@@ -247,10 +256,10 @@ function PropertyRow({ p, isFavorite, isSelected, isAdmin, authUserId, onFav, on
                         {[p.area_total && `${p.area_total} m²`, p.rooms && `${p.rooms} cam.`].filter(Boolean).join(' · ') || '—'}
                     </div>
                     {aiEst && (
-                        <div className="text-xs text-slate-500">
-                            AI ≈ <strong>{Number(aiEst).toLocaleString('ro')} €</strong>
-                            {p.ai_valuation === 'cheap'     && <span className="text-emerald-600 ml-1">↓</span>}
-                            {p.ai_valuation === 'expensive' && <span className="text-red-500 ml-1">↑</span>}
+                        <div className="text-xs text-slate-500 inline-flex items-center gap-1">
+                            <span>AI ≈ <strong>{Number(aiEst).toLocaleString('ro')} €</strong></span>
+                            {p.ai_valuation === 'cheap'     && <ArrowDown className="w-3.5 h-3.5 text-emerald-600" />}
+                            {p.ai_valuation === 'expensive' && <ArrowUp   className="w-3.5 h-3.5 text-red-600" />}
                         </div>
                     )}
                 </div>
@@ -350,10 +359,10 @@ export default function Index({ properties, filters = {}, isAdmin, authUserId, f
 
                 {/* ─── SIDEBAR ──────────────────────────────────────────── */}
                 <aside className={`${filterOpen ? 'fixed inset-y-0 left-0 z-50 w-80 max-w-[90vw] bg-white shadow-2xl overflow-y-auto p-3' : 'hidden'} lg:flex lg:static lg:z-auto lg:w-72 lg:bg-transparent lg:shadow-none lg:p-0 lg:overflow-visible flex-col shrink-0`}>
-                    <div className="rounded-4xl lg:bg-white border lg:border-slate-100 lg:shadow-xl p-5 space-y-5 lg:sticky lg:top-6 lg:overflow-y-auto lg:max-h-[calc(100vh-5rem)]">
+                    <div className="rounded-2xl lg:bg-white border lg:border-slate-200/70 lg:shadow-sm p-5 space-y-5 lg:sticky lg:top-6 lg:overflow-y-auto lg:max-h-[calc(100vh-5rem)]">
                         {filterOpen && (
-                            <button onClick={() => setFilterOpen(false)} className="lg:hidden ml-auto block p-1.5 rounded-lg hover:bg-slate-100" aria-label="Close filters">
-                                <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                            <button type="button" onClick={() => setFilterOpen(false)} className="lg:hidden ml-auto block p-1.5 rounded-lg hover:bg-slate-100" aria-label="Close filters">
+                                <XIcon className="w-5 h-5 text-slate-500" />
                             </button>
                         )}
                         <div className="flex items-center justify-between">
@@ -511,7 +520,10 @@ export default function Index({ properties, filters = {}, isAdmin, authUserId, f
                             >
                                 {f.favorite && <span className="text-white" style={{ fontSize: 10 }}>✓</span>}
                             </div>
-                            <span className="text-sm text-slate-700">⭐ Doar favorite</span>
+                            <span className="text-sm text-slate-700 inline-flex items-center gap-1.5">
+                                <Star className="w-3.5 h-3.5 text-amber-500" fill="currentColor" />
+                                Doar favorite
+                            </span>
                         </label>
 
                         {/* Phone */}
@@ -526,10 +538,11 @@ export default function Index({ properties, filters = {}, isAdmin, authUserId, f
                             />
                         </div>
 
-                        {/* Reset */}
+                        {/* Reset — enterprise: secondary action, not loud emerald CTA */}
                         <button
+                            type="button"
                             onClick={reset}
-                            className="w-full rounded-2xl bg-emerald-500 hover:bg-emerald-600 transition-colors py-2.5 text-sm font-semibold text-white"
+                            className="w-full rounded-lg bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-colors py-2.5 text-sm font-semibold text-slate-700"
                         >
                             Resetează filtrele
                         </button>
@@ -540,29 +553,29 @@ export default function Index({ properties, filters = {}, isAdmin, authUserId, f
                 <div className="flex-1 min-w-0 space-y-3">
 
                     {/* Top bar */}
-                    <div className="flex flex-wrap items-center justify-between gap-3 bg-white rounded-3xl sm:rounded-4xl border border-slate-100 shadow-xl px-4 sm:px-6 py-3 sm:py-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3 bg-white rounded-xl border border-slate-200/70 shadow-sm px-4 sm:px-6 py-3 sm:py-4">
                         <div className="flex items-center gap-3 flex-1 min-w-0">
                             <button
                                 type="button"
                                 onClick={() => setFilterOpen(true)}
-                                className="lg:hidden shrink-0 rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors px-3 py-2 text-sm font-bold text-slate-700 flex items-center gap-1.5"
+                                className="lg:hidden shrink-0 rounded-lg bg-slate-100 hover:bg-slate-200 transition-colors px-3 py-2 text-sm font-semibold text-slate-700 flex items-center gap-1.5"
                             >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
+                                <Filter className="w-4 h-4" />
                                 Filtre
                                 {activeCount > 0 && (
                                     <span className="bg-blue-600 text-white text-[10px] px-1.5 rounded-full">{activeCount}</span>
                                 )}
                             </button>
                             <div className="min-w-0">
-                                <h2 className="text-base sm:text-lg font-bold text-slate-900 truncate">Anunțuri</h2>
-                                <p className="text-xs text-slate-400 mt-0.5">{properties.total} proprietăți</p>
+                                <h2 className="text-base sm:text-lg font-semibold text-slate-900 truncate">Anunțuri</h2>
+                                <p className="text-xs text-slate-500 mt-0.5">{properties.total} proprietăți</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
                             <select
                                 value={f.sort}
                                 onChange={e => set('sort', e.target.value)}
-                                className="flex-1 sm:flex-initial rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 bg-white"
+                                className="flex-1 sm:flex-initial rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 bg-white"
                             >
                                 <option value="">Sortare: Recente</option>
                                 <option value="price_asc">Preț ↑</option>
@@ -572,20 +585,23 @@ export default function Index({ properties, filters = {}, isAdmin, authUserId, f
                             </select>
                             <Link
                                 href={route('properties.create')}
-                                className="rounded-2xl bg-slate-900 px-3 sm:px-5 py-2 sm:py-2.5 text-white text-xs sm:text-sm font-semibold hover:bg-slate-700 transition-colors whitespace-nowrap"
-                            >+ <span className="hidden sm:inline">Anunț nou</span></Link>
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 px-3 sm:px-4 py-2 sm:py-2.5 text-white text-xs sm:text-sm font-semibold transition-colors whitespace-nowrap"
+                            >
+                                <Plus className="w-4 h-4" strokeWidth={2.5} />
+                                <span className="hidden sm:inline">Anunț nou</span>
+                            </Link>
                         </div>
                     </div>
 
                     {/* Bulk bar */}
                     {selected.length > 0 && (
-                        <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-3xl px-5 py-3">
+                        <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-xl px-5 py-3">
                             <span className="text-sm font-semibold text-blue-800">{selected.length} selectate</span>
                             <div className="flex gap-2 ml-auto">
-                                <button onClick={() => bulkDo('activate')} className="rounded-xl bg-emerald-500 text-white text-xs font-bold px-3 py-1.5 hover:bg-emerald-600 transition-colors">Activează</button>
-                                <button onClick={() => bulkDo('archive')}  className="rounded-xl bg-amber-400 text-white text-xs font-bold px-3 py-1.5 hover:bg-amber-500 transition-colors">Arhivează</button>
-                                <button onClick={() => bulkDo('delete')}   className="rounded-xl bg-red-500 text-white text-xs font-bold px-3 py-1.5 hover:bg-red-600 transition-colors">Șterge</button>
-                                <button onClick={() => setSelected([])}    className="rounded-xl bg-slate-200 text-slate-700 text-xs font-bold px-3 py-1.5 hover:bg-slate-300 transition-colors">Anulează</button>
+                                <button type="button" onClick={() => bulkDo('activate')} className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-1.5 transition-colors">Activează</button>
+                                <button type="button" onClick={() => bulkDo('archive')}  className="rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold px-3 py-1.5 transition-colors">Arhivează</button>
+                                <button type="button" onClick={() => bulkDo('delete')}   className="rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-1.5 transition-colors">Șterge</button>
+                                <button type="button" onClick={() => setSelected([])}    className="rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold px-3 py-1.5 transition-colors">Anulează</button>
                             </div>
                         </div>
                     )}
@@ -611,12 +627,16 @@ export default function Index({ properties, filters = {}, isAdmin, authUserId, f
 
                     {/* List */}
                     {properties.data.length === 0 ? (
-                        <div className="rounded-4xl bg-white border border-slate-100 shadow-xl p-16 text-center">
-                            <div className="text-5xl mb-4">🏠</div>
-                            <h3 className="text-xl font-bold text-slate-900 mb-2">Nicio proprietate</h3>
+                        <div className="rounded-xl bg-white border border-slate-200/70 shadow-sm p-16 text-center">
+                            <Building className="w-12 h-12 text-slate-300 mx-auto mb-4" strokeWidth={1.5} />
+                            <h3 className="text-xl font-semibold text-slate-900 mb-2">Nicio proprietate</h3>
                             <p className="text-slate-500 text-sm mb-6">Adaugă primul anunț sau ajustează filtrele.</p>
-                            <Link href={route('properties.create')} className="rounded-2xl bg-slate-900 px-6 py-2.5 text-sm font-semibold text-white hover:bg-slate-700 transition-colors">
-                                + Adaugă anunț
+                            <Link
+                                href={route('properties.create')}
+                                className="inline-flex items-center gap-2 rounded-lg bg-slate-900 hover:bg-slate-800 px-5 py-2.5 text-sm font-semibold text-white transition-colors"
+                            >
+                                <Plus className="w-4 h-4" strokeWidth={2.5} />
+                                Adaugă anunț
                             </Link>
                         </div>
                     ) : (
@@ -645,7 +665,7 @@ export default function Index({ properties, filters = {}, isAdmin, authUserId, f
                                     key={i}
                                     onClick={() => link.url && router.get(link.url)}
                                     disabled={!link.url}
-                                    className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
+                                    className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
                                         link.active
                                             ? 'bg-slate-900 text-white'
                                             : link.url

@@ -8,6 +8,7 @@ import Combobox from '@/Components/Combobox';
 import {
     Camera, MapPin, Calendar, Phone, Star, Plus, Check,
     Image as ImageIcon, Building2, User, ExternalLink,
+    RefreshCw, Globe, X as XIcon, SlidersHorizontal,
 } from 'lucide-react';
 import { getTypeLabel, getTransactionLabel, TYPE_OPTIONS } from '@/lib/propertyLabels';
 
@@ -25,8 +26,8 @@ const OWNER_LABELS = { owner: 'Proprietar', agency: 'Agenție' };
 // AI valuation chip — only 'cheap' and 'expensive' surface; 'average' is the
 // neutral default and adds no visual signal.
 const AI_VALUATION_BADGE = {
-    cheap:     { label: 'Sub piață',   class: 'bg-green-50 text-green-700 border-green-200' },
-    expensive: { label: 'Peste piață', class: 'bg-amber-50 text-amber-700 border-amber-200' },
+    cheap:     { label: 'Sub piață',   class: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
+    expensive: { label: 'Peste piață', class: 'bg-amber-50 text-amber-700 border-amber-100' },
 };
 
 
@@ -77,14 +78,14 @@ function RangeRow({ label, minVal, maxVal, onMin, onMax, onApply }) {
                     onChange={e => onMin(e.target.value)}
                     onBlur={onApply} onKeyDown={e => e.key === 'Enter' && onApply()}
                     placeholder="Min"
-                    className="w-1/2 rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                    className="w-1/2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                 />
                 <input
                     type="number" value={maxVal}
                     onChange={e => onMax(e.target.value)}
                     onBlur={onApply} onKeyDown={e => e.key === 'Enter' && onApply()}
                     placeholder="Max"
-                    className="w-1/2 rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                    className="w-1/2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                 />
             </div>
         </div>
@@ -131,7 +132,7 @@ function ListingRow({ l, isFavorite, isImported, onFav, onImport, onShowContact,
         : null;
 
     return (
-        <article className={`bg-white border border-slate-200 rounded-xl overflow-hidden hover:border-slate-300 transition-colors mb-3 md:flex ${isImported ? 'opacity-60' : ''}`}>
+        <article className={`bg-white border border-slate-200/70 rounded-xl shadow-sm overflow-hidden hover:shadow-lg hover:border-slate-300/70 transition-all duration-200 mb-3 md:flex ${isImported ? 'opacity-60' : ''}`}>
             {/* Image */}
             <div className="relative w-full h-[200px] md:w-[200px] md:h-auto md:shrink-0 bg-slate-100">
                 {imgUrl ? (
@@ -162,24 +163,24 @@ function ListingRow({ l, isFavorite, isImported, onFav, onImport, onShowContact,
             <div className="flex-1 min-w-0 p-3 md:p-4 flex flex-col justify-between gap-2.5">
                 <div>
                     <div className="flex gap-1.5 flex-wrap mb-2">
-                        <span className="text-xs font-mono font-medium px-2 py-0.5 rounded bg-slate-800 text-white border border-slate-800">
+                        <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded-md bg-slate-800 text-white">
                             #{l.id}
                         </span>
-                        <span className="text-xs font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                        <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">
                             {SOURCE_LABELS[l.source] ?? l.source}
                         </span>
                         {l.owner_type && (
-                            <span className={`text-xs font-medium px-2 py-0.5 rounded inline-flex items-center gap-1 border ${
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-md inline-flex items-center gap-1 ${
                                 isAgency
-                                    ? 'bg-blue-50 text-blue-700 border-blue-200'
-                                    : 'bg-green-50 text-green-700 border-green-200'
+                                    ? 'bg-blue-50 text-blue-700'
+                                    : 'bg-emerald-50 text-emerald-700'
                             }`}>
                                 {isAgency ? <Building2 className="w-3 h-3" /> : <User className="w-3 h-3" />}
                                 {OWNER_LABELS[l.owner_type] ?? l.owner_type}
                             </span>
                         )}
                         {l.transaction_type && (
-                            <span className="text-xs font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                            <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">
                                 {getTransactionLabel(l.transaction_type)}
                             </span>
                         )}
@@ -220,7 +221,7 @@ function ListingRow({ l, isFavorite, isImported, onFav, onImport, onShowContact,
                         </div>
                     )}
                     {aiBadge && (
-                        <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded border ${aiBadge.class}`}>
+                        <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-md border ${aiBadge.class}`}>
                             {aiBadge.label}
                         </span>
                     )}
@@ -231,9 +232,9 @@ function ListingRow({ l, isFavorite, isImported, onFav, onImport, onShowContact,
                         aria-label={isFavorite ? 'Scoate din favorite' : 'Adaugă la favorite'}
                         title={isFavorite ? 'Scoate din favorite' : 'Adaugă la favorite'}
                         onClick={() => onFav(l.id)}
-                        className={`w-8 h-8 border rounded flex items-center justify-center transition-colors ${
+                        className={`w-8 h-8 border rounded-lg flex items-center justify-center transition-colors ${
                             isFavorite
-                                ? 'bg-amber-50 border-amber-300 text-amber-600'
+                                ? 'bg-amber-50 border-amber-200 text-amber-600'
                                 : 'border-slate-200 text-slate-500 hover:bg-slate-50'
                         }`}
                     >
@@ -244,7 +245,7 @@ function ListingRow({ l, isFavorite, isImported, onFav, onImport, onShowContact,
                         aria-label="Arată contact"
                         title={lastHint || 'Arată contact'}
                         onClick={() => onShowContact(l.id)}
-                        className="w-8 h-8 border border-slate-200 rounded flex items-center justify-center text-slate-500 hover:bg-slate-50 transition-colors"
+                        className="w-8 h-8 border border-slate-200 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-50 transition-colors"
                     >
                         <Phone className="w-4 h-4" />
                     </button>
@@ -252,10 +253,10 @@ function ListingRow({ l, isFavorite, isImported, onFav, onImport, onShowContact,
                         type="button"
                         onClick={() => !isImported && onImport(l.id)}
                         disabled={isImported}
-                        className={`px-3 py-1.5 rounded text-xs font-medium inline-flex items-center gap-1 transition-colors ${
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 transition-colors ${
                             isImported
                                 ? 'bg-slate-100 text-slate-500 cursor-default'
-                                : 'bg-green-600 hover:bg-green-700 text-white'
+                                : 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'
                         }`}
                     >
                         {isImported
@@ -347,17 +348,17 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
 
                 {/* ─── SIDEBAR ──────────────────────────────────────────── */}
                 <aside className={`${filterOpen ? 'fixed inset-y-0 left-0 z-50 w-80 max-w-[90vw] bg-white shadow-2xl overflow-y-auto p-3' : 'hidden'} lg:flex lg:static lg:z-auto lg:w-72 lg:bg-transparent lg:shadow-none lg:p-0 lg:overflow-visible flex-col shrink-0`}>
-                    <div className="rounded-4xl lg:bg-white border lg:border-slate-100 lg:shadow-xl p-5 space-y-5 lg:sticky lg:top-6 lg:overflow-y-auto lg:max-h-[calc(100vh-5rem)]">
+                    <div className="rounded-2xl lg:bg-white border border-transparent lg:border-slate-200/70 lg:shadow-sm p-5 space-y-5 lg:sticky lg:top-6 lg:overflow-y-auto lg:max-h-[calc(100vh-5rem)]">
                         {filterOpen && (
                             <button onClick={() => setFilterOpen(false)} className="lg:hidden ml-auto block p-1.5 rounded-lg hover:bg-slate-100" aria-label="Close filters">
-                                <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                <XIcon className="w-5 h-5 text-slate-500" />
                             </button>
                         )}
                         <div className="flex items-center justify-between">
-                            <span className="font-bold text-slate-900 text-sm">
+                            <span className="font-semibold text-slate-900 text-sm inline-flex items-center gap-2">
                                 Filtre
                                 {activeCount > 0 && (
-                                    <span className="ml-2 text-xs bg-blue-600 text-white px-1.5 py-0.5 rounded-full">{activeCount}</span>
+                                    <span className="text-[11px] font-semibold bg-blue-600 text-white px-1.5 py-0.5 rounded-md">{activeCount}</span>
                                 )}
                             </span>
                         </div>
@@ -370,7 +371,7 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
                                 onChange={e => setF(s => ({ ...s, search: e.target.value }))}
                                 onKeyDown={e => e.key === 'Enter' && push({ ...f, search: e.target.value })}
                                 placeholder="Adresă, cuvinte cheie, telefon..."
-                                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                             />
                         </div>
 
@@ -388,7 +389,7 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
 
                         <CheckGroup
                             label="Tip proprietar"
-                            options={[['owner', '👤 Proprietar'], ['agency', '🏢 Agenție']]}
+                            options={[['owner', 'Proprietar'], ['agency', 'Agenție']]}
                             values={f.owner_types}
                             onChange={v => set('owner_types', v)}
                             counts={counts.by_owner ?? {}}
@@ -415,7 +416,7 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
                                     <button
                                         key={v}
                                         onClick={() => set('transaction_type', f.transaction_type === v ? '' : v)}
-                                        className={`flex-1 text-xs font-semibold py-1.5 rounded-xl transition-colors flex flex-col items-center gap-0.5 ${
+                                        className={`flex-1 text-xs font-semibold py-1.5 rounded-lg transition-colors flex flex-col items-center gap-0.5 ${
                                             f.transaction_type === v ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                                         }`}
                                     >
@@ -493,14 +494,14 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
                                     value={f.date_from}
                                     max={f.date_to || undefined}
                                     onChange={e => set('date_from', e.target.value)}
-                                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:outline-none focus:border-blue-500"
+                                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                                 />
                                 <input
                                     type="date"
                                     value={f.date_to}
                                     min={f.date_from || undefined}
                                     onChange={e => set('date_to', e.target.value)}
-                                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:outline-none focus:border-blue-500"
+                                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                                 />
                                 {(f.date_from || f.date_to) && (
                                     <button
@@ -519,7 +520,7 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
                                     <button
                                         key={v}
                                         onClick={() => set('ai_valuation', f.ai_valuation === v ? '' : v)}
-                                        className={`w-full text-left text-xs font-semibold py-1.5 px-3 rounded-xl transition-colors ${
+                                        className={`w-full text-left text-xs font-semibold py-1.5 px-3 rounded-lg transition-colors ${
                                             f.ai_valuation === v ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                                         }`}
                                     >{l}</button>
@@ -532,17 +533,20 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
                             <div
                                 onClick={() => set('favorite', !f.favorite)}
                                 className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
-                                    f.favorite ? 'bg-amber-400 border-amber-400' : 'border-slate-300 hover:border-amber-400'
+                                    f.favorite ? 'bg-amber-500 border-amber-500' : 'border-slate-300 hover:border-amber-400'
                                 }`}
                             >
                                 {f.favorite && <span className="text-white" style={{ fontSize: 10 }}>✓</span>}
                             </div>
-                            <span className="text-sm text-slate-700">⭐ Doar favorite</span>
+                            <span className="text-sm text-slate-700 inline-flex items-center gap-1.5">
+                                <Star className="w-3.5 h-3.5 text-amber-500" fill="currentColor" />
+                                Doar favorite
+                            </span>
                         </label>
 
                         <button
                             onClick={reset}
-                            className="w-full rounded-2xl bg-emerald-500 hover:bg-emerald-600 transition-colors py-2.5 text-sm font-semibold text-white"
+                            className="w-full rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors py-2 text-sm font-semibold text-slate-700"
                         >Resetează filtrele</button>
                     </div>
                 </aside>
@@ -551,21 +555,21 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
                 <div className="flex-1 min-w-0 space-y-3">
 
                     {/* Top bar */}
-                    <div className="flex items-center justify-between gap-3 flex-wrap bg-white rounded-3xl sm:rounded-4xl border border-slate-100 shadow-xl px-4 sm:px-6 py-3 sm:py-4">
+                    <div className="flex items-center justify-between gap-3 flex-wrap bg-white rounded-xl border border-slate-200/70 shadow-sm px-4 sm:px-6 py-3 sm:py-4">
                         <div className="flex items-center gap-3 flex-1 min-w-0">
                             <button
                                 type="button"
                                 onClick={() => setFilterOpen(true)}
-                                className="lg:hidden shrink-0 rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors px-3 py-2 text-sm font-bold text-slate-700 flex items-center gap-1.5"
+                                className="lg:hidden shrink-0 rounded-lg bg-slate-100 hover:bg-slate-200 transition-colors px-3 py-2 text-sm font-semibold text-slate-700 inline-flex items-center gap-1.5"
                             >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
+                                <SlidersHorizontal className="w-4 h-4" />
                                 Filtre
                                 {activeCount > 0 && (
-                                    <span className="bg-blue-600 text-white text-[10px] px-1.5 rounded-full">{activeCount}</span>
+                                    <span className="bg-blue-600 text-white text-[10px] font-semibold px-1.5 rounded-md">{activeCount}</span>
                                 )}
                             </button>
                         <div className="min-w-0">
-                            <h2 className="text-base sm:text-lg font-bold text-slate-900">Web Oferte</h2>
+                            <h2 className="text-base sm:text-lg font-semibold text-slate-900">Web Oferte</h2>
                             <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-2 flex-wrap">
                                 <span>
                                     <strong className="text-slate-700">{listings.total.toLocaleString('ro')}</strong> rezultate filtrate
@@ -577,8 +581,9 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
                                     <span className="text-slate-300">·</span>
                                 )}
                                 {counts.last_synced && (
-                                    <span title={new Date(counts.last_synced).toLocaleString('ro-RO')}>
-                                        🔄 ultima sincronizare {new Date(counts.last_synced).toLocaleString('ro-RO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                    <span title={new Date(counts.last_synced).toLocaleString('ro-RO')} className="inline-flex items-center gap-1">
+                                        <RefreshCw className="w-3 h-3" />
+                                        ultima sincronizare {new Date(counts.last_synced).toLocaleString('ro-RO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                                     </span>
                                 )}
                             </p>
@@ -595,16 +600,16 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
                                     });
                                 }}
                                 disabled={refreshing}
-                                className="flex items-center gap-2 rounded-xl border border-slate-200 hover:bg-slate-50 disabled:opacity-60 text-slate-700 text-sm font-semibold px-3 py-2 transition-colors"
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-60 text-slate-700 text-sm font-semibold px-3 py-2 transition-colors"
                                 title="Reîncarcă lista"
                             >
-                                <span className={refreshing ? 'animate-spin inline-block' : ''}>🔄</span>
+                                <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
                                 Reîmprospătează
                             </button>
                             <select
                                 value={f.sort}
                                 onChange={e => set('sort', e.target.value)}
-                                className="rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-500 bg-white"
+                                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                             >
                                 <option value="">Sortare: Recente</option>
                                 <option value="price_asc">Preț ↑</option>
@@ -616,9 +621,11 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
 
                     {/* List */}
                     {listings.data.length === 0 ? (
-                        <div className="rounded-4xl bg-white border border-slate-100 shadow-xl p-16 text-center">
-                            <div className="text-5xl mb-4">🌐</div>
-                            <h3 className="text-xl font-bold text-slate-900 mb-2">Nicio ofertă web disponibilă</h3>
+                        <div className="rounded-2xl bg-white border border-slate-200/70 shadow-sm p-16 text-center">
+                            <div className="w-14 h-14 rounded-xl bg-slate-100 text-slate-400 mx-auto mb-4 flex items-center justify-center">
+                                <Globe className="w-7 h-7" strokeWidth={1.5} />
+                            </div>
+                            <h3 className="text-lg font-semibold text-slate-900 mb-2">Nicio ofertă web disponibilă</h3>
                             <p className="text-slate-500 text-sm max-w-sm mx-auto">
                                 Platforma REALTIX poate importa automat anunțuri din surse externe conectate.
                                 Configurează integrarea din <strong>Setări → Integrări</strong>.
@@ -649,9 +656,9 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
                                     key={i}
                                     onClick={() => link.url && router.get(link.url)}
                                     disabled={!link.url}
-                                    className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
                                         link.active
-                                            ? 'bg-slate-900 text-white'
+                                            ? 'bg-blue-600 text-white shadow-sm'
                                             : link.url
                                             ? 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
                                             : 'opacity-30 cursor-default'

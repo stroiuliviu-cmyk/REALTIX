@@ -1,6 +1,7 @@
 import AppLayout from '@/Layouts/AppLayout';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
+import { Plus, Clock, Search } from 'lucide-react';
 
 const statusColors = {
     lead:   'bg-amber-100 text-amber-700 hover:bg-amber-200',
@@ -27,7 +28,7 @@ function StatusDropdown({ contact }) {
             value={contact.status}
             onChange={handleChange}
             onClick={e => e.stopPropagation()}
-            className={`rounded-full px-3 py-1 text-xs font-semibold border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-colors ${cls}`}
+            className={`rounded-md px-2.5 py-1 text-xs font-semibold border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-colors ${cls}`}
         >
             {Object.entries(statusLabels).map(([v, l]) => (
                 <option key={v} value={v}>{l}</option>
@@ -60,10 +61,12 @@ function AddContactModal({ onClose }) {
         post('/contacts', { onSuccess: onClose });
     };
 
+    const inputCls = 'w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600';
+
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-            <div className="w-full max-w-lg rounded-4xl bg-white p-8 shadow-2xl">
-                <h2 className="text-xl font-bold text-slate-900 mb-6">Contact nou</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={onClose}>
+            <div className="w-full max-w-lg rounded-2xl bg-white border border-slate-200/70 p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+                <h2 className="text-lg font-semibold text-slate-900 mb-5">Contact nou</h2>
                 <form onSubmit={submit} className="space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
@@ -71,7 +74,7 @@ function AddContactModal({ onClose }) {
                             <input
                                 value={data.first_name}
                                 onChange={e => setData('first_name', e.target.value)}
-                                className="w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:border-blue-700"
+                                className={inputCls}
                             />
                             {errors.first_name && <p className="text-red-500 text-xs mt-1">{errors.first_name}</p>}
                         </div>
@@ -80,7 +83,7 @@ function AddContactModal({ onClose }) {
                             <input
                                 value={data.last_name}
                                 onChange={e => setData('last_name', e.target.value)}
-                                className="w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:border-blue-700"
+                                className={inputCls}
                             />
                         </div>
                     </div>
@@ -90,7 +93,7 @@ function AddContactModal({ onClose }) {
                             <input
                                 value={data.phone}
                                 onChange={e => setData('phone', e.target.value)}
-                                className="w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:border-blue-700"
+                                className={inputCls}
                             />
                         </div>
                         <div>
@@ -99,7 +102,7 @@ function AddContactModal({ onClose }) {
                                 type="email"
                                 value={data.email}
                                 onChange={e => setData('email', e.target.value)}
-                                className="w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:border-blue-700"
+                                className={inputCls}
                             />
                         </div>
                     </div>
@@ -109,7 +112,7 @@ function AddContactModal({ onClose }) {
                             <select
                                 value={data.type}
                                 onChange={e => setData('type', e.target.value)}
-                                className="w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:border-blue-700"
+                                className={inputCls}
                             >
                                 {Object.entries(typeLabels).map(([v, l]) => (
                                     <option key={v} value={v}>{l}</option>
@@ -121,7 +124,7 @@ function AddContactModal({ onClose }) {
                             <select
                                 value={data.status}
                                 onChange={e => setData('status', e.target.value)}
-                                className="w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:border-blue-700"
+                                className={inputCls}
                             >
                                 <option value="lead">Lead</option>
                                 <option value="active">Activ</option>
@@ -135,23 +138,23 @@ function AddContactModal({ onClose }) {
                             value={data.source}
                             onChange={e => setData('source', e.target.value)}
                             placeholder="ex: organic, referral, 999.md"
-                            className="w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:border-blue-700"
+                            className={inputCls}
                         />
                     </div>
                     <div className="flex gap-3 pt-2">
                         <button
-                            type="submit"
-                            disabled={processing}
-                            className="flex-1 rounded-2xl bg-slate-900 py-3 text-white font-semibold text-sm hover:bg-slate-800 transition-colors disabled:opacity-50"
-                        >
-                            {processing ? 'Se salvează...' : 'Adaugă contact'}
-                        </button>
-                        <button
                             type="button"
                             onClick={onClose}
-                            className="flex-1 rounded-2xl border border-slate-200 py-3 text-slate-700 font-semibold text-sm hover:bg-slate-50 transition-colors"
+                            className="rounded-lg border border-slate-200 px-4 py-2 text-slate-700 font-semibold text-sm hover:bg-slate-50 transition-colors"
                         >
                             Anulează
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={processing}
+                            className="flex-1 rounded-lg bg-blue-600 hover:bg-blue-700 py-2 text-white font-semibold text-sm shadow-sm transition-colors disabled:opacity-50"
+                        >
+                            {processing ? 'Se salvează…' : 'Adaugă contact'}
                         </button>
                     </div>
                 </form>
@@ -175,18 +178,19 @@ export default function Index({ contacts, filters }) {
             {showModal && <AddContactModal onClose={() => setShowModal(false)} />}
 
             <div className="space-y-6">
-                {/* Kanban header row */}
-                <div className="rounded-3xl sm:rounded-4xl bg-white p-4 sm:p-6 shadow-2xl border border-slate-100">
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                {/* Header card */}
+                <div className="rounded-xl bg-white p-5 sm:p-6 shadow-sm border border-slate-200/70">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-5">
                         <div>
-                            <h2 className="text-xl font-bold text-slate-900">Bază de date Clienți</h2>
-                            <p className="text-sm text-slate-500 mt-1">{contacts.total} contacte totale</p>
+                            <h2 className="text-lg font-semibold text-slate-900">Bază de date Clienți</h2>
+                            <p className="text-sm text-slate-500 mt-0.5">{contacts.total} contacte totale</p>
                         </div>
                         <button
                             onClick={() => setShowModal(true)}
-                            className="rounded-full bg-linear-to-r from-slate-900 to-blue-700 px-6 py-2.5 text-white shadow-lg text-sm font-semibold"
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 px-4 py-2 text-white shadow-sm text-sm font-semibold transition-colors"
                         >
-                            + Contact nou
+                            <Plus className="w-4 h-4" strokeWidth={2.5} />
+                            Contact nou
                         </button>
                     </div>
 
@@ -195,14 +199,14 @@ export default function Index({ contacts, filters }) {
                         <input
                             value={search}
                             onChange={e => setSearch(e.target.value)}
-                            placeholder="Caută după nume sau telefon..."
-                            className="flex-1 min-w-0 sm:min-w-48 rounded-2xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:border-blue-700"
+                            placeholder="Caută după nume sau telefon…"
+                            className="flex-1 min-w-0 sm:min-w-48 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                         />
                         <div className="flex gap-2 sm:gap-3 flex-wrap">
                             <select
                                 value={filters?.status ?? ''}
                                 onChange={e => router.get('/contacts', { ...filters, search, status: e.target.value }, { preserveState: true })}
-                                className="flex-1 sm:flex-initial rounded-2xl border border-slate-200 px-3 sm:px-4 py-2.5 text-sm focus:outline-none focus:border-blue-700"
+                                className="flex-1 sm:flex-initial rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                             >
                                 <option value="">Toate statusurile</option>
                                 <option value="lead">Lead</option>
@@ -212,16 +216,18 @@ export default function Index({ contacts, filters }) {
                             <button
                                 type="button"
                                 onClick={() => router.get('/contacts', { ...filters, search, forgotten: filters?.forgotten ? '' : '1' }, { preserveState: true })}
-                                className={`rounded-2xl px-3 sm:px-4 py-2.5 text-sm font-semibold transition-colors ${
+                                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
                                     filters?.forgotten
                                         ? 'bg-amber-500 text-white hover:bg-amber-600'
-                                        : 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'
+                                        : 'bg-amber-50 text-amber-700 border border-amber-100 hover:bg-amber-100'
                                 }`}
                                 title="Doar contacte fără activitate de >30 zile"
                             >
-                                ⏰ <span className="hidden sm:inline">Uitate</span>
+                                <Clock className="w-4 h-4" />
+                                <span className="hidden sm:inline">Uitate</span>
                             </button>
-                            <button type="submit" className="rounded-2xl bg-slate-900 px-4 sm:px-5 py-2.5 text-white text-sm font-semibold">
+                            <button type="submit" className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 px-4 py-2 text-white text-sm font-semibold shadow-sm transition-colors">
+                                <Search className="w-4 h-4" />
                                 Caută
                             </button>
                         </div>
@@ -229,7 +235,7 @@ export default function Index({ contacts, filters }) {
                 </div>
 
                 {/* Table */}
-                <div className="rounded-3xl sm:rounded-4xl bg-white p-3 sm:p-6 shadow-2xl border border-slate-100">
+                <div className="rounded-xl bg-white p-3 sm:p-6 shadow-sm border border-slate-200/70">
                     <div className="overflow-x-auto -mx-3 sm:mx-0">
                         <table className="w-full text-sm text-left text-slate-600">
                             <thead className="text-xs text-slate-500 uppercase bg-slate-50">
@@ -258,10 +264,11 @@ export default function Index({ contacts, filters }) {
                                                 </Link>
                                                 {contact.is_forgotten && (
                                                     <span
-                                                        className="text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full"
+                                                        className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-700 px-2 py-0.5 rounded-md"
                                                         title="Niciun contact > 30 zile"
                                                     >
-                                                        ⏰ Uitat
+                                                        <Clock className="w-3 h-3" />
+                                                        Uitat
                                                     </span>
                                                 )}
                                             </div>
@@ -291,8 +298,8 @@ export default function Index({ contacts, filters }) {
                                     key={i}
                                     onClick={() => link.url && router.get(link.url)}
                                     disabled={!link.url}
-                                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
-                                        link.active ? 'bg-slate-900 text-white' :
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                                        link.active ? 'bg-blue-600 text-white shadow-sm' :
                                         link.url ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' : 'opacity-30'
                                     }`}
                                     dangerouslySetInnerHTML={{ __html: link.label }}

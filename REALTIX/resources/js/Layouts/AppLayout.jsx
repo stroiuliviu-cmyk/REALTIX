@@ -167,7 +167,7 @@ export default function AppLayout({ children, title }) {
     const { impersonation } = usePage().props;
 
     return (
-        <div className="min-h-screen overflow-x-hidden bg-linear-to-br from-slate-50 via-white to-blue-50 text-slate-900 font-[Inter,sans-serif]">
+        <div className="min-h-screen overflow-x-hidden rt-canvas text-slate-900 font-[Inter,sans-serif]">
             {impersonation && (
                 <div className="bg-rose-600 text-white text-xs sm:text-sm font-semibold px-4 py-2.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4 shadow-md lg:pl-64">
                     <div className="flex items-start sm:items-center gap-2">

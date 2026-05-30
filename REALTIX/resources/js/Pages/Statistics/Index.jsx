@@ -7,6 +7,12 @@ import {
     BarChart, Bar,
     XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
+import {
+    Building, Globe, Phone, Banknote, Eye, MapPin, TrendingUp, TrendingDown,
+    Sparkles, FileText, FileSpreadsheet, X as XIcon, BarChart3, PieChart as PieIcon,
+    Activity, Users, Briefcase, Calendar,
+} from 'lucide-react';
+import { useTheme } from '@/Components/ui/ThemeProvider';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -86,14 +92,34 @@ function formatMoney(n) {
     return `€${Number(n).toLocaleString('ro', { maximumFractionDigits: 0 })}`;
 }
 
-// Recharts shared tooltip style — flat white card with subtle border.
-const TOOLTIP_STYLE = {
-    background:   'white',
-    border:       '1px solid #e2e8f0',
-    borderRadius: 8,
-    fontSize:     12,
-    padding:      '6px 10px',
-};
+/**
+ * Returns a theme-aware Recharts palette. Recharts colors flow through JS props
+ * (fill, stroke), so Tailwind .dark overrides don't reach them — we read the
+ * theme and switch palettes manually. Donut/bar series stay vivid because the
+ * COLORS palette already works on both backgrounds; only chrome (grid, axes,
+ * tooltip) needs adapting.
+ */
+function useChartTheme() {
+    const { theme } = useTheme();
+    const isDark = theme === 'dark';
+    return {
+        isDark,
+        grid:     isDark ? 'rgba(255,255,255,.08)' : '#f1f5f9',
+        axis:     isDark ? '#94a3b8' : '#64748b',
+        axisLine: isDark ? 'rgba(255,255,255,.1)' : '#e2e8f0',
+        tooltipStyle: {
+            background:   isDark ? '#1e293b' : '#ffffff',
+            border:       isDark ? '1px solid rgba(255,255,255,.1)' : '1px solid #e2e8f0',
+            borderRadius: 8,
+            color:        isDark ? '#f1f5f9' : '#0f172a',
+            fontSize:     12,
+            padding:      '6px 10px',
+            boxShadow:    '0 4px 12px rgba(0,0,0,.15)',
+        },
+        tooltipLabel: { color: isDark ? '#cbd5e1' : '#475569' },
+        tooltipItem:  { color: isDark ? '#f1f5f9' : '#0f172a' },
+    };
+}
 
 // ─── Primitive components ────────────────────────────────────────────────────
 
@@ -121,20 +147,29 @@ function Sparkline({ data, color = '#3b82f6' }) {
     );
 }
 
-function KpiCard({ label, value, trend, sub, sparkline, sparklineColor }) {
+function KpiCard({ Icon, label, value, trend, sub, sparkline, sparklineColor = '#3b82f6' }) {
     return (
-        <div className="bg-white border border-slate-200 rounded-xl p-5 hover:border-slate-300 transition">
-            <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500 mb-1.5">{label}</p>
-            <p className="text-3xl font-semibold tracking-tight text-slate-900">{value}</p>
-            {sub && <p className="text-xs text-slate-500 mt-1">{sub}</p>}
-            {trend !== undefined && (
-                <div className="mt-2 flex items-center gap-1.5 text-xs">
-                    <TrendIndicator pct={trend} />
-                    <span className="text-slate-500">vs perioadă</span>
+        <div className="bg-white border border-slate-200/70 rounded-xl p-5 shadow-sm hover:shadow-lg hover:border-slate-300/70 transition-all duration-200">
+            <div className="flex items-start gap-3">
+                {Icon && (
+                    <div className="w-10 h-10 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
+                        <Icon className="w-5 h-5" strokeWidth={2} />
+                    </div>
+                )}
+                <div className="min-w-0 flex-1">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+                    <p className="text-[28px] font-bold tabular-nums leading-tight text-slate-900 mt-0.5">{value}</p>
+                    {sub && <p className="text-xs text-slate-400 mt-0.5">{sub}</p>}
+                    {trend !== undefined && (
+                        <div className="mt-1.5 flex items-center gap-1.5 text-xs">
+                            <TrendIndicator pct={trend} />
+                            <span className="text-slate-400">vs perioadă</span>
+                        </div>
+                    )}
                 </div>
-            )}
+            </div>
             {sparkline && sparkline.length > 0 && (
-                <div className="mt-2">
+                <div className="mt-3">
                     <Sparkline data={sparkline} color={sparklineColor} />
                 </div>
             )}
@@ -144,7 +179,7 @@ function KpiCard({ label, value, trend, sub, sparkline, sparklineColor }) {
 
 function Card({ title, subtitle, children, padding = 'p-6' }) {
     return (
-        <div className={`bg-white border border-slate-200 rounded-xl ${padding}`}>
+        <div className={`bg-white border border-slate-200/70 rounded-xl shadow-sm ${padding}`}>
             {title && <h3 className="text-sm font-semibold text-slate-900">{title}</h3>}
             {subtitle && <p className="text-xs text-slate-500 mt-1">{subtitle}</p>}
             {(title || subtitle) && <div className="mb-4" />}
@@ -163,7 +198,7 @@ function Badge({ children, color = 'slate' }) {
         violet:  'bg-violet-100 text-violet-700',
     };
     return (
-        <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${palette[color] ?? palette.slate}`}>
+        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${palette[color] ?? palette.slate}`}>
             {children}
         </span>
     );
@@ -195,17 +230,17 @@ function ExportModal({ open, onClose, format, period, isAdmin }) {
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={onClose}>
-            <div className="w-full max-w-lg bg-white border border-slate-200 rounded-xl p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="w-full max-w-lg bg-white border border-slate-200/70 rounded-2xl p-6 shadow-xl" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center justify-between mb-1">
                     <h3 className="text-lg font-semibold text-slate-900">
                         {format === 'pdf' ? 'Export PDF' : 'Export Excel'}
                     </h3>
                     <button
                         onClick={onClose}
-                        className="w-8 h-8 rounded-full hover:bg-slate-100 text-slate-500 flex items-center justify-center text-sm"
+                        className="w-8 h-8 rounded-lg hover:bg-slate-100 text-slate-500 flex items-center justify-center"
                         aria-label="Închide"
                     >
-                        ✕
+                        <XIcon className="w-4 h-4" />
                     </button>
                 </div>
                 <p className="text-xs text-slate-500 mb-5">
@@ -261,6 +296,7 @@ function OverviewTab({
     revenueByMonth,
     periodLabel,
 }) {
+    const ct = useChartTheme();
     const periodTag = periodLabel ?? 'Ultimele 30 zile';
 
     const propertiesByTypeArray = Object.entries(propertiesByType || {})
@@ -288,25 +324,29 @@ function OverviewTab({
             {/* KPI cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <KpiCard
+                    Icon={Building}
                     label="Total anunțuri"
                     value={Number(propertiesTotal || 0).toLocaleString('ro')}
                     sub={`${propertiesActive ?? 0} active`}
                     trend={propertiesTrendPct}
                 />
                 <KpiCard
+                    Icon={Globe}
                     label="Anunțuri piață"
                     value={Number(scrapedTotal || 0).toLocaleString('ro')}
                     sub="surse externe"
                     sparkline={scrapedSparkline}
-                    sparklineColor="#8b5cf6"
+                    sparklineColor="#3b82f6"
                 />
                 <KpiCard
+                    Icon={Phone}
                     label={`Apeluri (${periodTag})`}
                     value={Number(callsPeriod || 0).toLocaleString('ro')}
                     sub={`Conversie ${callConversion ?? 0}% · total ${Number(callsTotal || 0).toLocaleString('ro')}`}
                     trend={callsTrendPct}
                 />
                 <KpiCard
+                    Icon={Banknote}
                     label={`Venit (${periodTag})`}
                     value={
                         revenuePeriod > 0
@@ -339,11 +379,11 @@ function OverviewTab({
                                         <Cell key={i} fill={COLORS[i % COLORS.length]} />
                                     ))}
                                 </Pie>
-                                <Tooltip contentStyle={TOOLTIP_STYLE} />
+                                <Tooltip contentStyle={ct.tooltipStyle} labelStyle={ct.tooltipLabel} itemStyle={ct.tooltipItem} />
                                 <Legend
                                     verticalAlign="bottom"
                                     iconType="circle"
-                                    wrapperStyle={{ fontSize: 11, paddingTop: 12 }}
+                                    wrapperStyle={{ fontSize: 11, paddingTop: 12, color: ct.axis }}
                                 />
                             </PieChart>
                         </ResponsiveContainer>
@@ -369,11 +409,11 @@ function OverviewTab({
                                         <Cell key={i} fill={COLORS[i % COLORS.length]} />
                                     ))}
                                 </Pie>
-                                <Tooltip contentStyle={TOOLTIP_STYLE} />
+                                <Tooltip contentStyle={ct.tooltipStyle} labelStyle={ct.tooltipLabel} itemStyle={ct.tooltipItem} />
                                 <Legend
                                     verticalAlign="bottom"
                                     iconType="circle"
-                                    wrapperStyle={{ fontSize: 11, paddingTop: 12 }}
+                                    wrapperStyle={{ fontSize: 11, paddingTop: 12, color: ct.axis }}
                                 />
                             </PieChart>
                         </ResponsiveContainer>
@@ -413,12 +453,14 @@ function OverviewTab({
                         ) : (
                             <ResponsiveContainer width="100%" height={260}>
                                 <LineChart data={revenueLineData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={{ stroke: '#e2e8f0' }} />
-                                    <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={{ stroke: '#e2e8f0' }}
+                                    <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} />
+                                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: ct.axis }} axisLine={{ stroke: ct.axisLine }} tickLine={{ stroke: ct.axisLine }} />
+                                    <YAxis tick={{ fontSize: 11, fill: ct.axis }} axisLine={{ stroke: ct.axisLine }} tickLine={{ stroke: ct.axisLine }}
                                            tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v} />
                                     <Tooltip
-                                        contentStyle={TOOLTIP_STYLE}
+                                        contentStyle={ct.tooltipStyle}
+                                        labelStyle={ct.tooltipLabel}
+                                        itemStyle={ct.tooltipItem}
                                         formatter={(v) => [`€${Number(v).toLocaleString('ro')}`, 'Venit']}
                                     />
                                     <Line
@@ -475,10 +517,10 @@ function OverviewTab({
                 ) : (
                     <ResponsiveContainer width="100%" height={280}>
                         <LineChart data={scrapedLineData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                            <XAxis dataKey="week" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={{ stroke: '#e2e8f0' }} />
-                            <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={{ stroke: '#e2e8f0' }} />
-                            <Tooltip contentStyle={TOOLTIP_STYLE} />
+                            <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} />
+                            <XAxis dataKey="week" tick={{ fontSize: 11, fill: ct.axis }} axisLine={{ stroke: ct.axisLine }} tickLine={{ stroke: ct.axisLine }} />
+                            <YAxis tick={{ fontSize: 11, fill: ct.axis }} axisLine={{ stroke: ct.axisLine }} tickLine={{ stroke: ct.axisLine }} />
+                            <Tooltip contentStyle={ct.tooltipStyle} labelStyle={ct.tooltipLabel} itemStyle={ct.tooltipItem} />
                             <Line
                                 type="monotone"
                                 dataKey="total"
@@ -599,6 +641,8 @@ function AgentsTab({ agentStats }) {
 // ─── Admin: Market tab ───────────────────────────────────────────────────────
 
 function MarketTab({ scrapedTotal, scrapedByWeek, avgPriceByDistrict, top5Districts }) {
+    const ct = useChartTheme();
+
     const scrapedLineData = (scrapedByWeek || []).map(r => ({
         week:  `S${r.week}`,
         total: Number(r.total) || 0,
@@ -614,16 +658,19 @@ function MarketTab({ scrapedTotal, scrapedByWeek, avgPriceByDistrict, top5Distri
         <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <KpiCard
+                    Icon={Globe}
                     label="Total anunțuri piață"
                     value={Number(scrapedTotal || 0).toLocaleString('ro')}
                     sub="surse externe agregate"
                 />
                 <KpiCard
+                    Icon={MapPin}
                     label="Districte monitorizate"
                     value={(avgPriceByDistrict || []).length}
                     sub="cu date de preț (≥5 anunțuri)"
                 />
                 <KpiCard
+                    Icon={TrendingUp}
                     label="Top district activ"
                     value={top5Districts?.[0]?.district ?? '—'}
                     sub={top5Districts?.[0] ? `${top5Districts[0].count} anunțuri săpt.` : 'fără date recente'}
@@ -636,10 +683,10 @@ function MarketTab({ scrapedTotal, scrapedByWeek, avgPriceByDistrict, top5Distri
                 ) : (
                     <ResponsiveContainer width="100%" height={280}>
                         <LineChart data={scrapedLineData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                            <XAxis dataKey="week" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={{ stroke: '#e2e8f0' }} />
-                            <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={{ stroke: '#e2e8f0' }} />
-                            <Tooltip contentStyle={TOOLTIP_STYLE} />
+                            <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} />
+                            <XAxis dataKey="week" tick={{ fontSize: 11, fill: ct.axis }} axisLine={{ stroke: ct.axisLine }} tickLine={{ stroke: ct.axisLine }} />
+                            <YAxis tick={{ fontSize: 11, fill: ct.axis }} axisLine={{ stroke: ct.axisLine }} tickLine={{ stroke: ct.axisLine }} />
+                            <Tooltip contentStyle={ct.tooltipStyle} labelStyle={ct.tooltipLabel} itemStyle={ct.tooltipItem} />
                             <Line
                                 type="monotone"
                                 dataKey="total"
@@ -665,12 +712,15 @@ function MarketTab({ scrapedTotal, scrapedByWeek, avgPriceByDistrict, top5Distri
                                 layout="vertical"
                                 margin={{ top: 8, right: 12, left: 0, bottom: 0 }}
                             >
-                                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
-                                <XAxis type="number" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={{ stroke: '#e2e8f0' }} />
+                                <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} horizontal={false} />
+                                <XAxis type="number" tick={{ fontSize: 11, fill: ct.axis }} axisLine={{ stroke: ct.axisLine }} tickLine={{ stroke: ct.axisLine }} />
                                 <YAxis dataKey="district" type="category" width={120}
-                                       tick={{ fontSize: 11, fill: '#64748b' }} axisLine={{ stroke: '#e2e8f0' }} />
+                                       tick={{ fontSize: 11, fill: ct.axis }} axisLine={{ stroke: ct.axisLine }} tickLine={{ stroke: ct.axisLine }} />
                                 <Tooltip
-                                    contentStyle={TOOLTIP_STYLE}
+                                    contentStyle={ct.tooltipStyle}
+                                    labelStyle={ct.tooltipLabel}
+                                    itemStyle={ct.tooltipItem}
+                                    cursor={{ fill: ct.isDark ? 'rgba(255,255,255,.04)' : 'rgba(0,0,0,.04)' }}
                                     formatter={(v) => [`€${Number(v).toLocaleString('ro')}/m²`, 'Preț mediu']}
                                 />
                                 <Bar dataKey="price" fill="#3b82f6" radius={[0, 4, 4, 0]} isAnimationActive={false} />
@@ -719,7 +769,9 @@ function AIInsightsTab({ aiInsights }) {
         <div className="space-y-6">
             <Card padding="p-5">
                 <div className="flex items-start gap-3">
-                    <span className="text-xl">🤖</span>
+                    <div className="w-10 h-10 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
+                        <Sparkles className="w-5 h-5" strokeWidth={2} />
+                    </div>
                     <div>
                         <p className="text-sm font-semibold text-slate-900">AI Insights</p>
                         <p className="text-xs text-slate-500 mt-1">
@@ -831,18 +883,20 @@ function AdminDashboard(props) {
                     <button
                         type="button"
                         onClick={() => setExportFormat('pdf')}
-                        className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-700"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-700"
                         title="Configurează și descarcă PDF"
                     >
-                        📄 PDF
+                        <FileText className="w-4 h-4" />
+                        PDF
                     </button>
                     <button
                         type="button"
                         onClick={() => setExportFormat('csv')}
-                        className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-700"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-700"
                         title="Configurează și descarcă Excel/CSV"
                     >
-                        📊 Excel
+                        <FileSpreadsheet className="w-4 h-4" />
+                        Excel
                     </button>
                 </div>
             </div>
@@ -873,6 +927,7 @@ function RealtorDashboard({
     dealsPeriod, revenuePeriod, revenueTotal, revenueByMonth,
     period, periodLabel,
 }) {
+    const ct = useChartTheme();
     const [exportFormat, setExportFormat] = useState(null);
     const periodTag = periodLabel ?? PERIOD_LABELS[period] ?? 'Lună';
 
@@ -890,16 +945,18 @@ function RealtorDashboard({
                 <button
                     type="button"
                     onClick={() => setExportFormat('pdf')}
-                    className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-700"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-700"
                 >
-                    📄 PDF
+                    <FileText className="w-4 h-4" />
+                    PDF
                 </button>
                 <button
                     type="button"
                     onClick={() => setExportFormat('csv')}
-                    className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-700"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-700"
                 >
-                    📊 Excel
+                    <FileSpreadsheet className="w-4 h-4" />
+                    Excel
                 </button>
             </div>
 
@@ -914,21 +971,25 @@ function RealtorDashboard({
             <div className="space-y-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <KpiCard
+                        Icon={Building}
                         label="Imobiliare"
                         value={Number(propertiesTotal || 0).toLocaleString('ro')}
                         sub={`${propertiesActive ?? 0} active · ${propertiesArchived ?? 0} arhivate`}
                     />
                     <KpiCard
+                        Icon={Eye}
                         label="Total vizualizări"
                         value={Number(viewsTotal || 0).toLocaleString('ro')}
                         sub="cumulativ"
                     />
                     <KpiCard
+                        Icon={Phone}
                         label={`Apeluri (${periodTag})`}
                         value={Number(myCallsPeriod || 0).toLocaleString('ro')}
                         sub={`Conversie ${callConversion ?? 0}% · total ${Number(myCallsTotal || 0).toLocaleString('ro')}`}
                     />
                     <KpiCard
+                        Icon={Banknote}
                         label={`Venit (${periodTag})`}
                         value={
                             revenuePeriod > 0
@@ -991,12 +1052,14 @@ function RealtorDashboard({
                         ) : (
                             <ResponsiveContainer width="100%" height={240}>
                                 <LineChart data={revenueLineData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={{ stroke: '#e2e8f0' }} />
-                                    <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={{ stroke: '#e2e8f0' }}
+                                    <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} />
+                                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: ct.axis }} axisLine={{ stroke: ct.axisLine }} tickLine={{ stroke: ct.axisLine }} />
+                                    <YAxis tick={{ fontSize: 11, fill: ct.axis }} axisLine={{ stroke: ct.axisLine }} tickLine={{ stroke: ct.axisLine }}
                                            tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v} />
                                     <Tooltip
-                                        contentStyle={TOOLTIP_STYLE}
+                                        contentStyle={ct.tooltipStyle}
+                                        labelStyle={ct.tooltipLabel}
+                                        itemStyle={ct.tooltipItem}
                                         formatter={(v) => [`€${Number(v).toLocaleString('ro')}`, 'Venit']}
                                     />
                                     <Line

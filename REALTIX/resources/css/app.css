@@ -159,6 +159,9 @@ body {
 
 /* surfaces */
 .dark .bg-white            { background-color: #161e2e; }
+.dark .lg\:bg-white         { background-color: #161e2e; }
+.dark .lg\:border-slate-100  { border-color: rgba(255,255,255,.07); }
+.dark .lg\:border-slate-200\/70 { border-color: rgba(255,255,255,.08); }
 .dark .bg-slate-50         { background-color: #0f1827; }
 .dark .bg-slate-50\/60     { background-color: rgba(15,24,39,.6); }
 .dark .bg-slate-50\/50     { background-color: rgba(15,24,39,.5); }

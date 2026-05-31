@@ -2,11 +2,18 @@ import AppLayout from '@/Layouts/AppLayout';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
 import imageCompression from 'browser-image-compression';
+import {
+    User, Building2, Users, Bell, Lock, Link2, Phone, MessageCircle,
+    Send, Mail, Clock, X as XIcon, Check, CheckCircle2, AlertTriangle,
+    Ban, RotateCw, Home, Handshake, ScrollText, Smartphone, Laptop, Apple,
+    Key, Image as ImageIcon, Pencil, Trash2, CreditCard, XCircle, Calendar,
+    LogIn, LogOut, ShieldAlert, Briefcase, Share2, Globe,
+} from 'lucide-react';
 
 // ─── Primitive helpers ────────────────────────────────────────────────────────
 
 function Label({ children }) {
-    return <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide">{children}</label>;
+    return <label className="block text-[11px] font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">{children}</label>;
 }
 
 function Input({ value, onChange, type = 'text', placeholder, className = '' }) {
@@ -16,7 +23,7 @@ function Input({ value, onChange, type = 'text', placeholder, className = '' }) 
             value={value ?? ''}
             onChange={e => onChange(e.target.value)}
             placeholder={placeholder}
-            className={`w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:border-blue-700 transition-colors ${className}`}
+            className={`w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition-colors ${className}`}
         />
     );
 }
@@ -31,7 +38,7 @@ function Toggle({ checked, onChange, label, sub }) {
             <button
                 type="button"
                 onClick={() => onChange(!checked)}
-                className={`relative shrink-0 w-11 h-6 rounded-full transition-colors ${checked ? 'bg-blue-700' : 'bg-slate-200'}`}
+                className={`relative shrink-0 w-11 h-6 rounded-full transition-colors ${checked ? 'bg-blue-600' : 'bg-slate-200'}`}
             >
                 <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${checked ? 'translate-x-6' : 'translate-x-1'}`} />
             </button>
@@ -44,9 +51,14 @@ function SaveBtn({ processing, label = 'Salvează' }) {
         <button
             type="submit"
             disabled={processing}
-            className="rounded-2xl bg-slate-900 px-6 py-2.5 text-white text-sm font-bold disabled:opacity-50 hover:bg-slate-700 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 px-5 py-2 text-white text-sm font-semibold shadow-sm disabled:opacity-50 transition-colors"
         >
-            {processing ? 'Se salvează...' : label}
+            {processing ? 'Se salvează…' : (
+                <>
+                    <Check className="w-4 h-4" strokeWidth={2.5} />
+                    {label}
+                </>
+            )}
         </button>
     );
 }
@@ -56,7 +68,7 @@ function FieldError({ msg }) {
 }
 
 function SectionTitle({ children }) {
-    return <h4 className="font-bold text-slate-800 mb-4 mt-2">{children}</h4>;
+    return <h4 className="font-semibold text-slate-900 text-sm mb-4 mt-2">{children}</h4>;
 }
 
 function Toast({ message, onClose }) {
@@ -68,9 +80,12 @@ function Toast({ message, onClose }) {
 
     if (!message) return null;
     return (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl text-sm font-semibold animate-in slide-in-from-bottom-2">
-            <span>✅</span> {message}
-            <button onClick={onClose} className="ml-2 opacity-60 hover:opacity-100">✕</button>
+        <div className="fixed bottom-6 right-6 z-50 inline-flex items-center gap-2 bg-slate-900 text-white px-4 py-2.5 rounded-xl shadow-lg text-sm font-semibold animate-in slide-in-from-bottom-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            {message}
+            <button onClick={onClose} className="ml-2 opacity-60 hover:opacity-100">
+                <XIcon className="w-4 h-4" />
+            </button>
         </div>
     );
 }
@@ -133,10 +148,10 @@ function ProfileTab({ user }) {
     };
 
     const contactFields = [
-        { key: 'phone',    label: 'Telefon',   icon: '📞', type: 'tel' },
-        { key: 'whatsapp', label: 'WhatsApp',  icon: '💬', type: 'tel' },
-        { key: 'viber',    label: 'Viber',     icon: '📲', type: 'tel' },
-        { key: 'telegram', label: 'Telegram',  icon: '✈️', type: 'text', placeholder: '@username' },
+        { key: 'phone',    label: 'Telefon',   Icon: Phone,          type: 'tel' },
+        { key: 'whatsapp', label: 'WhatsApp',  Icon: MessageCircle,  type: 'tel' },
+        { key: 'viber',    label: 'Viber',     Icon: Phone,          type: 'tel' },
+        { key: 'telegram', label: 'Telegram',  Icon: Send,           type: 'text', placeholder: '@username' },
     ];
 
     return (
@@ -212,7 +227,9 @@ function ProfileTab({ user }) {
                 <div className="grid grid-cols-1 gap-3">
                     {contactFields.map(f => (
                         <div key={f.key} className="flex items-center gap-3">
-                            <span className="text-xl w-7 shrink-0">{f.icon}</span>
+                            <div className="w-10 h-10 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
+                                <f.Icon className="w-4.5 h-4.5" strokeWidth={2} />
+                            </div>
                             <div className="flex-1">
                                 <Input
                                     value={data[f.key]}
@@ -233,11 +250,11 @@ function ProfileTab({ user }) {
                     <select
                         value={data.locale}
                         onChange={e => setData('locale', e.target.value)}
-                        className="w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:border-blue-700"
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                     >
-                        <option value="ro">🇷🇴 Română</option>
-                        <option value="ru">🇷🇺 Русский</option>
-                        <option value="en">🇬🇧 English</option>
+                        <option value="ro">Română</option>
+                        <option value="ru">Русский</option>
+                        <option value="en">English</option>
                     </select>
                 </div>
                 <div>
@@ -245,7 +262,7 @@ function ProfileTab({ user }) {
                     <select
                         value={data.timezone}
                         onChange={e => setData('timezone', e.target.value)}
-                        className="w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:border-blue-700"
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                     >
                         <option value="Europe/Chisinau">Chișinău (UTC+3)</option>
                         <option value="Europe/Bucharest">București (UTC+3)</option>
@@ -326,12 +343,12 @@ function AgencyTab({ agency }) {
     return (
         <form onSubmit={submit} className="space-y-5 max-w-lg">
             {/* Logo */}
-            <div className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 flex items-center justify-center overflow-hidden shadow-sm">
+            <div className="flex items-center gap-4 p-4 rounded-xl bg-slate-50 border border-slate-200/70">
+                <div className="w-16 h-16 rounded-xl bg-white border border-slate-200/70 flex items-center justify-center overflow-hidden shadow-sm">
                     {currentLogoUrl ? (
                         <img src={currentLogoUrl} alt={agency?.name} className="w-full h-full object-cover" />
                     ) : (
-                        <span className="text-3xl">🏢</span>
+                        <Building2 className="w-8 h-8 text-slate-300" strokeWidth={1.5} />
                     )}
                 </div>
                 <div>
@@ -370,7 +387,7 @@ function AgencyTab({ agency }) {
                         type="color"
                         value={data.brand_color}
                         onChange={e => setData('brand_color', e.target.value)}
-                        className="w-10 h-10 rounded-xl border border-slate-200 cursor-pointer p-0.5"
+                        className="w-10 h-10 rounded-lg border border-slate-200 cursor-pointer p-0.5"
                     />
                 </div>
             </div>
@@ -383,10 +400,10 @@ function AgencyTab({ agency }) {
 
             <div>
                 <Label>Subdomeniu</Label>
-                <div className="flex items-center rounded-2xl border border-slate-200 overflow-hidden">
+                <div className="flex items-center rounded-xl border border-slate-200 overflow-hidden bg-white">
                     <input value={agency?.slug ?? ''} readOnly
-                        className="flex-1 px-4 py-2.5 text-sm bg-slate-50 text-slate-500 outline-none" />
-                    <span className="px-4 py-2.5 text-xs text-slate-400 bg-slate-50 border-l border-slate-200 shrink-0">.realtix.md</span>
+                        className="flex-1 px-3 py-2 text-sm bg-slate-50 text-slate-500 outline-none" />
+                    <span className="px-3 py-2 text-xs text-slate-400 bg-slate-50 border-l border-slate-200 shrink-0">.realtix.md</span>
                 </div>
             </div>
 
@@ -417,17 +434,17 @@ function AgencyTab({ agency }) {
                     value={data.about}
                     onChange={e => setData('about', e.target.value)}
                     rows={4}
-                    placeholder="Descrierea agenției..."
-                    className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:border-blue-700 resize-none"
+                    placeholder="Descrierea agenției…"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 resize-none"
                 />
             </div>
 
-            <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-200">
+            <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-200/70">
                 <div>
-                    <div className="text-sm font-semibold text-slate-800">Plan abonament</div>
+                    <div className="text-sm font-semibold text-slate-900">Plan abonament</div>
                     <div className="text-xs text-slate-500 capitalize mt-0.5">{agency?.subscription_plan ?? '—'}</div>
                 </div>
-                <a href="/subscription" className="text-xs text-blue-700 font-semibold hover:underline">Gestionează →</a>
+                <a href="/subscription" className="text-xs text-blue-600 hover:text-blue-700 font-semibold hover:underline">Gestionează →</a>
             </div>
 
             <SaveBtn processing={processing} />
@@ -449,10 +466,12 @@ function LoginHistoryModal({ agent, onClose }) {
 
     return (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
-            <div onClick={e => e.stopPropagation()} className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col">
+            <div onClick={e => e.stopPropagation()} className="bg-white rounded-2xl shadow-xl border border-slate-200/70 w-full max-w-2xl max-h-[85vh] flex flex-col">
                 <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-                    <h3 className="text-base font-bold text-slate-900">Istoric login — {agent.name}</h3>
-                    <button onClick={onClose} className="text-slate-400 hover:text-slate-700 text-lg">✕</button>
+                    <h3 className="text-base font-semibold text-slate-900">Istoric login — {agent.name}</h3>
+                    <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100" aria-label="Închide">
+                        <XIcon className="w-4 h-4" />
+                    </button>
                 </div>
 
                 <div className="flex-1 overflow-y-auto">
@@ -546,16 +565,18 @@ function UsersTab({ agents, invitations = [], currentUserId, canInvite = true, c
         <div className="space-y-5">
             {/* Plan-gated banner: Solo can't invite at all */}
             {!canInvite && (
-                <div className="rounded-2xl bg-amber-50 border border-amber-200 p-4 flex items-start gap-3">
-                    <span className="text-2xl shrink-0">🔒</span>
+                <div className="rounded-xl bg-amber-50 border border-amber-100 p-4 flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                        <Lock className="w-5 h-5" strokeWidth={2} />
+                    </div>
                     <div className="flex-1">
-                        <p className="text-sm font-bold text-amber-900">
+                        <p className="text-sm font-semibold text-amber-900">
                             Pachetul {planLabel} nu permite invitarea agenților
                         </p>
                         <p className="text-xs text-amber-800 mt-1">
                             Pachetul <strong>Solo</strong> e single-user. Pentru a adăuga colegi, fă upgrade la <strong>Team</strong> (5 agenți incluși) sau <strong>Growth</strong> (5 + nelimitat la 8€/agent extra).
                         </p>
-                        <Link href="/subscription" className="inline-block mt-2 text-xs font-bold text-amber-900 hover:underline">
+                        <Link href="/subscription" className="inline-block mt-2 text-xs font-semibold text-amber-900 hover:underline">
                             Vezi pachete →
                         </Link>
                     </div>
@@ -564,16 +585,18 @@ function UsersTab({ agents, invitations = [], currentUserId, canInvite = true, c
 
             {/* Seat-limit banner: Team plan reached cap */}
             {canInvite && !canInviteMore && (
-                <div className="rounded-2xl bg-rose-50 border border-rose-200 p-4 flex items-start gap-3">
-                    <span className="text-2xl shrink-0">⛔</span>
+                <div className="rounded-xl bg-rose-50 border border-rose-100 p-4 flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                        <Ban className="w-5 h-5" strokeWidth={2} />
+                    </div>
                     <div className="flex-1">
-                        <p className="text-sm font-bold text-rose-900">
+                        <p className="text-sm font-semibold text-rose-900">
                             Ai atins limita de {seatsLimit} agenți a planului {planLabel}
                         </p>
                         <p className="text-xs text-rose-800 mt-1">
                             Pentru a adăuga mai mulți agenți, fă upgrade la <strong>Growth</strong> — primii 5 sunt incluși și fiecare suplimentar costă <strong>8€/lună</strong>.
                         </p>
-                        <Link href="/subscription" className="inline-block mt-2 text-xs font-bold text-rose-900 hover:underline">
+                        <Link href="/subscription" className="inline-block mt-2 text-xs font-semibold text-rose-900 hover:underline">
                             Upgrade la Growth →
                         </Link>
                     </div>
@@ -585,7 +608,7 @@ function UsersTab({ agents, invitations = [], currentUserId, canInvite = true, c
                 <div className="flex items-center gap-3 text-sm">
                     <span className="text-slate-500">{agents.length} cont{agents.length !== 1 ? 'uri' : ''} active</span>
                     {canInvite && (
-                        <span className={`text-xs font-bold px-3 py-1 rounded-full ${
+                        <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-md ${
                             !canInviteMore ? 'bg-rose-100 text-rose-700'
                                 : nearLimit ? 'bg-amber-100 text-amber-700'
                                 : 'bg-emerald-100 text-emerald-700'
@@ -598,64 +621,66 @@ function UsersTab({ agents, invitations = [], currentUserId, canInvite = true, c
                     onClick={() => canInviteMore && setShowInvite(!showInvite)}
                     disabled={!canInviteMore}
                     title={!canInvite ? 'Disponibil cu Team sau Growth' : !canInviteMore ? `Ai atins limita planului ${planLabel}` : ''}
-                    className={`rounded-2xl px-5 py-2 text-sm font-bold transition-colors ${
+                    className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
                         canInviteMore
-                            ? 'bg-slate-900 text-white hover:bg-slate-700'
+                            ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'
                             : 'bg-slate-200 text-slate-400 cursor-not-allowed'
                     }`}
                 >
-                    {!canInvite ? '🔒 Invită agent (Team/Growth)'
-                        : !canInviteMore ? `⛔ Limită atinsă (${planLabel})`
-                        : '+ Invită agent'}
+                    {!canInvite ? <><Lock className="w-4 h-4" /> Invită agent (Team/Growth)</>
+                        : !canInviteMore ? <><Ban className="w-4 h-4" /> Limită atinsă ({planLabel})</>
+                        : <>+ Invită agent</>}
                 </button>
             </div>
 
             {/* Invite form */}
             {showInvite && (
-                <form onSubmit={submitInvite} className="flex gap-3 items-center p-4 rounded-2xl bg-blue-50 border border-blue-100 flex-wrap">
-                    <span className="text-lg">✉️</span>
+                <form onSubmit={submitInvite} className="flex gap-2 items-center p-4 rounded-xl bg-blue-50 border border-blue-100 flex-wrap">
+                    <Mail className="w-5 h-5 text-blue-600 shrink-0" />
                     <input
                         type="email"
                         value={invite.data.email}
                         onChange={e => invite.setData('email', e.target.value)}
                         placeholder="email@agent.md"
                         required
-                        className="flex-1 min-w-48 rounded-xl border border-blue-200 px-4 py-2 text-sm focus:outline-none focus:border-blue-700 bg-white"
+                        className="flex-1 min-w-48 rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                     />
                     <select
                         value={invite.data.role}
                         onChange={e => invite.setData('role', e.target.value)}
-                        className="rounded-xl border border-blue-200 px-3 py-2 text-sm font-semibold focus:outline-none bg-white"
+                        className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 focus:outline-none"
                     >
                         <option value="realtor">Agent</option>
                         <option value="admin">Admin</option>
                     </select>
                     <button type="submit" disabled={invite.processing}
-                        className="rounded-xl bg-blue-700 text-white px-4 py-2 text-sm font-bold hover:bg-blue-800 disabled:opacity-50">
+                        className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 text-sm font-semibold shadow-sm disabled:opacity-50 transition-colors">
                         Trimite invitație
                     </button>
-                    <button type="button" onClick={() => setShowInvite(false)} className="text-slate-400 hover:text-slate-600">✕</button>
+                    <button type="button" onClick={() => setShowInvite(false)} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-blue-100" aria-label="Închide">
+                        <XIcon className="w-4 h-4" />
+                    </button>
                 </form>
             )}
 
             {/* Pending invitations */}
             {invitations.length > 0 && (
-                <div className="rounded-2xl border border-amber-100 bg-amber-50/50 overflow-hidden">
+                <div className="rounded-xl border border-amber-100 bg-amber-50/50 overflow-hidden">
                     <div className="px-4 py-2.5 border-b border-amber-100 bg-amber-100/50 flex items-center gap-2">
-                        <span className="text-base">⏳</span>
-                        <h4 className="text-sm font-bold text-amber-900">Invitații în așteptare ({invitations.length})</h4>
+                        <Clock className="w-4 h-4 text-amber-700" />
+                        <h4 className="text-sm font-semibold text-amber-900">Invitații în așteptare ({invitations.length})</h4>
                     </div>
                     <div className="divide-y divide-amber-100">
                         {invitations.map(inv => (
                             <div key={inv.id} className="flex items-center gap-3 px-4 py-3 flex-wrap">
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 flex-wrap">
-                                        <span className="text-sm font-semibold text-slate-800">{inv.email}</span>
-                                        <span className="text-[10px] font-bold uppercase bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                                        <span className="text-sm font-semibold text-slate-900">{inv.email}</span>
+                                        <span className="text-[10px] font-semibold uppercase bg-blue-100 text-blue-700 px-2 py-0.5 rounded-md">
                                             {inv.role === 'admin' ? 'Admin' : 'Agent'}
                                         </span>
                                         {inv.is_expired && (
-                                            <span className="text-[10px] font-bold uppercase bg-red-100 text-red-700 px-2 py-0.5 rounded-full">
+                                            <span className="text-[10px] font-semibold uppercase bg-red-100 text-red-700 px-2 py-0.5 rounded-md">
                                                 Expirat
                                             </span>
                                         )}
@@ -667,23 +692,26 @@ function UsersTab({ agents, invitations = [], currentUserId, canInvite = true, c
                                 </div>
                                 <button
                                     onClick={() => copyLink(inv)}
-                                    className="text-xs font-semibold text-slate-600 hover:text-blue-700 px-2"
+                                    className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-blue-600 px-2 py-1 rounded-md hover:bg-amber-100 transition-colors"
                                     title="Copiază linkul"
                                 >
-                                    🔗 Copiază
+                                    <Link2 className="w-3.5 h-3.5" />
+                                    Copiază
                                 </button>
                                 <button
                                     onClick={() => resendInvitation(inv)}
-                                    className="text-xs font-semibold text-blue-700 hover:text-blue-900 px-2"
+                                    className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 px-2 py-1 rounded-md hover:bg-blue-50 transition-colors"
                                     title="Retrimite email-ul"
                                 >
-                                    ↻ Retrimite
+                                    <RotateCw className="w-3.5 h-3.5" />
+                                    Retrimite
                                 </button>
                                 <button
                                     onClick={() => cancelInvitation(inv)}
-                                    className="text-xs font-semibold text-red-600 hover:text-red-800 px-2"
+                                    className="inline-flex items-center gap-1 text-xs font-semibold text-red-500 hover:text-red-600 px-2 py-1 rounded-md hover:bg-red-50 transition-colors"
                                 >
-                                    ✕ Anulează
+                                    <XIcon className="w-3.5 h-3.5" />
+                                    Anulează
                                 </button>
                             </div>
                         ))}
@@ -696,7 +724,7 @@ function UsersTab({ agents, invitations = [], currentUserId, canInvite = true, c
             {/* Agent list */}
             <div className="space-y-3">
                 {agents.map(agent => (
-                    <div key={agent.id} className="rounded-2xl border border-slate-100 bg-white p-4 flex items-center gap-4 hover:shadow-md transition-shadow">
+                    <div key={agent.id} className="rounded-xl border border-slate-200/70 bg-white shadow-sm p-4 flex items-center gap-4 hover:shadow-lg hover:border-slate-300/70 transition-all duration-200">
                         {/* Avatar with online dot */}
                         <div className="relative shrink-0">
                             <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm">
@@ -711,13 +739,16 @@ function UsersTab({ agents, invitations = [], currentUserId, canInvite = true, c
                         {/* Info */}
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-bold text-slate-800 text-sm">{agent.name}</span>
-                                {agent.is_self && <span className="text-xs text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full">Tu</span>}
-                                <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${agent.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-600'}`}>
+                                <span className="font-semibold text-slate-900 text-sm">{agent.name}</span>
+                                {agent.is_self && <span className="text-[11px] font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md">Tu</span>}
+                                <span className={`text-[11px] px-2 py-0.5 rounded-md font-semibold ${agent.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-600'}`}>
                                     {agent.is_active ? 'Activ' : 'Suspendat'}
                                 </span>
                                 {agent.is_online && (
-                                    <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">● online</span>
+                                    <span className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wider inline-flex items-center gap-1">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                        online
+                                    </span>
                                 )}
                             </div>
                             <div className="text-xs text-slate-500 mt-0.5">{agent.email} {agent.position ? `· ${agent.position}` : ''}</div>
@@ -725,21 +756,27 @@ function UsersTab({ agents, invitations = [], currentUserId, canInvite = true, c
                             {/* Last login info */}
                             {agent.last_login_at && (
                                 <div className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-2 flex-wrap">
-                                    <span title="Ultimul login">🕐 {new Date(agent.last_login_at).toLocaleString('ro-RO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                                    <span title="Ultimul login" className="inline-flex items-center gap-1">
+                                        <Clock className="w-3 h-3" />
+                                        {new Date(agent.last_login_at).toLocaleString('ro-RO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                    </span>
                                     {agent.last_login_ip && <span className="font-mono">· {agent.last_login_ip}</span>}
                                     {agent.last_login_device && agent.last_login_device !== '—' && <span>· {agent.last_login_device}</span>}
                                     {agent.last_login_browser && agent.last_login_browser !== '—' && <span>· {agent.last_login_browser}</span>}
                                 </div>
                             )}
 
-                            <div className="flex gap-3 mt-1.5 text-xs text-slate-400">
-                                <span>🏠 {agent.properties_count}</span>
-                                <span>👥 {agent.contacts_count}</span>
-                                <span>🤝 {agent.deals_count}</span>
+                            <div className="flex items-center gap-3 mt-1.5 text-xs text-slate-500">
+                                <span className="inline-flex items-center gap-1"><Home className="w-3 h-3" /> {agent.properties_count}</span>
+                                <span className="inline-flex items-center gap-1"><Users className="w-3 h-3" /> {agent.contacts_count}</span>
+                                <span className="inline-flex items-center gap-1"><Handshake className="w-3 h-3" /> {agent.deals_count}</span>
                                 <button
                                     onClick={() => setHistoryAgent(agent)}
-                                    className="text-blue-600 hover:text-blue-800 hover:underline font-semibold"
-                                >📜 Istoric</button>
+                                    className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 hover:underline font-semibold"
+                                >
+                                    <ScrollText className="w-3 h-3" />
+                                    Istoric
+                                </button>
                             </div>
                         </div>
 
@@ -748,7 +785,7 @@ function UsersTab({ agents, invitations = [], currentUserId, canInvite = true, c
                             <select
                                 value={agent.role}
                                 onChange={e => changeRole(agent, e.target.value)}
-                                className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold focus:outline-none"
+                                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                             >
                                 <option value="realtor">Realtor</option>
                                 <option value="admin">Admin</option>
@@ -757,17 +794,18 @@ function UsersTab({ agents, invitations = [], currentUserId, canInvite = true, c
 
                         {/* Actions */}
                         {!agent.is_self && (
-                            <div className="flex items-center gap-2 shrink-0">
+                            <div className="flex items-center gap-1 shrink-0">
                                 <button
                                     onClick={() => toggleActive(agent)}
-                                    className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition-colors ${agent.is_active ? 'bg-slate-100 text-slate-600 hover:bg-rose-50 hover:text-rose-600' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'}`}
+                                    className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${agent.is_active ? 'bg-slate-100 text-slate-600 hover:bg-rose-50 hover:text-rose-600' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'}`}
                                 >
                                     {agent.is_active ? 'Suspendă' : 'Activează'}
                                 </button>
                                 <button
                                     onClick={() => remove(agent)}
-                                    className="rounded-xl px-3 py-1.5 text-xs font-semibold text-rose-500 hover:bg-rose-50 transition-colors"
+                                    className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-red-500 hover:text-red-600 hover:bg-red-50 transition-colors"
                                 >
+                                    <Trash2 className="w-3.5 h-3.5" />
                                     Elimină
                                 </button>
                             </div>
@@ -824,7 +862,7 @@ function NotificationsTab({ user }) {
             {groups.map(g => (
                 <div key={g.label}>
                     <SectionTitle>{g.label}</SectionTitle>
-                    <div className="rounded-3xl bg-slate-50 border border-slate-100 divide-y divide-slate-100 px-5">
+                    <div className="rounded-xl bg-slate-50 border border-slate-200/70 divide-y divide-slate-200/70 px-5">
                         {g.items.map(item => (
                             <Toggle
                                 key={item.key}
@@ -844,27 +882,28 @@ function NotificationsTab({ user }) {
 
 // ─── Security Tab ─────────────────────────────────────────────────────────────
 
+// Lucide component map for the activity log. Render as <Icon className=… />.
 const ACTIVITY_ICON = {
-    'auth.login':              '🔓',
-    'auth.logout':             '🔒',
-    'auth.failed':             '⛔',
-    'profile.updated':         '👤',
-    'profile.password_changed':'🔑',
-    'profile.avatar_updated':  '🖼',
-    'profile.avatar_removed':  '🗑',
-    'property.created':        '🏠',
-    'property.updated':        '✏️',
-    'property.deleted':        '🗑',
-    'contact.created':         '👥',
-    'contact.updated':         '✏️',
-    'contact.deleted':         '🗑',
-    'deal.created':            '💼',
-    'deal.updated':            '✏️',
-    'deal.deleted':            '🗑',
-    'calendar.created':        '📅',
-    'calendar.deleted':        '🗑',
-    'subscription.checkout_started': '💳',
-    'subscription.cancelled':  '❌',
+    'auth.login':                    LogIn,
+    'auth.logout':                   LogOut,
+    'auth.failed':                   ShieldAlert,
+    'profile.updated':               User,
+    'profile.password_changed':      Key,
+    'profile.avatar_updated':        ImageIcon,
+    'profile.avatar_removed':        Trash2,
+    'property.created':              Home,
+    'property.updated':              Pencil,
+    'property.deleted':              Trash2,
+    'contact.created':               Users,
+    'contact.updated':               Pencil,
+    'contact.deleted':               Trash2,
+    'deal.created':                  Briefcase,
+    'deal.updated':                  Pencil,
+    'deal.deleted':                  Trash2,
+    'calendar.created':              Calendar,
+    'calendar.deleted':              Trash2,
+    'subscription.checkout_started': CreditCard,
+    'subscription.cancelled':        XCircle,
 };
 
 function SecurityTab({ sessions, activityLog = [] }) {
@@ -885,9 +924,9 @@ function SecurityTab({ sessions, activityLog = [] }) {
     };
 
     const uaIcon = (ua = '') => {
-        if (/mobile|android|iphone/i.test(ua)) return '📱';
-        if (/mac/i.test(ua)) return '🍎';
-        return '💻';
+        if (/mobile|android|iphone/i.test(ua)) return Smartphone;
+        if (/mac/i.test(ua)) return Apple;
+        return Laptop;
     };
 
     return (
@@ -918,8 +957,9 @@ function SecurityTab({ sessions, activityLog = [] }) {
             {/* 2FA */}
             <div>
                 <SectionTitle>Autentificare în doi factori (2FA)</SectionTitle>
-                <div className="rounded-2xl bg-amber-50 border border-amber-200 p-4 text-sm text-amber-800">
-                    ⚠️ 2FA prin email sau SMS — disponibil în versiunea viitoare.
+                <div className="rounded-xl bg-amber-50 border border-amber-100 p-3 text-sm text-amber-800 inline-flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                    <span>2FA prin email sau SMS — disponibil în versiunea viitoare.</span>
                 </div>
             </div>
 
@@ -936,16 +976,16 @@ function SecurityTab({ sessions, activityLog = [] }) {
                 </div>
 
                 {showLogoutForm && (
-                    <form onSubmit={submitLogout} className="flex gap-3 mb-4 p-3 rounded-2xl bg-rose-50 border border-rose-100">
+                    <form onSubmit={submitLogout} className="flex gap-2 mb-4 p-3 rounded-xl bg-rose-50 border border-rose-100">
                         <input
                             type="password"
                             value={logoutOthers.data.password}
                             onChange={e => logoutOthers.setData('password', e.target.value)}
                             placeholder="Confirmă parola"
-                            className="flex-1 rounded-xl border border-rose-200 px-3 py-2 text-sm focus:outline-none bg-white"
+                            className="flex-1 rounded-lg border border-rose-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500"
                         />
                         <button type="submit" disabled={logoutOthers.processing}
-                            className="rounded-xl bg-rose-600 text-white px-4 py-2 text-sm font-bold hover:bg-rose-700 disabled:opacity-50">
+                            className="rounded-lg bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 text-sm font-semibold shadow-sm disabled:opacity-50 transition-colors">
                             Confirmă
                         </button>
                     </form>
@@ -955,20 +995,25 @@ function SecurityTab({ sessions, activityLog = [] }) {
                     {sessions.length === 0 ? (
                         <div className="text-sm text-slate-400 text-center py-4">Nicio sesiune găsită.</div>
                     ) : (
-                        sessions.map(s => (
-                            <div key={s.id} className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100">
-                                <span className="text-xl">{uaIcon(s.user_agent)}</span>
-                                <div className="flex-1 min-w-0">
-                                    <div className="text-xs font-semibold text-slate-700 truncate">{s.user_agent}</div>
-                                    <div className="text-xs text-slate-400 mt-0.5">{s.ip} · {s.last_active}</div>
+                        sessions.map(s => {
+                            const UaIcon = uaIcon(s.user_agent);
+                            return (
+                                <div key={s.id} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200/70">
+                                    <div className="w-9 h-9 rounded-lg bg-white border border-slate-200/70 text-slate-600 flex items-center justify-center shrink-0">
+                                        <UaIcon className="w-4 h-4" strokeWidth={2} />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="text-xs font-semibold text-slate-700 truncate">{s.user_agent}</div>
+                                        <div className="text-xs text-slate-400 mt-0.5">{s.ip} · {s.last_active}</div>
+                                    </div>
+                                    {s.is_current && (
+                                        <span className="text-[11px] bg-emerald-100 text-emerald-700 font-semibold px-2 py-0.5 rounded-md shrink-0">
+                                            Curentă
+                                        </span>
+                                    )}
                                 </div>
-                                {s.is_current && (
-                                    <span className="text-xs bg-emerald-100 text-emerald-700 font-semibold px-2 py-0.5 rounded-full shrink-0">
-                                        Curentă
-                                    </span>
-                                )}
-                            </div>
-                        ))
+                            );
+                        })
                     )}
                 </div>
             </div>
@@ -977,26 +1022,31 @@ function SecurityTab({ sessions, activityLog = [] }) {
             <div>
                 <SectionTitle>Jurnal activitate</SectionTitle>
                 {activityLog.length === 0 ? (
-                    <div className="rounded-2xl bg-slate-50 border border-slate-100 p-4 text-sm text-slate-400 text-center">
+                    <div className="rounded-xl bg-slate-50 border border-slate-200/70 p-4 text-sm text-slate-400 text-center">
                         Nicio activitate înregistrată încă.
                     </div>
                 ) : (
-                    <div className="rounded-2xl border border-slate-100 divide-y divide-slate-100 max-h-96 overflow-y-auto">
-                        {activityLog.map(a => (
-                            <div key={a.id} className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50">
-                                <div className="text-xl shrink-0 mt-0.5">{ACTIVITY_ICON[a.action] ?? '•'}</div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="text-sm font-semibold text-slate-700">{a.description ?? a.action}</div>
-                                    <div className="text-xs text-slate-400 mt-0.5 flex items-center gap-2 flex-wrap">
-                                        <span>{a.created_at}</span>
-                                        {a.ip && <span className="text-slate-300">·</span>}
-                                        {a.ip && <span className="font-mono">{a.ip}</span>}
-                                        <span className="text-slate-300">·</span>
-                                        <code className="text-[10px] text-slate-400">{a.action}</code>
+                    <div className="rounded-xl border border-slate-200/70 divide-y divide-slate-100 max-h-96 overflow-y-auto">
+                        {activityLog.map(a => {
+                            const ActIcon = ACTIVITY_ICON[a.action];
+                            return (
+                                <div key={a.id} className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors">
+                                    <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
+                                        {ActIcon ? <ActIcon className="w-4 h-4" strokeWidth={2} /> : <span className="text-slate-400">•</span>}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="text-sm font-semibold text-slate-900">{a.description ?? a.action}</div>
+                                        <div className="text-xs text-slate-400 mt-0.5 flex items-center gap-2 flex-wrap">
+                                            <span>{a.created_at}</span>
+                                            {a.ip && <span className="text-slate-300">·</span>}
+                                            {a.ip && <span className="font-mono">{a.ip}</span>}
+                                            <span className="text-slate-300">·</span>
+                                            <code className="text-[10px] text-slate-400">{a.action}</code>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </div>
@@ -1018,14 +1068,14 @@ function IntegrationsTab({ agency }) {
 
     const items = [
         {
-            icon: '📘',
+            Icon: Share2,
             title: 'Facebook / Instagram',
             desc: 'Autopostare automată pe rețelele sociale',
             field: 'facebook_token',
             placeholder: 'Access token Facebook',
         },
         {
-            icon: '🏠',
+            Icon: Globe,
             title: '999.md Partners API',
             desc: 'Publică anunțuri imobiliare direct pe 999.md din REALTIX.',
             field: 'portal_999md_api_key',
@@ -1036,17 +1086,17 @@ function IntegrationsTab({ agency }) {
     return (
         <form onSubmit={submit} className="space-y-4 max-w-lg">
             {items.map(item => (
-                <div key={item.field} className="rounded-3xl border border-slate-100 bg-white p-5">
-                    <div className="flex items-center gap-4 mb-4">
-                        <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-2xl shrink-0">
-                            {item.icon}
+                <div key={item.field} className="rounded-xl border border-slate-200/70 bg-white shadow-sm p-5">
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
+                            <item.Icon className="w-5 h-5" strokeWidth={2} />
                         </div>
                         <div className="flex-1 min-w-0">
-                            <div className="font-bold text-slate-900 text-sm">{item.title}</div>
+                            <div className="font-semibold text-slate-900 text-sm">{item.title}</div>
                             <div className="text-xs text-slate-500 mt-0.5">{item.desc}</div>
                         </div>
                         {data[item.field] && (
-                            <span className="ml-auto text-xs bg-emerald-100 text-emerald-700 font-semibold px-2 py-0.5 rounded-full shrink-0">
+                            <span className="ml-auto text-[11px] bg-emerald-100 text-emerald-700 font-semibold px-2 py-0.5 rounded-md shrink-0">
                                 Conectat
                             </span>
                         )}
@@ -1057,7 +1107,7 @@ function IntegrationsTab({ agency }) {
                         onChange={e => setData(item.field, e.target.value)}
                         placeholder={item.placeholder}
                         autoComplete="new-password"
-                        className="w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:border-blue-700 font-mono"
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 font-mono"
                     />
                 </div>
             ))}
@@ -1072,12 +1122,12 @@ function IntegrationsTab({ agency }) {
 
 
 const TABS = [
-    { key: 'profile',       label: 'Profil',        icon: '👤', adminOnly: false },
-    { key: 'agency',        label: 'Agenție',        icon: '🏢', adminOnly: true  },
-    { key: 'users',         label: 'Utilizatori',   icon: '👥', adminOnly: true  },
-    { key: 'notifications', label: 'Notificări',    icon: '🔔', adminOnly: false },
-    { key: 'security',      label: 'Securitate',    icon: '🔒', adminOnly: false },
-    { key: 'integrations',  label: 'Integrări',     icon: '🔗', adminOnly: true  },
+    { key: 'profile',       label: 'Profil',       Icon: User,       adminOnly: false },
+    { key: 'agency',        label: 'Agenție',      Icon: Building2,  adminOnly: true  },
+    { key: 'users',         label: 'Utilizatori',  Icon: Users,      adminOnly: true  },
+    { key: 'notifications', label: 'Notificări',   Icon: Bell,       adminOnly: false },
+    { key: 'security',      label: 'Securitate',   Icon: Lock,       adminOnly: false },
+    { key: 'integrations',  label: 'Integrări',    Icon: Link2,      adminOnly: true  },
 ];
 
 export default function Index({ user, agency, isAdmin, sessions = [], agents = [], invitations = [], canInviteAgents = false, canInviteMoreAgents = false, seatsUsed = 0, seatsLimit = null, activityLog = [], flash }) {
@@ -1095,32 +1145,41 @@ export default function Index({ user, agency, isAdmin, sessions = [], agents = [
             <Toast message={toast} onClose={() => setToast(null)} />
 
             <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 items-start">
-                {/* Sidebar — horizontal scroll on mobile, vertical on desktop */}
-                <div className="w-full lg:w-52 lg:shrink-0 rounded-3xl lg:rounded-4xl bg-white border border-slate-100 shadow-xl p-2 lg:p-3 lg:sticky lg:top-28 lg:self-start overflow-x-auto">
-                    <div className="flex lg:flex-col gap-1 lg:gap-0 min-w-max lg:min-w-0">
-                        {visibleTabs.map(tab => (
-                            <button
-                                key={tab.key}
-                                onClick={() => setActiveTab(tab.key)}
-                                className={`shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-3 lg:px-4 py-2 lg:py-3 rounded-xl lg:rounded-2xl text-sm font-semibold transition-colors text-left whitespace-nowrap ${
-                                    activeTab === tab.key
-                                        ? 'bg-slate-900 text-white'
-                                        : 'text-slate-600 hover:bg-slate-100'
-                                }`}
-                            >
-                                <span className="text-base">{tab.icon}</span>
-                                <span>{tab.label}</span>
-                            </button>
-                        ))}
+                {/* Sidebar — horizontal scroll on mobile, vertical list on desktop */}
+                <div className="w-full lg:w-56 lg:shrink-0 rounded-xl bg-white border border-slate-200/70 shadow-sm p-2 lg:sticky lg:top-28 lg:self-start overflow-x-auto">
+                    <div className="flex lg:flex-col gap-1 lg:gap-0.5 min-w-max lg:min-w-0">
+                        {visibleTabs.map(tab => {
+                            const isActive = activeTab === tab.key;
+                            return (
+                                <button
+                                    key={tab.key}
+                                    onClick={() => setActiveTab(tab.key)}
+                                    className={`shrink-0 lg:w-full inline-flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-semibold transition-colors text-left whitespace-nowrap ${
+                                        isActive
+                                            ? 'bg-slate-100 text-slate-900'
+                                            : 'text-slate-600 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    <tab.Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-slate-900' : 'text-slate-500'}`} strokeWidth={2} />
+                                    <span>{tab.label}</span>
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
 
                 {/* Content */}
-                <div className="w-full flex-1 rounded-3xl lg:rounded-4xl bg-white border border-slate-100 shadow-xl p-5 sm:p-8">
-                    <h2 className="text-xl font-bold text-slate-900 mb-6">
-                        {visibleTabs.find(t => t.key === activeTab)?.icon}{' '}
-                        {visibleTabs.find(t => t.key === activeTab)?.label}
-                    </h2>
+                <div className="w-full flex-1 rounded-xl bg-white border border-slate-200/70 shadow-sm p-5 sm:p-8">
+                    {(() => {
+                        const active = visibleTabs.find(t => t.key === activeTab);
+                        if (!active) return null;
+                        return (
+                            <h2 className="text-lg font-semibold text-slate-900 mb-6 inline-flex items-center gap-2">
+                                <active.Icon className="w-5 h-5 text-slate-500" strokeWidth={2} />
+                                {active.label}
+                            </h2>
+                        );
+                    })()}
 
                     {activeTab === 'profile'       && <ProfileTab user={user} />}
                     {activeTab === 'agency'        && <AgencyTab agency={agency} />}

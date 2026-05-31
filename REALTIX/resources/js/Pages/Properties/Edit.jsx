@@ -7,8 +7,10 @@ import { TYPE_OPTIONS, TRANSACTION_OPTIONS } from '@/lib/propertyLabels';
 import {
     Building, Building2, Home, House, Trees, Car, Store,
     Sparkles, RotateCw, Brain, AlertTriangle, Camera, X as XIcon,
-    Check, MapPin,
+    Check, MapPin, ChevronLeft, ChevronRight, RotateCcw,
 } from 'lucide-react';
+
+const AI_STYLE_LABELS = { detailed: 'Detaliat', short: 'Scurt', formal: 'Oficial', emotional: 'Emoțional' };
 
 // ── styles ─────────────────────────────────────────────────────────────────
 // text-slate-900 explicit so dark-mode override (#f1f5f9) kicks in for input
@@ -218,6 +220,13 @@ export default function Edit({ property }) {
     const [aiVariant,      setAiVariant]      = useState(0);
     const [dragOver,       setDragOver]       = useState(false);
 
+    // AI description history per language (RO/RU independent). Each entry:
+    // { text: string, label: 'Original' | 'AI <Stil>' }. Index marks which
+    // entry is currently displayed; -1 means "no history yet for this lang"
+    // and the textarea shows whatever the user typed manually.
+    const [descHistory, setDescHistory] = useState({ ro: [], ru: [] });
+    const [descIndex,   setDescIndex]   = useState({ ro: -1, ru: -1 });
+
     const setData = (key, val) => setDataRaw(prev => ({ ...prev, [key]: val }));
     const setMeta = (key, val) => setData('meta', { ...data.meta, [key]: val });
 
@@ -341,16 +350,53 @@ export default function Edit({ property }) {
             });
             const json = await res.json();
             if (!res.ok) throw new Error(json?.error ?? `Eroare HTTP ${res.status}`);
+
+            const lang  = aiLocale;
+            const field = lang === 'ro' ? 'description_ro' : 'description_ru';
+            const aiText = json.description ?? '';
+            const currentText = data[field] ?? '';
+
+            // Push into per-language history. Snapshot the pre-AI text as
+            // "Original" on the FIRST generation for this language (skip if
+            // current text is empty — no point saving "" as the original).
+            setDescHistory(h => {
+                const existing = h[lang];
+                const seed = existing.length === 0 && currentText.trim()
+                    ? [{ text: currentText, label: 'Original' }]
+                    : existing;
+                const styleLabel = AI_STYLE_LABELS[aiStyle] ?? 'AI';
+                const newArr = [...seed, { text: aiText, label: `AI ${styleLabel}` }];
+                setDescIndex(i => ({ ...i, [lang]: newArr.length - 1 }));
+                return { ...h, [lang]: newArr };
+            });
+
             setAiDescResult(json);
             setAiVariant(c => c + 1);
-            if (aiLocale === 'ro') setData('description_ro', json.description ?? '');
-            else if (aiLocale === 'ru') setData('description_ru', json.description ?? '');
+            setData(field, aiText);
         } catch (e) {
             setAiError(e.message || 'Eroare la generare AI. Verificați cheia ANTHROPIC_API_KEY în .env.');
         } finally {
             setAiDescLoading(false);
         }
     }, [data.city, data.type, data.transaction_type, data.district, data.area_total, data.rooms, data.price, data.currency, data.description_ro, data.description_ru, data.meta, aiLocale, aiStyle]);
+
+    const navigateDesc = (dir) => {
+        const lang = aiLocale;
+        const arr  = descHistory[lang];
+        const newIdx = descIndex[lang] + dir;
+        if (newIdx < 0 || newIdx >= arr.length) return;
+        setDescIndex(i => ({ ...i, [lang]: newIdx }));
+        setData(lang === 'ro' ? 'description_ro' : 'description_ru', arr[newIdx].text);
+    };
+
+    const restoreOriginal = () => {
+        const lang = aiLocale;
+        const arr  = descHistory[lang];
+        const idx  = arr.findIndex(v => v.label === 'Original');
+        if (idx < 0) return;
+        setDescIndex(i => ({ ...i, [lang]: idx }));
+        setData(lang === 'ro' ? 'description_ro' : 'description_ru', arr[idx].text);
+    };
 
     const handleAiPrice = useCallback(async () => {
         if (!data.city) { setAiError('Completați cel puțin orașul pentru estimare.'); return; }
@@ -633,6 +679,40 @@ export default function Edit({ property }) {
                             className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-blue-600 resize-none bg-white"
                             placeholder={aiLocale === 'ro' ? 'Descriere proprietate în română…' : 'Описание недвижимости на русском…'}
                         />
+
+                        {/* History controls — visible only when there are ≥2 versions for the active language */}
+                        {descHistory[aiLocale].length > 1 && (
+                            <div className="flex items-center flex-wrap gap-2 mt-2 text-xs">
+                                <button
+                                    type="button"
+                                    onClick={() => navigateDesc(-1)}
+                                    disabled={descIndex[aiLocale] <= 0}
+                                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    <ChevronLeft className="w-3.5 h-3.5" /> Anterior
+                                </button>
+                                <span className="text-slate-500 font-medium">
+                                    {descHistory[aiLocale][descIndex[aiLocale]]?.label} ({descIndex[aiLocale] + 1}/{descHistory[aiLocale].length})
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={() => navigateDesc(1)}
+                                    disabled={descIndex[aiLocale] >= descHistory[aiLocale].length - 1}
+                                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    Următor <ChevronRight className="w-3.5 h-3.5" />
+                                </button>
+                                {descHistory[aiLocale].some(v => v.label === 'Original') && (
+                                    <button
+                                        type="button"
+                                        onClick={restoreOriginal}
+                                        className="inline-flex items-center gap-1 rounded-lg text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-2 py-1 font-semibold transition-colors"
+                                    >
+                                        <RotateCcw className="w-3.5 h-3.5" /> Revino la original
+                                    </button>
+                                )}
+                            </div>
+                        )}
 
                         <div className="border border-slate-200/70 rounded-xl bg-slate-50/60 p-4 space-y-3">
                             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1.5">

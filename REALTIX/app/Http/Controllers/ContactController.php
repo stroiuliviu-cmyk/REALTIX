@@ -248,6 +248,10 @@ class ContactController extends Controller
             return back()->with('error', 'Agentul țintă nu aparține agenției tale.');
         }
 
+        if ($target->id === $contact->user_id) {
+            return back()->with('error', "Clientul este deja atribuit lui {$target->name}.");
+        }
+
         $oldUserId = $contact->user_id;
         $contact->update(['user_id' => $target->id]);
 

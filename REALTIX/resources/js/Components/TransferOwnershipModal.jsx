@@ -12,7 +12,7 @@ import { useForm } from '@inertiajs/react';
  *   routeId       — id of the entity to transfer
  *   onClose       — callback to close the modal
  */
-export default function TransferOwnershipModal({ subject = 'obiectul', currentOwner, agents = [], routeName, routeId, onClose }) {
+export default function TransferOwnershipModal({ subject = 'obiectul', currentOwner, currentOwnerId, agents = [], routeName, routeId, onClose }) {
     const { data, setData, patch, processing, errors } = useForm({
         user_id: '',
         notes:   '',
@@ -49,7 +49,7 @@ export default function TransferOwnershipModal({ subject = 'obiectul', currentOw
                             required
                         >
                             <option value="">Selectează agent…</option>
-                            {agents.map(a => (
+                            {agents.filter(a => a.id !== currentOwnerId).map(a => (
                                 <option key={a.id} value={a.id}>{a.name} ({a.email})</option>
                             ))}
                         </select>

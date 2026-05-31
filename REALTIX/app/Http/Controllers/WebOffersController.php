@@ -61,14 +61,9 @@ class WebOffersController extends Controller
                         $q->orWhere('id', (int) $s);
                     }
                 }))
+                ->when($request->raion,    fn ($q, $r) => $q->where('raion', $r))
                 ->when($request->city,     fn ($q, $c) => $q->where('city',     'like', "%{$c}%"))
                 ->when($request->district, fn ($q, $d) => $q->where('district', 'like', "%{$d}%"))
-                // Raion-only selection (cascade): when no specific city is set,
-                // restrict to the raion's complete locality list shipped by the UI.
-                ->when(
-                    empty($request->city) && is_array($request->cities) && count($request->cities) > 0,
-                    fn ($q) => $q->whereIn('city', $request->cities)
-                )
                 ->when($request->price_min, fn ($q, $v) => $q->where('price', '>=', (float) $v))
                 ->when($request->price_max, fn ($q, $v) => $q->where('price', '<=', (float) $v))
                 ->when($request->area_min,  fn ($q, $v) => $q->where('area', '>=', (float) $v))
@@ -193,7 +188,7 @@ class WebOffersController extends Controller
             'listings'    => $query->paginate(20)->withQueryString(),
             'filters'     => $request->only([
                 'search', 'sources', 'owner_types', 'types', 'transaction_type',
-                'raion', 'city', 'district', 'cities',
+                'raion', 'city', 'district',
                 'price_min', 'price_max', 'area_min', 'area_max',
                 'rooms', 'floor_min', 'floor_max', 'floors_total_min', 'floors_total_max',
                 'ai_valuation', 'date_from', 'date_to', 'favorite', 'sort',

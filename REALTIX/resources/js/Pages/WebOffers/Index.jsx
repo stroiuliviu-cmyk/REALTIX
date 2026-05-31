@@ -320,13 +320,8 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
         Object.entries(updated).forEach(([k, v]) => {
             if (Array.isArray(v) ? v.length > 0 : v !== '' && v !== false) params[k] = v;
         });
-        // Raion-only cascade: when the user picked a raion but no specific
-        // locality, expand the raion's complete locality list as `cities[]` so
-        // the backend can `whereIn('city', $cities)`.
-        if (updated.raion && !updated.city) {
-            const list = localitiesForRaion(updated.raion);
-            if (list.length > 0) params.cities = list;
-        }
+        // `raion` filters scraped_listings.raion exactly server-side, so we
+        // just pass the string through — no cities[] expansion needed.
         router.get(route('web-offers.index'), params, { preserveState: true, replace: true });
     };
 
@@ -449,8 +444,8 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
                         </div>
 
                         {/* Raion → Localitate/Sector cascade.
-                            Picking only the raion (no locality) sends `cities[]` to the
-                            backend so all offers in that raion's localities surface. */}
+                            Picking only the raion filters scraped_listings.raion exactly
+                            (no string LIKE) so omonyms in other raions never leak in. */}
                         <div className="space-y-2">
                             <div>
                                 <SideLabel>Raion / Municipiu</SideLabel>

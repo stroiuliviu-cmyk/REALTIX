@@ -43,7 +43,7 @@ class ScrapedListing extends Model
         'agency_id', 'source', 'external_id', 'external_url',
         'title', 'price', 'currency',
         'area', 'price_per_m2', 'rooms', 'floor', 'floors_total',
-        'city', 'district', 'address', 'year_built',
+        'city', 'district', 'raion', 'address', 'year_built',
         'images', 'ai_valuation', 'raw_data',
         'type', 'transaction_type', 'owner_type',
         'subtype', 'extra_flags',

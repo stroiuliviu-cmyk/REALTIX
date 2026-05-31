@@ -53,12 +53,10 @@ class PropertyController extends Controller
             ->when($request->filled('statuses') && is_array($request->statuses), fn ($q) => $q->whereIn('status', $request->statuses))
             ->when($request->city,     fn ($q, $c) => $q->where('city',     'like', "%{$c}%"))
             ->when($request->district, fn ($q, $d) => $q->where('district', 'like', "%{$d}%"))
-            // Raion-only selection (cascade): when no specific city is set,
-            // restrict to the raion's complete locality list shipped by the UI.
-            ->when(
-                empty($request->city) && is_array($request->cities) && count($request->cities) > 0,
-                fn ($q) => $q->whereIn('city', $request->cities)
-            )
+            // Note: `raion` is round-tripped for UI state but not filtered on —
+            // the properties table doesn't carry a raion column (only city +
+            // district). Agency listings are few and curated, so locality-level
+            // filtering is sufficient.
             ->when($request->price_min, fn ($q, $v) => $q->where('price', '>=', (float) $v))
             ->when($request->price_max, fn ($q, $v) => $q->where('price', '<=', (float) $v))
             ->when($request->area_min,  fn ($q, $v) => $q->where('area_total', '>=', (float) $v))
@@ -114,7 +112,7 @@ class PropertyController extends Controller
             'properties'  => $query->paginate(20)->withQueryString(),
             'filters'     => $request->only([
                 'search', 'types', 'transaction_type', 'statuses',
-                'raion', 'city', 'district', 'cities', 'rooms',
+                'raion', 'city', 'district', 'rooms',
                 'price_min', 'price_max', 'area_min', 'area_max',
                 'floor_min', 'floor_max', 'floors_total_min', 'floors_total_max',
                 'date_from', 'date_to', 'favorite', 'sort', 'phone',

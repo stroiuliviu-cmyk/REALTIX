@@ -314,13 +314,10 @@ export default function Index({ properties, filters = {}, isAdmin, authUserId, f
         Object.entries(updated).forEach(([k, v]) => {
             if (Array.isArray(v) ? v.length > 0 : v !== '' && v !== false) params[k] = v;
         });
-        // Raion-only cascade: when the user picked a raion but no specific
-        // locality, expand the raion's complete locality list as `cities[]` so
-        // the backend can `whereIn('city', $cities)`.
-        if (updated.raion && !updated.city) {
-            const list = localitiesForRaion(updated.raion);
-            if (list.length > 0) params.cities = list;
-        }
+        // Note: `raion` is sent for UI round-trip; backend does not filter on
+        // it for properties (column doesn't exist), so raion-only selection
+        // shows all properties — users can narrow by picking a specific
+        // locality (city) which still applies city LIKE.
         router.get(route('properties.index'), params, { preserveState: true, replace: true });
     };
 
@@ -428,8 +425,9 @@ export default function Index({ properties, filters = {}, isAdmin, authUserId, f
                         </div>
 
                         {/* Raion → Localitate/Sector cascade.
-                            Picking only the raion (no locality) sends `cities[]` to the
-                            backend so all offers in that raion's localities surface. */}
+                            The `raion` value is round-tripped for UI persistence; properties
+                            have no raion column server-side, so narrowing happens at the
+                            city/district level once the user picks a specific locality. */}
                         <div className="space-y-2">
                             <div>
                                 <SideLabel>Raion / Municipiu</SideLabel>

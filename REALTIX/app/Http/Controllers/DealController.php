@@ -43,17 +43,28 @@ class DealController extends Controller
             'status' => 'required|in:new,negotiation,advance,signing,closed,lost',
             'value' => 'nullable|numeric|min:0',
             'commission_percent' => 'nullable|numeric|min:0|max:100',
+            'commission' => 'nullable|numeric|min:0',
             'currency' => 'required|in:EUR,USD,MDL',
             'notes' => 'nullable|string',
         ]);
 
+        // Commission derivation: if a percent + value pair is given, derive
+        // commission from them (overwrites any raw commission). If only a raw
+        // commission is sent (fixed-amount mode), keep it as-is. If neither,
+        // leave commission null.
         if (isset($data['value']) && isset($data['commission_percent'])) {
             $data['commission'] = $data['value'] * $data['commission_percent'] / 100;
         }
 
+        // Stamp closed_at on creation when the deal is born closed (e.g. the
+        // close-contact wizard) so Statistics picks it up immediately.
+        if ($data['status'] === 'closed' && empty($data['closed_at'])) {
+            $data['closed_at'] = now();
+        }
+
         Deal::create(array_merge($data, ['user_id' => $request->user()->id]));
 
-        return redirect()->route('deals.index')->with('success', 'Tranzacția a fost creată.');
+        return redirect()->back()->with('success', 'Tranzacția a fost creată.');
     }
 
     public function update(Request $request, Deal $deal)

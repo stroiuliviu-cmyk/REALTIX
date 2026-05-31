@@ -1,5 +1,6 @@
 import AppLayout from '@/Layouts/AppLayout';
 import TransferOwnershipModal from '@/Components/TransferOwnershipModal';
+import CloseContactWizard from '@/Components/CloseContactWizard';
 import { Head, useForm, router } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -345,11 +346,37 @@ export default function Show({ contact, contracts = [], meetings = [], available
         scheduled_at: '',
     });
     const [showTransfer, setShowTransfer] = useState(false);
+    const [showCloseWizard, setShowCloseWizard] = useState(false);
 
     const submitInteraction = (e) => {
         e.preventDefault();
         post(`/contacts/${contact.id}/interactions`, {
             onSuccess: () => reset(),
+        });
+    };
+
+    // Status change handler: lead/active fire a direct PATCH; "closed" opens
+    // the wizard so the agent can attach a deal (or skip it).
+    const onStatusChange = (next) => {
+        if (next === contact.status) return;
+        if (next === 'closed') {
+            setShowCloseWizard(true);
+            return;
+        }
+        router.patch(route('contacts.status', contact.id), { status: next }, {
+            preserveScroll: true, preserveState: true,
+        });
+    };
+
+    // Called by the wizard once its own work is done. `createDeal=true` means
+    // a Deal was already POSTed; either way we still need to flip the contact
+    // status. Keep them separate calls so a failed deal POST doesn't leave a
+    // half-closed state.
+    const finalizeClose = ({ onSettled }) => {
+        router.patch(route('contacts.status', contact.id), { status: 'closed' }, {
+            preserveScroll: true, preserveState: false,
+            onSuccess: () => { setShowCloseWizard(false); onSettled?.(); },
+            onError:   () => onSettled?.(),
         });
     };
 
@@ -367,6 +394,16 @@ export default function Show({ contact, contracts = [], meetings = [], available
                     routeName="contacts.transfer"
                     routeId={contact.id}
                     onClose={() => setShowTransfer(false)}
+                />
+            )}
+
+            {showCloseWizard && (
+                <CloseContactWizard
+                    contactId={contact.id}
+                    contactName={`${contact.first_name} ${contact.last_name ?? ''}`.trim()}
+                    availableProperties={availableProperties}
+                    onClose={() => setShowCloseWizard(false)}
+                    onFinalize={finalizeClose}
                 />
             )}
 
@@ -418,14 +455,20 @@ export default function Show({ contact, contracts = [], meetings = [], available
                         </div>
 
                         <div className="mt-4">
-                            <span className={`inline-block px-2.5 py-0.5 rounded-md text-xs font-semibold ${
-                                contact.status === 'active' ? 'bg-emerald-100 text-emerald-700' :
-                                contact.status === 'lead' ? 'bg-amber-100 text-amber-700' :
-                                contact.status === 'closed' ? 'bg-red-100 text-red-700' :
-                                'bg-slate-100 text-slate-500'
-                            }`}>
-                                {{ active: 'Activ', lead: 'Lead', closed: 'Închis' }[contact.status] ?? contact.status}
-                            </span>
+                            <select
+                                value={contact.status}
+                                onChange={e => onStatusChange(e.target.value)}
+                                className={`rounded-md px-2.5 py-1 text-xs font-semibold border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-colors ${
+                                    contact.status === 'active' ? 'bg-emerald-100 text-emerald-700' :
+                                    contact.status === 'lead'   ? 'bg-amber-100 text-amber-700' :
+                                    contact.status === 'closed' ? 'bg-red-100 text-red-700' :
+                                    'bg-slate-100 text-slate-500'
+                                }`}
+                            >
+                                <option value="lead">Lead</option>
+                                <option value="active">Activ</option>
+                                <option value="closed">Închis</option>
+                            </select>
                         </div>
 
                         {contact.notes && (

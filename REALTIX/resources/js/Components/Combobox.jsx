@@ -21,6 +21,7 @@ export default function Combobox({
     options = [],
     placeholder = '',
     className = '',
+    disabled = false,
 }) {
     const [open, setOpen] = useState(false);
     const wrapRef = useRef(null);
@@ -55,17 +56,19 @@ export default function Combobox({
             <input
                 type="text"
                 value={value ?? ''}
-                onChange={e => { onChange(e.target.value); setOpen(true); }}
-                onFocus={() => setOpen(true)}
-                onBlur={() => onCommit?.(value)}
+                disabled={disabled}
+                onChange={e => { if (disabled) return; onChange(e.target.value); setOpen(true); }}
+                onFocus={() => { if (!disabled) setOpen(true); }}
+                onBlur={() => { if (!disabled) onCommit?.(value); }}
                 onKeyDown={e => {
+                    if (disabled) return;
                     if (e.key === 'Enter') { e.preventDefault(); setOpen(false); onCommit?.(value); }
                     if (e.key === 'Escape') setOpen(false);
                 }}
                 placeholder={placeholder}
-                className={`w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white focus:outline-none focus:border-blue-500 ${className}`}
+                className={`w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white focus:outline-none focus:border-blue-500 ${disabled ? 'opacity-50 cursor-not-allowed bg-slate-50' : ''} ${className}`}
             />
-            {open && filtered.length > 0 && (
+            {open && !disabled && filtered.length > 0 && (
                 <div className="absolute left-0 right-0 top-full mt-1 z-30 max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
                     {filtered.map(opt => (
                         <button

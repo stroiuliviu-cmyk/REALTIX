@@ -4,7 +4,7 @@ import LastInteractionHint from '@/Components/LastInteractionHint';
 import { Head, router } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import Combobox from '@/Components/Combobox';
-import { allLocalities, sectorsFor } from '@/lib/moldovaLocations';
+import { RAIOANE, CHISINAU_SECTORS, localitiesForRaion } from '@/lib/moldovaLocations';
 import {
     Camera, MapPin, Calendar, Phone, Star, Plus, Check,
     Image as ImageIcon, Building2, User, ExternalLink,
@@ -273,12 +273,14 @@ function ListingRow({ l, isFavorite, isImported, onFav, onImport, onShowContact,
 /* ─── Main page ─────────────────────────────────────────────────────────── */
 const EMPTY = {
     search: '', sources: [], owner_types: [], types: [], transaction_type: '',
-    city: '', district: '',
+    raion: '', city: '', district: '',
     price_min: '', price_max: '', area_min: '', area_max: '',
     rooms: [],
     floor_min: '', floor_max: '', floors_total_min: '', floors_total_max: '',
     ai_valuation: '', date_from: '', date_to: '', favorite: false, sort: '',
 };
+
+const RAION_OPTIONS = RAIOANE.map(r => ({ value: r, label: r }));
 
 export default function Index({ listings, filters = {}, favoriteIds = [], importedIds = [], counts = {}, districts = [], cities = [] }) {
 
@@ -318,6 +320,13 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
         Object.entries(updated).forEach(([k, v]) => {
             if (Array.isArray(v) ? v.length > 0 : v !== '' && v !== false) params[k] = v;
         });
+        // Raion-only cascade: when the user picked a raion but no specific
+        // locality, expand the raion's complete locality list as `cities[]` so
+        // the backend can `whereIn('city', $cities)`.
+        if (updated.raion && !updated.city) {
+            const list = localitiesForRaion(updated.raion);
+            if (list.length > 0) params.cities = list;
+        }
         router.get(route('web-offers.index'), params, { preserveState: true, replace: true });
     };
 
@@ -339,7 +348,7 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
 
     const activeCount = [
         f.sources.length, f.owner_types.length, f.types.length,
-        f.transaction_type, f.city, f.district,
+        f.transaction_type, f.raion, f.city, f.district,
         f.price_min, f.price_max, f.area_min, f.area_max,
         f.rooms.length,
         f.floor_min, f.floor_max, f.floors_total_min, f.floors_total_max,
@@ -439,31 +448,54 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
                             </div>
                         </div>
 
-                        {/* Localitate + Sector — hierarchical static list, sectors only when Chișinău */}
+                        {/* Raion → Localitate/Sector cascade.
+                            Picking only the raion (no locality) sends `cities[]` to the
+                            backend so all offers in that raion's localities surface. */}
                         <div className="space-y-2">
                             <div>
-                                <SideLabel>Localitate</SideLabel>
+                                <SideLabel>Raion / Municipiu</SideLabel>
                                 <Combobox
-                                    value={f.city}
-                                    onChange={v => setF(s => ({ ...s, city: v }))}
-                                    onCommit={() => push({ ...f })}
-                                    options={allLocalities()}
-                                    placeholder="Ex: Chișinău"
+                                    value={f.raion}
+                                    onChange={v => setF(s => ({ ...s, raion: v, city: '', district: '' }))}
+                                    onCommit={() => push({ ...f, city: '', district: '' })}
+                                    options={RAION_OPTIONS}
+                                    placeholder="Ex: Chișinău (mun.)"
                                 />
                             </div>
 
                             {(() => {
-                                const sectors = sectorsFor(f.city);
-                                if (sectors.length === 0) return null;
+                                const isChisinau = f.raion === 'Chișinău (mun.)';
+                                const localityOptions = !f.raion
+                                    ? []
+                                    : isChisinau
+                                        ? [
+                                            ...CHISINAU_SECTORS.map(s => ({ value: s, label: s, sub: 'Sector' })),
+                                            ...localitiesForRaion(f.raion).map(l => ({ value: l, label: l, sub: 'Localitate' })),
+                                          ]
+                                        : localitiesForRaion(f.raion);
+
+                                const handleLocalityChange = (v) => {
+                                    if (!v) {
+                                        setF(s => ({ ...s, city: '', district: '' }));
+                                        return;
+                                    }
+                                    if (isChisinau && CHISINAU_SECTORS.includes(v)) {
+                                        setF(s => ({ ...s, city: 'Chișinău', district: v }));
+                                        return;
+                                    }
+                                    setF(s => ({ ...s, city: v, district: '' }));
+                                };
+
                                 return (
                                     <div>
-                                        <SideLabel>Sector</SideLabel>
+                                        <SideLabel>Localitate / Sector</SideLabel>
                                         <Combobox
-                                            value={f.district}
-                                            onChange={v => setF(s => ({ ...s, district: v }))}
+                                            value={f.district || f.city}
+                                            onChange={handleLocalityChange}
                                             onCommit={() => push({ ...f })}
-                                            options={sectors}
-                                            placeholder="Ex: Botanica"
+                                            options={localityOptions}
+                                            disabled={!f.raion}
+                                            placeholder={f.raion ? (isChisinau ? 'Ex: Botanica' : 'Alege localitatea…') : 'Alege întâi raionul'}
                                         />
                                     </div>
                                 );

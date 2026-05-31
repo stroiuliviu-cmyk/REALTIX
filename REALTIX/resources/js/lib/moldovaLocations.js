@@ -59,3 +59,10 @@ export function sectorsFor(cityName) {
 }
 
 export const RAIOANE = Object.keys(MOLDOVA_LOCATIONS);
+
+// Localities for a given raion key. Returns [] if the raion is unknown so the
+// caller can safely spread/iterate.
+export function localitiesForRaion(raion) {
+    const d = MOLDOVA_LOCATIONS[raion];
+    return d && d.localities ? [...d.localities] : [];
+}

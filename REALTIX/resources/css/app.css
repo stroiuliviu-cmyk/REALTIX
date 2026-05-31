@@ -209,6 +209,25 @@ html.dark, html.dark body { background-color: #0b1120; }
 .dark .text-violet-700 { color: #c4b5fd; }
 .dark .bg-blue-600   { background-color: #2563eb; }   /* keep accent vivid */
 
+/* Badge/pill fills (-100 tones) — muted on dark so they don't glow */
+.dark .bg-emerald-100 { background-color: rgba(16,185,129,.15); }
+.dark .bg-green-100   { background-color: rgba(16,185,129,.15); }
+.dark .bg-blue-100    { background-color: rgba(59,130,246,.16); }
+.dark .bg-amber-100   { background-color: rgba(245,158,11,.16); }
+.dark .bg-red-100     { background-color: rgba(244,63,94,.15); }
+.dark .bg-rose-100    { background-color: rgba(244,63,94,.15); }
+.dark .bg-violet-100  { background-color: rgba(139,92,246,.16); }
+.dark .bg-purple-100  { background-color: rgba(139,92,246,.16); }
+.dark .text-emerald-600 { color: #6ee7b7; }
+.dark .text-green-700   { color: #6ee7b7; }
+.dark .text-blue-700    { color: #93c5fd; }
+.dark .text-amber-700   { color: #fcd34d; }
+.dark .text-red-600     { color: #fca5a5; }
+.dark .text-red-700     { color: #fca5a5; }
+.dark .text-rose-700    { color: #fda4af; }
+.dark .text-violet-700  { color: #c4b5fd; }
+.dark .text-purple-700  { color: #c4b5fd; }
+
 /* header glass + inputs */
 .dark .rt-header { background: rgba(15,23,42,.85) !important; border-color: rgba(255,255,255,.08); }
 .dark .rt-input { background-color:#0f1827 !important; border-color:rgba(255,255,255,.12) !important; color:#e2e8f0 !important; }

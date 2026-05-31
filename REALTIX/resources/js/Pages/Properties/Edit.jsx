@@ -598,8 +598,8 @@ export default function Edit({ property }) {
                             placeholder={aiLocale === 'ro' ? 'Descriere proprietate în română…' : 'Описание недвижимости на русском…'}
                         />
 
-                        <div className="border border-blue-100 rounded-xl bg-blue-50/40 p-4 space-y-3">
-                            <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide flex items-center gap-1.5">
+                        <div className="border border-slate-200/70 rounded-xl bg-slate-50/60 p-4 space-y-3">
+                            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
                                 <Sparkles className="w-3.5 h-3.5" /> Instrumente AI
                             </p>
 
@@ -634,7 +634,7 @@ export default function Edit({ property }) {
                                     type="button"
                                     onClick={handleAiDescription}
                                     disabled={aiDescLoading || aiPriceLoading || aiVariant >= 3}
-                                    className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-white hover:bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {aiDescLoading ? 'Se generează…' : <><Sparkles className="w-4 h-4" /> Generează descriere</>}
                                 </button>
@@ -654,7 +654,7 @@ export default function Edit({ property }) {
                                     type="button"
                                     onClick={handleAiPrice}
                                     disabled={aiDescLoading || aiPriceLoading}
-                                    className="inline-flex items-center gap-1.5 rounded-lg border border-violet-200 bg-white hover:bg-violet-50 px-4 py-2 text-sm font-semibold text-violet-700 transition-colors disabled:opacity-50"
+                                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700 transition-colors disabled:opacity-50"
                                 >
                                     {aiPriceLoading ? 'Se calculează…' : <><Brain className="w-4 h-4" /> Estimare preț</>}
                                 </button>

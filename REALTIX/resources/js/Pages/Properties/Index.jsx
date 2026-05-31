@@ -6,6 +6,7 @@ import Combobox from '@/Components/Combobox';
 import {
     MapPin, Camera, Star, Image as ImageIcon, Eye, Phone, Handshake,
     Edit, Archive, Trash2, Filter, Plus, ArrowDown, ArrowUp, MoreHorizontal, X as XIcon,
+    Building2,
 } from 'lucide-react';
 import { getTypeLabel, getTransactionLabel, TYPE_OPTIONS } from '@/lib/propertyLabels';
 import { contextualFiltersForTypes } from '@/lib/propertyFilters';
@@ -656,7 +657,7 @@ export default function Index({ properties, filters = {}, isAdmin, authUserId, f
                     {/* List */}
                     {properties.data.length === 0 ? (
                         <div className="rounded-xl bg-white border border-slate-200/70 shadow-sm p-16 text-center">
-                            <Building className="w-12 h-12 text-slate-300 mx-auto mb-4" strokeWidth={1.5} />
+                            <Building2 className="w-12 h-12 text-slate-300 mx-auto mb-4" strokeWidth={1.5} />
                             <h3 className="text-xl font-semibold text-slate-900 mb-2">Nicio proprietate</h3>
                             <p className="text-slate-500 text-sm mb-6">Adaugă primul anunț sau ajustează filtrele.</p>
                             <Link

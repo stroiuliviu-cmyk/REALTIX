@@ -225,6 +225,16 @@ class ContactController extends Controller
             ['from_user_id' => $oldUserId, 'to_user_id' => $target->id, 'notes' => $data['notes'] ?? null]
         );
 
+        // Notify the new owner (bell + email). Skip self-transfers so the admin
+        // who reassigns a client to themselves doesn't get pinged.
+        if ($target->id !== $oldUserId) {
+            $target->notify(new \App\Notifications\ContactTransferred(
+                $contact->fresh(),
+                $admin,
+                $data['notes'] ?? null,
+            ));
+        }
+
         return back()->with('success', "Client transferat către {$target->name}.");
     }
 

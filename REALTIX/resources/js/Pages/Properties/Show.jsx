@@ -164,10 +164,10 @@ function LinkedContacts({ property, availableContacts = [] }) {
 // ActionRow — pill-shaped sidebar action. Pass Icon as a Lucide component.
 function ActionRow({ Icon, label, href, onClick, external = false, danger = false }) {
     const wrapCls = danger
-        ? 'border-red-100 bg-red-50/60 hover:bg-red-50'
-        : 'border-slate-200/70 bg-white hover:bg-slate-50';
-    const iconCls = danger ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-600';
-    const textCls = danger ? 'text-red-600'           : 'text-slate-700';
+        ? 'border-red-100 bg-red-50/60 hover:bg-red-50 dark:border-red-900/40 dark:bg-red-900/20 dark:hover:bg-red-900/30'
+        : 'border-slate-200/70 bg-white hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800/60 dark:hover:bg-slate-800';
+    const iconCls = danger ? 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300';
+    const textCls = danger ? 'text-red-600 dark:text-red-400'           : 'text-slate-700 dark:text-slate-200';
 
     const TrailingIcon = external ? ExternalLink : ChevronRight;
 

@@ -3,8 +3,8 @@ import PhoneInteractionModal from '@/Components/PhoneInteractionModal';
 import LastInteractionHint from '@/Components/LastInteractionHint';
 import { Head, router } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
-import { MOLDOVA_LOCALITIES, CHISINAU_DISTRICTS } from '@/Constants/moldova';
 import Combobox from '@/Components/Combobox';
+import { allLocalities, sectorsFor } from '@/lib/moldovaLocations';
 import {
     Camera, MapPin, Calendar, Phone, Star, Plus, Check,
     Image as ImageIcon, Building2, User, ExternalLink,
@@ -439,29 +439,22 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
                             </div>
                         </div>
 
-                        {/* Raion + Sector */}
+                        {/* Localitate + Sector — hierarchical static list, sectors only when Chișinău */}
                         <div className="space-y-2">
                             <div>
-                                <SideLabel>Raion</SideLabel>
+                                <SideLabel>Localitate</SideLabel>
                                 <Combobox
                                     value={f.city}
                                     onChange={v => setF(s => ({ ...s, city: v }))}
                                     onCommit={() => push({ ...f })}
-                                    options={MOLDOVA_LOCALITIES}
+                                    options={allLocalities()}
                                     placeholder="Ex: Chișinău"
                                 />
                             </div>
 
                             {(() => {
-                                const isChisinau = f.city.trim().toLowerCase().startsWith('chișinău')
-                                                || f.city.trim().toLowerCase().startsWith('chisinau');
-                                const source = isChisinau
-                                    ? [
-                                        ...CHISINAU_DISTRICTS,
-                                        ...districts.map(d => d.district).filter(d => !CHISINAU_DISTRICTS.includes(d)),
-                                      ]
-                                    : districts.map(d => d.district);
-
+                                const sectors = sectorsFor(f.city);
+                                if (sectors.length === 0) return null;
                                 return (
                                     <div>
                                         <SideLabel>Sector</SideLabel>
@@ -469,8 +462,8 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
                                             value={f.district}
                                             onChange={v => setF(s => ({ ...s, district: v }))}
                                             onCommit={() => push({ ...f })}
-                                            options={source}
-                                            placeholder={isChisinau ? 'Ex: Botanica' : 'Ex: Centru'}
+                                            options={sectors}
+                                            placeholder="Ex: Botanica"
                                         />
                                     </div>
                                 );

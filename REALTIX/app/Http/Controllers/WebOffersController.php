@@ -62,15 +62,25 @@ class WebOffersController extends Controller
                     }
                 }))
                 ->when($request->raion, fn ($q, $r) => $q->where('raion', $r))
-                // Multi-select cascade: localities[] + sectors[] narrow within
-                // the raion (combined AND, not OR — both must match if both set).
+                // Multi-select cascade: localities[] OR sectors[] narrow further
+                // within the raion. They live on different columns (city vs
+                // district), so AND would produce zero rows when the user
+                // ticks both a sector and a locality (a single offer can't
+                // satisfy both). Wrap the disjunction in a closure so the
+                // remaining filters (price/area/rooms/…) stay AND-combined.
                 ->when(
-                    is_array($request->localities) && count($request->localities) > 0,
-                    fn ($q) => $q->whereIn('city', $request->localities)
-                )
-                ->when(
-                    is_array($request->sectors) && count($request->sectors) > 0,
-                    fn ($q) => $q->whereIn('district', $request->sectors)
+                    (is_array($request->localities) && count($request->localities) > 0)
+                    || (is_array($request->sectors) && count($request->sectors) > 0),
+                    function ($q) use ($request) {
+                        $q->where(function ($g) use ($request) {
+                            if (is_array($request->localities) && count($request->localities) > 0) {
+                                $g->orWhereIn('city', $request->localities);
+                            }
+                            if (is_array($request->sectors) && count($request->sectors) > 0) {
+                                $g->orWhereIn('district', $request->sectors);
+                            }
+                        });
+                    }
                 )
                 // Back-compat with old single-value URLs (?city=X, ?district=Y).
                 ->when($request->city,     fn ($q, $c) => $q->where('city',     'like', "%{$c}%"))

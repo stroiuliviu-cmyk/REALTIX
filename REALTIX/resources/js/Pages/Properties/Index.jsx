@@ -219,7 +219,9 @@ function PropertyRow({ p, isFavorite, isSelected, isAdmin, authUserId, onFav, on
                         </span>
                         {p.transaction_type && (
                             <span className={`text-xs font-medium px-2 py-0.5 rounded ${
-                                p.transaction_type === 'rent' ? 'bg-violet-100 text-violet-700' : 'bg-blue-100 text-blue-700'
+                                p.transaction_type === 'rent'               ? 'bg-violet-100 text-violet-700' :
+                                p.transaction_type === 'inchiriere_zilnica' ? 'bg-amber-100 text-amber-700' :
+                                'bg-blue-100 text-blue-700'
                             }`}>
                                 {getTransactionLabel(p.transaction_type)}
                             </span>
@@ -413,7 +415,7 @@ export default function Index({ properties, filters = {}, isAdmin, authUserId, f
                         <div>
                             <SideLabel>Tip tranzacție</SideLabel>
                             <div className="flex gap-1.5">
-                                {[['', 'Toate'], ['sale', 'Vânzare'], ['rent', 'Chirie']].map(([v, l]) => (
+                                {[['', 'Toate'], ['sale', 'Vânzare'], ['rent', 'Chirie'], ['inchiriere_zilnica', 'Chirie zilnică']].map(([v, l]) => (
                                     <button
                                         key={v}
                                         onClick={() => set('transaction_type', f.transaction_type === v ? '' : v)}

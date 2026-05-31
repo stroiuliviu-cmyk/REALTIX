@@ -1,25 +1,33 @@
 import AppLayout from '@/Layouts/AppLayout';
 import { Head, router, usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
+import {
+    Home, Users, Phone, FileText, CheckSquare, Pin, Square,
+    Calendar as CalendarIcon, User, Pencil, X as XIcon, AlertTriangle,
+    Plus, ChevronLeft, ChevronRight, RefreshCw, Inbox,
+    ThumbsUp, ThumbsDown, HelpCircle, Ban, ListChecks,
+} from 'lucide-react';
 
 // ── constants ─────────────────────────────────────────────────────────────────
 
 const TYPE_COLORS = {
     viewing:  'bg-blue-100 text-blue-700',
-    meeting:  'bg-purple-100 text-purple-700',
+    meeting:  'bg-violet-100 text-violet-700',
     call:     'bg-amber-100 text-amber-700',
     contract: 'bg-emerald-100 text-emerald-700',
     task:     'bg-rose-100 text-rose-700',
     other:    'bg-slate-100 text-slate-600',
 };
 
+// Lucide components keyed by event type. Render as <Icon className=… /> wherever
+// the type needs a visual mark.
 const TYPE_ICONS = {
-    viewing:  '🏠',
-    meeting:  '🤝',
-    call:     '📞',
-    contract: '📄',
-    task:     '✅',
-    other:    '📌',
+    viewing:  Home,
+    meeting:  Users,
+    call:     Phone,
+    contract: FileText,
+    task:     CheckSquare,
+    other:    Pin,
 };
 
 const TYPE_LABELS = {
@@ -31,13 +39,15 @@ const TYPE_LABELS = {
     other:    'Altele',
 };
 
+// Status badge — label is text-only; the icon (when present) is rendered
+// separately by the badge call site.
 const STATUS_INFO = {
-    liked:    { label: '👍 Plăcut',     cls: 'bg-emerald-100 text-emerald-700' },
-    thinking: { label: '🤔 Se gândesc', cls: 'bg-amber-100 text-amber-700' },
-    rejected: { label: '👎 Refuz',      cls: 'bg-red-100 text-red-600' },
-    no_show:  { label: '🚫 N-au venit', cls: 'bg-slate-100 text-slate-500' },
-    done:     { label: '✅ Realizat',   cls: 'bg-emerald-100 text-emerald-700' },
-    pending:  { label: 'În așteptare',  cls: 'bg-slate-100 text-slate-500' },
+    liked:    { label: 'Plăcut',       cls: 'bg-emerald-100 text-emerald-700', Icon: ThumbsUp },
+    thinking: { label: 'Se gândesc',   cls: 'bg-amber-100 text-amber-700',     Icon: HelpCircle },
+    rejected: { label: 'Refuz',        cls: 'bg-red-100 text-red-600',         Icon: ThumbsDown },
+    no_show:  { label: 'N-au venit',   cls: 'bg-slate-100 text-slate-500',     Icon: Ban },
+    done:     { label: 'Realizat',     cls: 'bg-emerald-100 text-emerald-700', Icon: CheckSquare },
+    pending:  { label: 'În așteptare', cls: 'bg-slate-100 text-slate-500',     Icon: null },
 };
 
 const MONTH_NAMES = [
@@ -45,8 +55,8 @@ const MONTH_NAMES = [
     'Iulie','August','Septembrie','Octombrie','Noiembrie','Decembrie',
 ];
 
-const INPUT_CLS = 'w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 bg-white';
-const LABEL_CLS = 'block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5';
+const INPUT_CLS = 'w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600';
+const LABEL_CLS = 'block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -125,10 +135,10 @@ function SearchSelect({ options, value, onChange, placeholder, renderRow, disabl
                 onBlur={() => setTimeout(() => setOpen(false), 150)}
             />
             {open && filtered.length > 0 && (
-                <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden">
+                <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
                     <div
                         onMouseDown={() => { onChange(''); setQuery(''); setOpen(false); }}
-                        className="px-4 py-2 text-xs text-slate-400 hover:bg-slate-50 cursor-pointer"
+                        className="px-3 py-2 text-xs text-slate-400 hover:bg-slate-50 cursor-pointer"
                     >
                         — Niciun/nicio
                     </div>
@@ -138,9 +148,9 @@ function SearchSelect({ options, value, onChange, placeholder, renderRow, disabl
                             <div
                                 key={o.id}
                                 onMouseDown={() => { onChange(o.id); setQuery(''); setOpen(false); }}
-                                className="px-4 py-3 hover:bg-slate-50 cursor-pointer"
+                                className="px-3 py-2.5 hover:bg-slate-50 cursor-pointer"
                             >
-                                <div className="text-sm font-semibold text-slate-800">{r.text}</div>
+                                <div className="text-sm font-semibold text-slate-900">{r.text}</div>
                                 {r.sub && <div className="text-xs text-slate-400 mt-0.5">{r.sub}</div>}
                             </div>
                         );
@@ -200,16 +210,18 @@ function EventFormModal({ event, contacts, properties, allEvents, prefillDate, o
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-            <div className="bg-white rounded-4xl shadow-2xl w-full max-w-md max-h-[92vh] flex flex-col">
-                <div className="px-8 pt-8 pb-4 border-b border-slate-100 shrink-0 flex items-center justify-between">
-                    <h3 className="text-lg font-bold text-slate-900">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={onClose}>
+            <div className="bg-white rounded-2xl shadow-xl border border-slate-200/70 w-full max-w-md max-h-[92vh] flex flex-col" onClick={e => e.stopPropagation()}>
+                <div className="px-7 pt-6 pb-4 border-b border-slate-100 shrink-0 flex items-center justify-between">
+                    <h3 className="text-base font-semibold text-slate-900">
                         {isEdit ? 'Editează eveniment' : 'Eveniment nou'}
                     </h3>
-                    <button onClick={onClose} className="text-slate-400 hover:text-slate-700 text-xl leading-none">✕</button>
+                    <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100" aria-label="Închide">
+                        <XIcon className="w-4 h-4" />
+                    </button>
                 </div>
 
-                <form onSubmit={submit} className="overflow-y-auto px-8 py-6 space-y-4 grow">
+                <form onSubmit={submit} className="overflow-y-auto px-7 py-5 space-y-4 grow">
                     {/* Title */}
                     <div>
                         <label className={LABEL_CLS}>Titlu *</label>
@@ -227,7 +239,7 @@ function EventFormModal({ event, contacts, properties, allEvents, prefillDate, o
                         <label className={LABEL_CLS}>Tip eveniment</label>
                         <select value={type} onChange={e => setType(e.target.value)} className={INPUT_CLS}>
                             {Object.entries(TYPE_LABELS).map(([k, l]) => (
-                                <option key={k} value={k}>{TYPE_ICONS[k]} {l}</option>
+                                <option key={k} value={k}>{l}</option>
                             ))}
                         </select>
                     </div>
@@ -278,8 +290,9 @@ function EventFormModal({ event, contacts, properties, allEvents, prefillDate, o
 
                     {/* Overlap warning */}
                     {conflict && (
-                        <div className="rounded-2xl bg-amber-50 border border-amber-200 px-4 py-3 text-xs text-amber-800">
-                            ⚠️ Suprapunere cu: <strong>{conflict.title}</strong> la {fmtTime(conflict.starts_at)}
+                        <div className="rounded-lg bg-amber-50 border border-amber-100 px-3 py-2 text-xs text-amber-800 inline-flex items-start gap-1.5 w-full">
+                            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                            <span>Suprapunere cu: <strong>{conflict.title}</strong> la {fmtTime(conflict.starts_at)}</span>
                         </div>
                     )}
 
@@ -332,13 +345,13 @@ function EventFormModal({ event, contacts, properties, allEvents, prefillDate, o
                     </div>
 
                     {/* Actions */}
-                    <div className="flex gap-3 pt-1">
+                    <div className="flex gap-2 pt-1">
                         <button type="button" onClick={onClose}
-                            className="flex-1 rounded-2xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">
+                            className="flex-1 rounded-lg border border-slate-200 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">
                             Anulează
                         </button>
                         <button type="submit" disabled={saving}
-                            className="flex-1 rounded-2xl bg-linear-to-br from-slate-900 to-blue-700 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60">
+                            className="flex-1 rounded-lg bg-blue-600 hover:bg-blue-700 py-2 text-sm font-semibold text-white shadow-sm transition-colors disabled:opacity-60">
                             {saving ? 'Se salvează…' : (isEdit ? 'Salvează' : 'Adaugă')}
                         </button>
                     </div>
@@ -357,28 +370,35 @@ function EventDetailPanel({ event, onClose, onEdit, onDelete, onStatusUpdate }) 
     const isTask       = event.type === 'task';
     const [confirming, setConfirming] = useState(false);
 
+    const TypeIcon = TYPE_ICONS[event.type] ?? Pin;
+    const status = STATUS_INFO[event.status];
+
     return (
-        <div className="bg-white rounded-4xl shadow-xl border border-slate-100 p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200/70 p-5">
             <div className="flex items-start justify-between mb-4 gap-2">
-                <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${TYPE_COLORS[event.type] ?? 'bg-slate-100'}`}>
-                    {TYPE_ICONS[event.type]} {TYPE_LABELS[event.type] ?? event.type}
+                <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-1 rounded-md ${TYPE_COLORS[event.type] ?? 'bg-slate-100'}`}>
+                    <TypeIcon className="w-3.5 h-3.5" />
+                    {TYPE_LABELS[event.type] ?? event.type}
                 </span>
-                <button onClick={onClose} className="text-slate-400 hover:text-slate-700 text-lg leading-none">✕</button>
+                <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100" aria-label="Închide">
+                    <XIcon className="w-4 h-4" />
+                </button>
             </div>
 
-            <h3 className="text-base font-bold text-slate-900 mb-1 leading-snug">{event.title}</h3>
+            <h3 className="text-base font-semibold text-slate-900 mb-1 leading-snug">{event.title}</h3>
 
             {/* Status badge for completed */}
-            {event.status !== 'pending' && STATUS_INFO[event.status] && (
-                <span className={`inline-block text-xs px-2 py-0.5 rounded-full font-semibold mb-2 ${STATUS_INFO[event.status].cls}`}>
-                    {STATUS_INFO[event.status].label}
+            {event.status !== 'pending' && status && (
+                <span className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md font-semibold mb-2 ${status.cls}`}>
+                    {status.Icon && <status.Icon className="w-3 h-3" />}
+                    {status.label}
                 </span>
             )}
 
             {/* Date/time */}
             <div className="mt-3 space-y-1.5 text-sm text-slate-600">
                 <div className="flex items-center gap-2">
-                    <span>📅</span>
+                    <CalendarIcon className="w-4 h-4 text-slate-400 shrink-0" />
                     <span>{fmtDate(event.starts_at)}{!event.all_day ? `, ${fmtTime(event.starts_at)}` : ''}</span>
                 </div>
                 {event.ends_at && !event.all_day && (
@@ -388,29 +408,30 @@ function EventDetailPanel({ event, onClose, onEdit, onDelete, onStatusUpdate }) 
                 )}
                 {event.contact && (
                     <div className="flex items-center gap-2">
-                        <span>👤</span>
-                        <a href={`/contacts/${event.contact_id}`} className="text-blue-700 hover:underline font-medium">
+                        <User className="w-4 h-4 text-slate-400 shrink-0" />
+                        <a href={`/contacts/${event.contact_id}`} className="text-blue-600 hover:text-blue-700 hover:underline font-medium">
                             {event.contact.first_name} {event.contact.last_name ?? ''}
                         </a>
                     </div>
                 )}
                 {event.property && (
                     <div className="flex items-center gap-2">
-                        <span>🏠</span>
-                        <a href={`/properties/${event.property_id}`} className="text-blue-700 hover:underline font-medium truncate">
+                        <Home className="w-4 h-4 text-slate-400 shrink-0" />
+                        <a href={`/properties/${event.property_id}`} className="text-blue-600 hover:text-blue-700 hover:underline font-medium truncate">
                             {event.property.title}
                         </a>
                     </div>
                 )}
                 {event.google_event_id && (
                     <div className="flex items-center gap-2 text-xs text-slate-400">
-                        <span>📅</span> Sincronizat cu Google
+                        <CalendarIcon className="w-3.5 h-3.5" />
+                        Sincronizat cu Google
                     </div>
                 )}
             </div>
 
             {event.description && (
-                <p className="mt-3 text-sm text-slate-600 bg-slate-50 rounded-2xl p-3 whitespace-pre-wrap">
+                <p className="mt-3 text-sm text-slate-600 bg-slate-50 border border-slate-200/70 rounded-lg p-3 whitespace-pre-wrap">
                     {event.description}
                 </p>
             )}
@@ -418,19 +439,20 @@ function EventDetailPanel({ event, onClose, onEdit, onDelete, onStatusUpdate }) 
             {/* Post-viewing feedback */}
             {needFeedback && (
                 <div className="mt-4 border-t border-slate-100 pt-4">
-                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Cum a mers vizionarea?</p>
+                    <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-2">Cum a mers vizionarea?</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {[
-                            { v: 'liked',    l: '👍 Plăcut',    cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-                            { v: 'thinking', l: '🤔 Se gândesc', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
-                            { v: 'rejected', l: '👎 Refuz',      cls: 'bg-red-50 text-red-600 border-red-200' },
-                            { v: 'no_show',  l: '🚫 N-au venit', cls: 'bg-slate-100 text-slate-600 border-slate-200' },
+                            { v: 'liked',    l: 'Plăcut',     cls: 'bg-emerald-50 text-emerald-700 border-emerald-100', Icon: ThumbsUp },
+                            { v: 'thinking', l: 'Se gândesc', cls: 'bg-amber-50 text-amber-700 border-amber-100',       Icon: HelpCircle },
+                            { v: 'rejected', l: 'Refuz',      cls: 'bg-red-50 text-red-600 border-red-100',             Icon: ThumbsDown },
+                            { v: 'no_show',  l: 'N-au venit', cls: 'bg-slate-100 text-slate-600 border-slate-200',      Icon: Ban },
                         ].map(s => (
                             <button
                                 key={s.v}
                                 onClick={() => onStatusUpdate(event.id, s.v)}
-                                className={`rounded-2xl border px-3 py-2 text-xs font-semibold ${s.cls} hover:opacity-80 transition-opacity`}
+                                className={`inline-flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold ${s.cls} hover:opacity-80 transition-opacity`}
                             >
+                                <s.Icon className="w-3.5 h-3.5" />
                                 {s.l}
                             </button>
                         ))}
@@ -443,31 +465,35 @@ function EventDetailPanel({ event, onClose, onEdit, onDelete, onStatusUpdate }) 
                 <div className="mt-4">
                     <button
                         onClick={() => onStatusUpdate(event.id, event.status === 'done' ? 'pending' : 'done')}
-                        className={`w-full rounded-2xl border py-2 text-sm font-semibold transition-colors ${
+                        className={`w-full inline-flex items-center justify-center gap-1.5 rounded-lg border py-2 text-sm font-semibold transition-colors ${
                             event.status === 'done'
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
                                 : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                         }`}
                     >
-                        {event.status === 'done' ? '✅ Realizat — Marchează ca nerealizat' : '⬜ Marchează ca realizat'}
+                        {event.status === 'done'
+                            ? <><CheckSquare className="w-4 h-4" /> Realizat — marchează ca nerealizat</>
+                            : <><Square className="w-4 h-4" /> Marchează ca realizat</>}
                     </button>
                 </div>
             )}
 
             {/* Actions */}
-            <div className="mt-4 flex gap-2">
+            <div className="mt-4 flex items-center gap-1">
                 <button onClick={() => onEdit(event)}
-                    className="flex-1 rounded-2xl border border-slate-200 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50">
-                    ✏ Editează
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
+                    <Pencil className="w-3.5 h-3.5" />
+                    Editează
                 </button>
                 {confirming ? (
                     <button onClick={() => onDelete(event.id)}
-                        className="flex-1 rounded-2xl bg-red-600 py-2 text-xs font-semibold text-white">
+                        className="flex-1 rounded-lg bg-rose-600 hover:bg-rose-700 py-2 text-xs font-semibold text-white shadow-sm transition-colors">
                         Sigur?
                     </button>
                 ) : (
                     <button onClick={() => setConfirming(true)} onBlur={() => setTimeout(() => setConfirming(false), 1500)}
-                        className="flex-1 rounded-2xl border border-red-100 py-2 text-xs font-semibold text-red-500 hover:bg-red-50">
+                        className="inline-flex items-center justify-center gap-1.5 rounded-lg py-2 px-3 text-xs font-semibold text-red-500 hover:text-red-600 hover:bg-red-50 transition-colors">
+                        <XIcon className="w-3.5 h-3.5" />
                         Șterge
                     </button>
                 )}
@@ -480,22 +506,24 @@ function EventDetailPanel({ event, onClose, onEdit, onDelete, onStatusUpdate }) 
 
 function EventCard({ event, onClick, compact }) {
     const statusBadge = event.status !== 'pending' ? STATUS_INFO[event.status] : null;
+    const TypeIcon    = TYPE_ICONS[event.type] ?? Pin;
     return (
         <div
             onClick={onClick}
-            className="p-3 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-white hover:shadow-md cursor-pointer transition-all"
+            className="p-3 rounded-xl border border-slate-200/70 bg-slate-50 hover:bg-white hover:shadow-md cursor-pointer transition-all"
         >
             <div className="flex items-center justify-between gap-2 mb-1">
-                <span className={`text-xs font-bold px-1.5 py-0.5 rounded-md ${TYPE_COLORS[event.type] ?? 'bg-slate-100'}`}>
-                    {TYPE_ICONS[event.type]} {compact ? '' : TYPE_LABELS[event.type]}
+                <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-1.5 py-0.5 rounded-md ${TYPE_COLORS[event.type] ?? 'bg-slate-100'}`}>
+                    <TypeIcon className="w-3 h-3" />
+                    {compact ? '' : TYPE_LABELS[event.type]}
                 </span>
                 <div className="flex items-center gap-1">
                     {statusBadge && (
-                        <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${statusBadge.cls}`}>
-                            {statusBadge.label.split(' ')[0]}
+                        <span className={`text-[11px] px-1.5 py-0.5 rounded-md font-semibold ${statusBadge.cls}`}>
+                            {statusBadge.label}
                         </span>
                     )}
-                    {event.google_event_id && <span className="text-xs text-slate-300">📅</span>}
+                    {event.google_event_id && <CalendarIcon className="w-3 h-3 text-slate-300" />}
                 </div>
             </div>
             <p className="text-sm font-semibold text-slate-900 truncate">{event.title}</p>
@@ -503,7 +531,10 @@ function EventCard({ event, onClick, compact }) {
                 <p className="text-xs text-slate-400 mt-0.5">{fmtTime(event.starts_at)}{event.ends_at ? ` → ${fmtTime(event.ends_at)}` : ''}</p>
             )}
             {event.contact && (
-                <p className="text-xs text-slate-500 mt-0.5 truncate">👤 {event.contact.first_name} {event.contact.last_name ?? ''}</p>
+                <p className="text-xs text-slate-500 mt-0.5 truncate inline-flex items-center gap-1">
+                    <User className="w-3 h-3 shrink-0" />
+                    {event.contact.first_name} {event.contact.last_name ?? ''}
+                </p>
             )}
         </div>
     );
@@ -522,10 +553,10 @@ function MonthGrid({ year, month, events, selectedDay, onDayClick, onEventClick 
     };
 
     return (
-        <div className="bg-white rounded-4xl shadow-xl border border-slate-100 p-5">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200/70 p-5">
             <div className="grid grid-cols-7 gap-1 mb-2">
                 {['Dum','Lun','Mar','Mie','Joi','Vin','Sâm'].map(d => (
-                    <div key={d} className="text-center text-xs font-bold text-slate-400 py-1">{d}</div>
+                    <div key={d} className="text-center text-[11px] font-semibold text-slate-400 uppercase tracking-wide py-1">{d}</div>
                 ))}
             </div>
             <div className="grid grid-cols-7 gap-1">
@@ -538,26 +569,30 @@ function MonthGrid({ year, month, events, selectedDay, onDayClick, onEventClick 
                         <div
                             key={day}
                             onClick={() => onDayClick(day)}
-                            className={`min-h-18 p-1 rounded-xl border cursor-pointer transition-colors ${
-                                isToday ? 'bg-blue-700 border-blue-700 text-white' :
-                                isSel   ? 'bg-blue-50 border-blue-300' :
-                                          'bg-slate-50 border-slate-100 hover:bg-slate-100 text-slate-700'
+                            className={`min-h-18 p-1 rounded-lg border cursor-pointer transition-colors ${
+                                isToday ? 'bg-blue-600 border-blue-600 text-white' :
+                                isSel   ? 'bg-blue-50 border-blue-200' :
+                                          'bg-slate-50 border-slate-200/70 hover:bg-slate-100 text-slate-700'
                             }`}
                         >
-                            <span className={`text-xs font-bold ${isToday ? 'text-white' : ''}`}>{day}</span>
+                            <span className={`text-xs font-semibold ${isToday ? 'text-white' : ''}`}>{day}</span>
                             <div className="mt-0.5 space-y-0.5">
-                                {dayEvts.slice(0, 2).map(ev => (
-                                    <div
-                                        key={ev.id}
-                                        onClick={e => { e.stopPropagation(); onEventClick(ev); }}
-                                        className={`text-xs px-1 py-0.5 rounded-md truncate leading-snug ${TYPE_COLORS[ev.type] ?? 'bg-slate-100 text-slate-600'}`}
-                                        title={ev.title}
-                                    >
-                                        {TYPE_ICONS[ev.type]} {ev.title}
-                                    </div>
-                                ))}
+                                {dayEvts.slice(0, 2).map(ev => {
+                                    const EvIcon = TYPE_ICONS[ev.type] ?? Pin;
+                                    return (
+                                        <div
+                                            key={ev.id}
+                                            onClick={e => { e.stopPropagation(); onEventClick(ev); }}
+                                            className={`text-[11px] px-1 py-0.5 rounded-md truncate leading-snug inline-flex items-center gap-1 w-full ${TYPE_COLORS[ev.type] ?? 'bg-slate-100 text-slate-600'}`}
+                                            title={ev.title}
+                                        >
+                                            <EvIcon className="w-3 h-3 shrink-0" />
+                                            <span className="truncate">{ev.title}</span>
+                                        </div>
+                                    );
+                                })}
                                 {dayEvts.length > 2 && (
-                                    <div className={`text-xs pl-1 ${isToday ? 'text-blue-200' : 'text-slate-400'}`}>
+                                    <div className={`text-[11px] pl-1 ${isToday ? 'text-blue-100' : 'text-slate-400'}`}>
                                         +{dayEvts.length - 2}
                                     </div>
                                 )}
@@ -577,19 +612,21 @@ function AgendaView({ events, onEventClick }) {
     const today   = new Date().toISOString().slice(0, 10);
 
     return (
-        <div className="bg-white rounded-4xl shadow-xl border border-slate-100 p-6 space-y-5">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200/70 p-5 space-y-5">
             {events.length === 0 && (
                 <p className="text-slate-400 text-sm text-center py-8">Niciun eveniment în această lună.</p>
             )}
             {Object.entries(grouped).map(([date, dayEvts]) => {
-                const isPast = date < today;
+                const isPast  = date < today;
+                const isToday = date === today;
                 return (
                     <div key={date}>
-                        <div className={`text-xs font-bold uppercase tracking-wide mb-2 ${isPast ? 'text-slate-300' : 'text-slate-500'}`}>
-                            {date === today ? '🟢 Azi — ' : ''}
+                        <div className={`text-[11px] font-semibold uppercase tracking-wide mb-2 inline-flex items-center gap-1.5 ${isPast ? 'text-slate-300' : 'text-slate-500'}`}>
+                            {isToday && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
+                            {isToday && 'Azi — '}
                             {new Date(date + 'T12:00:00').toLocaleDateString('ro', { weekday: 'long', day: 'numeric', month: 'long' })}
                         </div>
-                        <div className="space-y-2 pl-1 border-l-2 border-slate-100 ml-1">
+                        <div className="space-y-2 pl-3 border-l-2 border-slate-100 ml-1">
                             {dayEvts.map(ev => (
                                 <EventCard key={ev.id} event={ev} onClick={() => onEventClick(ev)} />
                             ))}
@@ -615,13 +652,13 @@ function EventListPanel({ events, selectedDay, month, year, onEventClick, onAddC
         : `Toate evenimentele (${events.length})`;
 
     return (
-        <div className="bg-white rounded-4xl shadow-xl border border-slate-100 p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200/70 p-5">
             <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-slate-900 text-sm">{heading}</h3>
+                <h3 className="font-semibold text-slate-900 text-sm">{heading}</h3>
                 {selectedDay && (
                     <button
                         onClick={onAddClick}
-                        className="text-xs font-semibold text-blue-700 hover:underline"
+                        className="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline"
                     >
                         + Adaugă
                     </button>
@@ -629,12 +666,15 @@ function EventListPanel({ events, selectedDay, month, year, onEventClick, onAddC
             </div>
             {displayed.length === 0 ? (
                 <div className="text-center py-8">
-                    <div className="text-3xl mb-2">📭</div>
+                    <div className="w-12 h-12 rounded-xl bg-slate-100 text-slate-400 mx-auto mb-3 flex items-center justify-center">
+                        <Inbox className="w-6 h-6" strokeWidth={1.5} />
+                    </div>
                     <p className="text-sm text-slate-400">Niciun eveniment</p>
                     {selectedDay && (
                         <button onClick={onAddClick}
-                            className="mt-3 rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-700">
-                            + Eveniment nou
+                            className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 px-3 py-2 text-xs font-semibold text-white shadow-sm transition-colors">
+                            <Plus className="w-3.5 h-3.5" strokeWidth={2.5} />
+                            Eveniment nou
                         </button>
                     )}
                 </div>
@@ -654,15 +694,16 @@ function EventListPanel({ events, selectedDay, month, year, onEventClick, onAddC
 function GoogleSyncBanner({ connected, syncing, onSync }) {
     if (!connected) return null;
     return (
-        <div className="flex items-center gap-3 rounded-2xl bg-blue-50 border border-blue-100 px-4 py-2.5 text-sm">
-            <span>📅</span>
+        <div className="flex items-center gap-3 rounded-xl bg-blue-50 border border-blue-100 px-4 py-2.5 text-sm">
+            <CalendarIcon className="w-4 h-4 text-blue-600 shrink-0" />
             <span className="text-blue-700 font-semibold flex-1">Google Calendar conectat</span>
             <button
                 onClick={onSync}
                 disabled={syncing}
-                className="rounded-xl bg-blue-700 text-white px-4 py-1.5 text-xs font-bold hover:bg-blue-800 disabled:opacity-50 transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 text-xs font-semibold shadow-sm disabled:opacity-50 transition-colors"
             >
-                {syncing ? '⏳ Sincronizez…' : '🔄 Sincronizează'}
+                <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
+                {syncing ? 'Sincronizez…' : 'Sincronizează'}
             </button>
         </div>
     );
@@ -776,33 +817,34 @@ export default function Index({ events = [], month, year, googleConnected = fals
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
                         <button onClick={() => navigate(-1)}
-                            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-sm font-bold">
-                            ‹
+                            className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center" aria-label="Luna anterioară">
+                            <ChevronLeft className="w-4 h-4" />
                         </button>
-                        <h2 className="text-xl font-bold text-slate-900 w-44 text-center">
+                        <h2 className="text-lg font-semibold text-slate-900 w-44 text-center">
                             {MONTH_NAMES[month - 1]} {year}
                         </h2>
                         <button onClick={() => navigate(1)}
-                            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-sm font-bold">
-                            ›
+                            className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center" aria-label="Luna următoare">
+                            <ChevronRight className="w-4 h-4" />
                         </button>
                         <button onClick={goToday}
-                            className="rounded-xl border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50 ml-1">
+                            className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 ml-1">
                             Azi
                         </button>
                     </div>
 
                     <div className="flex items-center gap-2">
                         {/* View toggle */}
-                        <div className="flex rounded-xl border border-slate-200 overflow-hidden text-xs">
-                            {[['month','📅 Lună'],['agenda','📋 Agendă']].map(([v, l]) => (
+                        <div className="flex rounded-lg border border-slate-200 overflow-hidden text-xs">
+                            {[['month', CalendarIcon, 'Lună'], ['agenda', ListChecks, 'Agendă']].map(([v, ViewIcon, l]) => (
                                 <button
                                     key={v}
                                     onClick={() => { setView(v); setSelDay(null); setSelEvt(null); }}
-                                    className={`px-3 py-1.5 font-semibold transition-colors ${
-                                        view === v ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50'
+                                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 font-semibold transition-colors ${
+                                        view === v ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'
                                     }`}
                                 >
+                                    <ViewIcon className="w-3.5 h-3.5" />
                                     {l}
                                 </button>
                             ))}
@@ -810,9 +852,10 @@ export default function Index({ events = [], month, year, googleConnected = fals
 
                         <button
                             onClick={() => handleAddClick()}
-                            className="rounded-2xl bg-linear-to-br from-slate-900 to-blue-700 px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors"
                         >
-                            + Eveniment
+                            <Plus className="w-4 h-4" strokeWidth={2.5} />
+                            Eveniment
                         </button>
                     </div>
                 </div>

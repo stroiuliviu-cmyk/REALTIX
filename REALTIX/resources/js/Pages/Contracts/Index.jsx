@@ -1,18 +1,25 @@
 import AppLayout from '@/Layouts/AppLayout';
 import { Head, router, useForm } from '@inertiajs/react';
 import { useRef, useState } from 'react';
+import {
+    FileSignature, Key, ClipboardList, Banknote, FileText, Eye,
+    ShieldCheck, Star, Pencil, Trash2, RefreshCw, Plus, X as XIcon,
+    Upload, AlertTriangle, ArrowRight,
+} from 'lucide-react';
 
 // ── constants ─────────────────────────────────────────────────────────────────
 
+// Map template type → Lucide icon component. Rendered as <Icon /> wherever the
+// type needs visual representation; never inlined as an emoji string.
 const TEMPLATE_TYPES = {
-    sale:          { label: 'Vânzare-cumpărare',   icon: '🏷' },
-    rent:          { label: 'Chirie',               icon: '🔑' },
-    mandate:       { label: 'Mandat imobiliar',     icon: '📋' },
-    advance:       { label: 'Avans / Acont',        icon: '💰' },
-    handover:      { label: 'Proces-verbal',        icon: '📝' },
-    viewing_sheet: { label: 'Fișă de vizionare',   icon: '👁' },
-    gdpr_consent:  { label: 'Consimțământ GDPR',   icon: '🔐' },
-    exclusive:     { label: 'Contract exclusivitate', icon: '⭐' },
+    sale:          { label: 'Vânzare-cumpărare',       Icon: FileSignature },
+    rent:          { label: 'Chirie',                  Icon: Key },
+    mandate:       { label: 'Mandat imobiliar',        Icon: ClipboardList },
+    advance:       { label: 'Avans / Acont',           Icon: Banknote },
+    handover:      { label: 'Proces-verbal',           Icon: FileText },
+    viewing_sheet: { label: 'Fișă de vizionare',       Icon: Eye },
+    gdpr_consent:  { label: 'Consimțământ GDPR',       Icon: ShieldCheck },
+    exclusive:     { label: 'Contract exclusivitate',  Icon: Star },
 };
 
 const LOCALE_LABELS = { ro: 'RO', ru: 'RU' };
@@ -203,9 +210,9 @@ function todayIso() {
 // ── shared input classes ──────────────────────────────────────────────────────
 
 const INPUT_CLS =
-    'w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 bg-white';
+    'w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600';
 const LABEL_CLS =
-    'block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5';
+    'block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5';
 
 // ── SearchSelect ──────────────────────────────────────────────────────────────
 
@@ -237,16 +244,16 @@ function SearchSelect({ options, value, onChange, placeholder, renderRow }) {
                 onBlur={() => setTimeout(() => setOpen(false), 150)}
             />
             {open && filtered.length > 0 && (
-                <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden">
+                <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
                     {filtered.map(o => {
                         const r = renderRow(o);
                         return (
                             <div
                                 key={o.id}
                                 onMouseDown={() => { onChange(o.id); setQuery(''); setOpen(false); }}
-                                className="px-4 py-3 hover:bg-slate-50 cursor-pointer"
+                                className="px-3 py-2.5 hover:bg-slate-50 cursor-pointer"
                             >
-                                <div className="text-sm font-semibold text-slate-800">{r.text}</div>
+                                <div className="text-sm font-semibold text-slate-900">{r.text}</div>
                                 {r.sub && <div className="text-xs text-slate-400 mt-0.5">{r.sub}</div>}
                             </div>
                         );
@@ -277,23 +284,30 @@ function GenerateModal({ template, properties, contacts, onClose }) {
         post(route('contracts.generate', template.id), { onSuccess: () => onClose() });
     };
 
+    const TIcon = TEMPLATE_TYPES[template.type]?.Icon ?? FileText;
+
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-            <div className="bg-white rounded-4xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={onClose}>
+            <div className="bg-white rounded-2xl shadow-xl border border-slate-200/70 w-full max-w-lg max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
                 {/* Header */}
-                <div className="px-8 pt-8 pb-4 border-b border-slate-100 shrink-0">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h3 className="text-lg font-bold text-slate-900">Generează document</h3>
-                            <p className="text-xs text-slate-400 mt-0.5">
-                                {TEMPLATE_TYPES[template.type]?.icon} {template.name}
-                            </p>
+                <div className="px-7 pt-6 pb-4 border-b border-slate-100 shrink-0">
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-10 h-10 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
+                                <TIcon className="w-5 h-5" strokeWidth={2} />
+                            </div>
+                            <div className="min-w-0">
+                                <h3 className="text-base font-semibold text-slate-900">Generează document</h3>
+                                <p className="text-xs text-slate-400 mt-0.5 truncate">{template.name}</p>
+                            </div>
                         </div>
-                        <button onClick={onClose} className="text-slate-400 hover:text-slate-700 text-xl leading-none">✕</button>
+                        <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 shrink-0" aria-label="Închide">
+                            <XIcon className="w-4 h-4" />
+                        </button>
                     </div>
                 </div>
 
-                <form onSubmit={submit} className="overflow-y-auto px-8 py-6 space-y-4 grow">
+                <form onSubmit={submit} className="overflow-y-auto px-7 py-5 space-y-4 grow">
                     {/* Property */}
                     <div>
                         <label className={LABEL_CLS}>
@@ -418,21 +432,22 @@ function GenerateModal({ template, properties, contacts, onClose }) {
                         <button
                             type="button"
                             onClick={() => window.open(route('contracts.preview', template.id), '_blank')}
-                            className="rounded-2xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 shrink-0"
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 shrink-0"
                         >
-                            👁 Preview
+                            <Eye className="w-4 h-4" />
+                            Preview
                         </button>
                         <button
                             type="button"
                             onClick={onClose}
-                            className="flex-1 rounded-2xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+                            className="flex-1 rounded-lg border border-slate-200 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
                         >
                             Anulează
                         </button>
                         <button
                             type="submit"
                             disabled={processing}
-                            className="flex-1 rounded-2xl bg-linear-to-br from-slate-900 to-blue-700 py-2.5 text-sm font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-60"
+                            className="flex-1 rounded-lg bg-blue-600 hover:bg-blue-700 py-2 text-sm font-semibold text-white shadow-sm transition-colors disabled:opacity-60"
                         >
                             {processing ? 'Se generează…' : 'Generează Word'}
                         </button>
@@ -516,22 +531,22 @@ function TemplateEditorModal({ template, onClose }) {
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-            <div className="bg-white rounded-4xl shadow-2xl w-full max-w-4xl max-h-[93vh] flex flex-col">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={onClose}>
+            <div className="bg-white rounded-2xl shadow-xl border border-slate-200/70 w-full max-w-4xl max-h-[93vh] flex flex-col" onClick={e => e.stopPropagation()}>
                 {/* Header */}
-                <div className="px-8 pt-8 pb-4 border-b border-slate-100 shrink-0 flex items-center justify-between gap-3">
-                    <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                        {isNew ? '+ Creează document' : 'Editează șablon'}
+                <div className="px-7 pt-6 pb-4 border-b border-slate-100 shrink-0 flex items-center justify-between gap-3">
+                    <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+                        {isNew ? 'Creează document' : 'Editează șablon'}
                         <span className="relative group">
                             <span
-                                className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-100 text-slate-500 text-[11px] font-bold cursor-help hover:bg-slate-200 transition-colors"
+                                className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-100 text-slate-500 text-[11px] font-semibold cursor-help hover:bg-slate-200 transition-colors"
                                 aria-label="Cum utilizezi pagina"
                             >?</span>
-                            <span className="invisible group-hover:visible absolute left-0 top-7 z-10 w-80 rounded-xl bg-slate-900 text-white text-[11px] leading-relaxed p-3 shadow-2xl normal-case font-normal">
+                            <span className="invisible group-hover:visible absolute left-0 top-7 z-10 w-80 rounded-xl bg-slate-900 text-white text-[11px] leading-relaxed p-3 shadow-lg normal-case font-normal">
                                 <strong className="block mb-1.5 text-[12px]">Cum utilizezi pagina:</strong>
                                 <ol className="list-decimal list-inside space-y-1">
                                     <li>Setează <strong>tipul</strong>, <strong>limba</strong> și <strong>denumirea</strong> șablonului.</li>
-                                    <li>Scrie textul în <strong>Conținut șablon</strong> sau apasă <strong>📄 Încarcă .docx</strong> pentru a importa dintr-un fișier Word.</li>
+                                    <li>Scrie textul în <strong>Conținut șablon</strong> sau apasă <strong>Încarcă .docx</strong> pentru a importa dintr-un fișier Word.</li>
                                     <li>Din panoul din dreapta, <strong>click</strong> pe orice câmp sau <strong>trage-l</strong> cu mouse-ul în text — se inserează la poziția cursorului.</li>
                                     <li><strong>Ctrl+Z</strong> anulează ultima inserare; placeholderii apar ca <code className="bg-slate-800 px-1 rounded">{'{nume_camp}'}</code> și se completează automat la generare.</li>
                                     <li>Apasă <strong>Creează șablon</strong> pentru a salva.</li>
@@ -539,7 +554,7 @@ function TemplateEditorModal({ template, onClose }) {
                             </span>
                         </span>
                     </h3>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                         <input
                             ref={docxInputRef}
                             type="file"
@@ -551,11 +566,14 @@ function TemplateEditorModal({ template, onClose }) {
                             type="button"
                             onClick={() => docxInputRef.current?.click()}
                             disabled={extracting}
-                            className="rounded-xl bg-white border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-white border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
                         >
-                            {extracting ? 'Se extrage…' : '📄 Încarcă .docx'}
+                            <Upload className="w-3.5 h-3.5" />
+                            {extracting ? 'Se extrage…' : 'Încarcă .docx'}
                         </button>
-                        <button onClick={onClose} className="text-slate-400 hover:text-slate-700 text-xl leading-none">✕</button>
+                        <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100" aria-label="Închide">
+                            <XIcon className="w-4 h-4" />
+                        </button>
                     </div>
                 </div>
                 {docxError && (
@@ -569,16 +587,16 @@ function TemplateEditorModal({ template, onClose }) {
                             <label className={LABEL_CLS}>Tip document</label>
                             <select value={data.type} onChange={e => setData('type', e.target.value)} className={INPUT_CLS}>
                                 {Object.entries(TEMPLATE_TYPES).map(([k, t]) => (
-                                    <option key={k} value={k}>{t.icon} {t.label}</option>
+                                    <option key={k} value={k}>{t.label}</option>
                                 ))}
                             </select>
                         </div>
                         <div>
                             <label className={LABEL_CLS}>Limbă</label>
                             <select value={data.locale} onChange={e => setData('locale', e.target.value)} className={INPUT_CLS}>
-                                <option value="ro">🇷🇴 Română</option>
-                                <option value="ru">🇷🇺 Русский</option>
-                                <option value="en">🇬🇧 English</option>
+                                <option value="ro">Română</option>
+                                <option value="ru">Русский</option>
+                                <option value="en">English</option>
                             </select>
                         </div>
                         <div>
@@ -611,14 +629,14 @@ function TemplateEditorModal({ template, onClose }) {
                                 }}
                                 placeholder="Scrieți textul contractului. Trageți câmpurile din dreapta (sau click) pentru a le insera."
                                 required
-                                className="w-full h-80 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-mono leading-relaxed focus:outline-none focus:border-blue-500 resize-none"
+                                className="w-full h-80 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 font-mono leading-relaxed focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 resize-none"
                             />
                             {errors.content && <p className="text-xs text-red-500 mt-1">{errors.content}</p>}
                         </div>
 
                         {/* Placeholder hints — click or drag onto the textarea */}
-                        <div className="overflow-y-auto max-h-80 rounded-2xl bg-slate-50 border border-slate-100 p-4">
-                            <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Câmpuri disponibile</p>
+                        <div className="overflow-y-auto max-h-80 rounded-xl bg-slate-50 border border-slate-200/70 p-4">
+                            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Câmpuri disponibile</p>
                             <p className="text-xs text-slate-400 mb-3">Trageți peste text sau click pentru inserare</p>
                             {Object.entries(PLACEHOLDER_GROUPS).map(([group, fields]) => (
                                 <div key={group} className="mb-3">
@@ -659,18 +677,18 @@ function TemplateEditorModal({ template, onClose }) {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex justify-end gap-3 pt-1">
+                    <div className="flex justify-end gap-2 pt-1">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="rounded-2xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+                            className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
                         >
                             Anulează
                         </button>
                         <button
                             type="submit"
                             disabled={processing}
-                            className="rounded-2xl bg-linear-to-br from-slate-900 to-blue-700 px-6 py-2.5 text-sm font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-60"
+                            className="rounded-lg bg-blue-600 hover:bg-blue-700 px-5 py-2 text-sm font-semibold text-white shadow-sm transition-colors disabled:opacity-60"
                         >
                             {processing ? 'Se salvează…' : isNew ? 'Creează șablon' : 'Salvează modificările'}
                         </button>
@@ -695,14 +713,14 @@ function DeleteTemplateModal({ template, onClose }) {
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-7">
-                <div className="flex items-start gap-4">
-                    <div className="shrink-0 w-12 h-12 rounded-full bg-red-50 flex items-center justify-center text-2xl">
-                        ⚠
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={onClose}>
+            <div className="bg-white rounded-2xl shadow-xl border border-slate-200/70 w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+                <div className="flex items-start gap-3">
+                    <div className="shrink-0 w-10 h-10 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center">
+                        <AlertTriangle className="w-5 h-5" strokeWidth={2} />
                     </div>
                     <div className="grow">
-                        <h3 className="text-lg font-bold text-slate-900">Șterge șablonul?</h3>
+                        <h3 className="text-base font-semibold text-slate-900">Șterge șablonul?</h3>
                         <p className="text-sm text-slate-500 mt-1 leading-relaxed">
                             Vei șterge definitiv <span className="font-semibold text-slate-700">„{template.name}"</span>.
                             Contractele deja generate din acest șablon rămân, dar nu vei mai putea genera unele noi.
@@ -710,12 +728,12 @@ function DeleteTemplateModal({ template, onClose }) {
                         </p>
                     </div>
                 </div>
-                <div className="flex gap-3 mt-6">
+                <div className="flex justify-end gap-2 mt-6">
                     <button
                         type="button"
                         onClick={onClose}
                         disabled={busy}
-                        className="flex-1 rounded-2xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+                        className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-60"
                     >
                         Anulează
                     </button>
@@ -723,7 +741,7 @@ function DeleteTemplateModal({ template, onClose }) {
                         type="button"
                         onClick={submit}
                         disabled={busy}
-                        className="flex-1 rounded-2xl bg-red-600 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+                        className="rounded-lg bg-rose-600 hover:bg-rose-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors disabled:opacity-60"
                     >
                         {busy ? 'Se șterge…' : 'Da, șterge'}
                     </button>
@@ -736,53 +754,59 @@ function DeleteTemplateModal({ template, onClose }) {
 // ── TemplateCard ──────────────────────────────────────────────────────────────
 
 function TemplateCard({ template, onGenerate, onEdit, onPreview, onDelete }) {
-    const tType = TEMPLATE_TYPES[template.type] ?? { label: template.type, icon: '📄' };
+    const tType = TEMPLATE_TYPES[template.type] ?? { label: template.type, Icon: FileText };
+    const TIcon = tType.Icon;
 
     return (
-        <div className="rounded-4xl bg-white border border-slate-100 p-6 hover:shadow-xl transition-shadow flex flex-col">
-            <div className="flex items-start justify-between mb-3">
-                <div className="text-3xl">{tType.icon}</div>
+        <div className="rounded-xl bg-white border border-slate-200/70 shadow-sm hover:shadow-lg hover:border-slate-300/70 transition-all duration-200 p-5 flex flex-col">
+            <div className="flex items-start justify-between mb-4">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center">
+                    <TIcon className="w-5 h-5" strokeWidth={2} />
+                </div>
                 <div className="flex items-center gap-1.5">
-                    <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-semibold uppercase">
+                    <span className="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md font-semibold uppercase tracking-wide">
                         {LOCALE_LABELS[template.locale] ?? template.locale}
                     </span>
                     {template.is_default && (
-                        <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-semibold">
+                        <span className="text-[11px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md font-semibold">
                             Implicit
                         </span>
                     )}
                 </div>
             </div>
 
-            <div className="font-bold text-slate-900 leading-snug">{template.name}</div>
+            <div className="font-semibold text-slate-900 leading-snug text-sm">{template.name}</div>
             <div className="text-xs text-slate-400 mt-0.5 mb-4">{tType.label}</div>
 
             {/* Actions */}
             <div className="mt-auto space-y-2">
                 <button
                     onClick={onGenerate}
-                    className="w-full rounded-2xl bg-linear-to-br from-slate-900 to-blue-700 py-2 text-xs font-semibold text-white hover:opacity-90 transition-opacity"
+                    className="w-full rounded-lg bg-slate-900 hover:bg-slate-800 py-2 text-xs font-semibold text-white shadow-sm transition-colors"
                 >
                     Generează document
                 </button>
-                <div className="flex gap-2">
+                <div className="flex items-center gap-1">
                     <button
                         onClick={onPreview}
-                        className="flex-1 rounded-2xl border border-slate-200 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
                     >
-                        👁 Preview
+                        <Eye className="w-3.5 h-3.5" />
+                        Preview
                     </button>
                     <button
                         onClick={onEdit}
-                        className="flex-1 rounded-2xl border border-slate-200 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
                     >
-                        ✏ Editează
+                        <Pencil className="w-3.5 h-3.5" />
+                        Editează
                     </button>
                     <button
                         onClick={onDelete}
-                        className="flex-1 rounded-2xl border border-red-100 py-1.5 text-xs font-semibold text-red-500 hover:bg-red-50 hover:border-red-200"
+                        className="inline-flex items-center justify-center gap-1.5 rounded-lg py-1.5 px-2.5 text-xs font-semibold text-red-500 hover:text-red-600 hover:bg-red-50 transition-colors"
                     >
-                        🗑 Șterge
+                        <Trash2 className="w-3.5 h-3.5" />
+                        Șterge
                     </button>
                 </div>
             </div>
@@ -829,43 +853,48 @@ export default function Index({ templates = [], generated = [], properties = [],
                 <div>
                     <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
                         <div>
-                            <h2 className="text-lg font-bold text-slate-900">Biblioteca de șabloane</h2>
+                            <h2 className="text-lg font-semibold text-slate-900">Biblioteca de șabloane</h2>
                             <p className="text-sm text-slate-400 mt-0.5">{templates.length} șabloane active</p>
                         </div>
                         <div className="flex gap-2 flex-wrap">
                             <button
                                 onClick={() => router.post('/run-seeder/contracts', {}, { preserveScroll: true })}
                                 title="Adaugă șabloanele standard care lipsesc din biblioteca ta"
-                                className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
                             >
-                                🔄 Sincronizează standard
+                                <RefreshCw className="w-4 h-4" />
+                                Sincronizează standard
                             </button>
                             <button
                                 onClick={() => setEditTemplate({})}
-                                className="rounded-2xl bg-linear-to-br from-slate-900 to-blue-700 px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90 transition-opacity"
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors"
                             >
-                                + Creează document
+                                <Plus className="w-4 h-4" strokeWidth={2.5} />
+                                Creează document
                             </button>
                         </div>
                     </div>
 
                     {templates.length === 0 ? (
-                        <div className="rounded-4xl bg-white border border-slate-100 shadow-xl p-12 text-center">
-                            <div className="text-5xl mb-4">📄</div>
-                            <p className="font-bold text-slate-700 mb-2">Niciun șablon în bibliotecă</p>
-                            <p className="text-sm text-slate-400 mb-6 max-w-md mx-auto">
+                        <div className="rounded-2xl bg-white border border-slate-200/70 shadow-sm p-12 text-center">
+                            <div className="w-14 h-14 rounded-xl bg-slate-100 text-slate-400 mx-auto mb-4 flex items-center justify-center">
+                                <FileText className="w-7 h-7" strokeWidth={1.5} />
+                            </div>
+                            <p className="font-semibold text-slate-900 mb-2">Niciun șablon în bibliotecă</p>
+                            <p className="text-sm text-slate-500 mb-6 max-w-md mx-auto">
                                 Creați primul șablon sau instalați setul implicit REALTIX (13 documente standard, traduse în română).
                             </p>
-                            <div className="flex justify-center gap-3">
+                            <div className="flex justify-center gap-2">
                                 <button
                                     onClick={() => setEditTemplate({})}
-                                    className="rounded-2xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-700"
+                                    className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors"
                                 >
-                                    + Creează document
+                                    <Plus className="w-4 h-4" strokeWidth={2.5} />
+                                    Creează document
                                 </button>
                                 <button
                                     onClick={() => router.post('/run-seeder/contracts', {}, { preserveState: false })}
-                                    className="rounded-2xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+                                    className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
                                 >
                                     Instalează setul implicit
                                 </button>
@@ -890,60 +919,64 @@ export default function Index({ templates = [], generated = [], properties = [],
                 {/* ── Generated contracts ── */}
                 {generated.length > 0 && (
                     <div>
-                        <h2 className="text-lg font-bold text-slate-900 mb-4">Contracte generate recent</h2>
-                        <div className="rounded-4xl bg-white border border-slate-100 shadow-xl overflow-x-auto">
+                        <h2 className="text-lg font-semibold text-slate-900 mb-4">Contracte generate recent</h2>
+                        <div className="rounded-xl bg-white border border-slate-200/70 shadow-sm overflow-x-auto">
                             <table className="w-full text-sm min-w-180">
-                                <thead className="bg-slate-50 border-b border-slate-100">
+                                <thead className="bg-slate-50 border-b border-slate-200">
                                     <tr>
                                         {['Document', 'Proprietate', 'Client', 'Agent', 'Data', 'Acțiuni'].map(h => (
-                                            <th key={h} className="text-left px-5 py-3 text-xs font-bold text-slate-400 uppercase tracking-wide">
+                                            <th key={h} className="text-left px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
                                                 {h}
                                             </th>
                                         ))}
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-50">
-                                    {generated.map(g => (
-                                        <tr key={g.id} className="hover:bg-slate-50 transition-colors">
-                                            <td className="px-5 py-4">
-                                                <div className="font-semibold text-slate-900 leading-snug">
-                                                    {TEMPLATE_TYPES[g.template?.type]?.icon ?? '📄'} {g.template?.name ?? '—'}
-                                                </div>
-                                            </td>
-                                            <td className="px-5 py-4 text-slate-600 text-xs">
-                                                {g.property?.title ?? '—'}
-                                            </td>
-                                            <td className="px-5 py-4 text-slate-600 text-xs">
-                                                {g.contact
-                                                    ? `${g.contact.first_name} ${g.contact.last_name ?? ''}`
-                                                    : '—'}
-                                            </td>
-                                            <td className="px-5 py-4 text-slate-400 text-xs">
-                                                {g.user?.name ?? '—'}
-                                            </td>
-                                            <td className="px-5 py-4 text-slate-400 text-xs whitespace-nowrap">
-                                                {new Date(g.created_at).toLocaleDateString('ro')}
-                                            </td>
-                                            <td className="px-5 py-4 whitespace-nowrap">
-                                                {g.pdf_path && (
+                                <tbody className="divide-y divide-slate-100">
+                                    {generated.map(g => {
+                                        const RowIcon = TEMPLATE_TYPES[g.template?.type]?.Icon ?? FileText;
+                                        return (
+                                            <tr key={g.id} className="hover:bg-slate-50 transition-colors">
+                                                <td className="px-5 py-4">
+                                                    <div className="inline-flex items-center gap-2 font-semibold text-slate-900 leading-snug">
+                                                        <RowIcon className="w-4 h-4 text-slate-400 shrink-0" />
+                                                        {g.template?.name ?? '—'}
+                                                    </div>
+                                                </td>
+                                                <td className="px-5 py-4 text-slate-600 text-xs">
+                                                    {g.property?.title ?? '—'}
+                                                </td>
+                                                <td className="px-5 py-4 text-slate-600 text-xs">
+                                                    {g.contact
+                                                        ? `${g.contact.first_name} ${g.contact.last_name ?? ''}`
+                                                        : '—'}
+                                                </td>
+                                                <td className="px-5 py-4 text-slate-400 text-xs">
+                                                    {g.user?.name ?? '—'}
+                                                </td>
+                                                <td className="px-5 py-4 text-slate-400 text-xs whitespace-nowrap">
+                                                    {new Date(g.created_at).toLocaleDateString('ro')}
+                                                </td>
+                                                <td className="px-5 py-4 whitespace-nowrap">
+                                                    {g.pdf_path && (
+                                                        <a
+                                                            href={`/storage/${g.pdf_path}`}
+                                                            target="_blank"
+                                                            rel="noopener"
+                                                            className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline mr-3"
+                                                        >
+                                                            ↓ PDF
+                                                        </a>
+                                                    )}
                                                     <a
-                                                        href={`/storage/${g.pdf_path}`}
-                                                        target="_blank"
-                                                        rel="noopener"
-                                                        className="inline-flex items-center gap-1 text-xs font-semibold text-blue-700 hover:underline mr-3"
+                                                        href={`/contracts/generated/${g.id}/docx`}
+                                                        className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline"
                                                     >
-                                                        ↓ PDF
+                                                        ↓ DOCX
                                                     </a>
-                                                )}
-                                                <a
-                                                    href={`/contracts/generated/${g.id}/docx`}
-                                                    className="inline-flex items-center gap-1 text-xs font-semibold text-blue-700 hover:underline"
-                                                >
-                                                    ↓ DOCX
-                                                </a>
-                                            </td>
-                                        </tr>
-                                    ))}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>

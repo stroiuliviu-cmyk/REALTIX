@@ -64,11 +64,42 @@ class DashboardController extends Controller
             ? round((($dealsThisMonth - $dealsLastMonth) / $dealsLastMonth) * 100, 1)
             : ($dealsThisMonth > 0 ? 100.0 : 0.0);
 
+        // Stat-tile trend badges. Absolute week-over-week / month-over-month
+        // deltas, surfaced only when positive — the tile shows nothing for a
+        // flat or down metric (small agencies sit at 0 most days). Build via a
+        // helper so each metric uses the same shape.
+        $contactsThisWeek = $own(Contact::query())->where('created_at', '>=', now()->startOfWeek())->count();
+        $contactsLastWeek = $own(Contact::query())
+            ->whereBetween('created_at', [now()->subWeek()->startOfWeek(), now()->subWeek()->endOfWeek()])
+            ->count();
+        $eventsThisWeek = $ownEvents(CalendarEvent::query())
+            ->whereBetween('created_at', [now()->startOfWeek(), now()])->count();
+        $eventsLastWeek = $ownEvents(CalendarEvent::query())
+            ->whereBetween('created_at', [now()->subWeek()->startOfWeek(), now()->subWeek()->endOfWeek()])->count();
+
+        $upTrend = fn (int $delta) => $delta > 0
+            ? ['dir' => 'up', 'value' => '+'.number_format($delta, 0, '.', '.')]
+            : null;
+
+        $partialTrends = [
+            'properties'      => $upTrend($thisWeek - $lastWeek),
+            'contacts'        => $upTrend($contactsThisWeek - $contactsLastWeek),
+            'deals_month'     => $upTrend($dealsThisMonth - $dealsLastMonth),
+            'upcoming_events' => $upTrend($eventsThisWeek - $eventsLastWeek),
+        ];
+
         // Web Oferte (12k+ rows) — the source of richer charts; portfolio table is too small.
         $scrapedStats = [
             'total'   => ScrapedListing::count(),
             'today'   => ScrapedListing::where('updated_at', '>=', now()->startOfDay())->count(),
             'last_7d' => ScrapedListing::where('created_at', '>=', now()->subDays(7))->count(),
+        ];
+
+        // Scraper runs daily — last_7d is always a meaningful fresh-supply badge.
+        $trends = $partialTrends + [
+            'web_offers' => $scrapedStats['last_7d'] > 0
+                ? ['dir' => 'up', 'value' => '+'.number_format($scrapedStats['last_7d'], 0, '.', '.')]
+                : null,
         ];
 
         // 30-day daily series — area chart on the dashboard.
@@ -146,6 +177,7 @@ class DashboardController extends Controller
             'hotDeals'         => $hotDeals,
             'lastUpdated'      => now()->toTimeString('minute'),
             'growth'           => ['week' => $weekGrowth, 'deals' => $dealsGrowth],
+            'trends'           => $trends,
             'scrapedStats'     => $scrapedStats,
             'scrapedDaily'     => $scrapedDaily,
             'scrapedByType'    => $scrapedByType,

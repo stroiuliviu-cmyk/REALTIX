@@ -9,38 +9,33 @@ import {
 } from 'lucide-react';
 
 // ─── Stat tile (enterprise) ──────────────────────────────────────────────────
-// Neutral slate icon square (not the old colored circle + emoji). Optional
-// `trend` prop renders a green/red TrendingUp|Down badge top-right when
-// supplied as { dir: 'up' | 'down', value: '+6' | '-2' }. Call sites can
-// skip it (controller doesn't ship per-card trend yet — future enhancement).
+// Vertical layout: icon + optional trend badge on row 1 (justify-between),
+// then label / value / sub stacked below. Trend prop shape:
+// { dir: 'up' | 'down', value: '+6' } — pass nothing to skip the badge.
 function StatCard({ Icon, label, value, sub, href, trend }) {
     const Wrapper = href ? Link : 'div';
     const TrendIcon = trend?.dir === 'down' ? TrendingDown : TrendingUp;
-    const trendColor = trend?.dir === 'down' ? 'text-rose-600' : 'text-emerald-600';
+    const trendColor = trend?.dir === 'down' ? 'text-slate-400' : 'text-emerald-600';
 
     return (
         <Wrapper
             href={href}
             className="block rounded-xl bg-white border border-slate-200/70 p-5 shadow-sm hover:shadow-lg hover:border-slate-300/70 transition-all duration-200"
         >
-            <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
-                        <Icon className="w-5 h-5" strokeWidth={2} />
-                    </div>
-                    <div>
-                        <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
-                        <div className="text-[28px] font-bold text-slate-900 mt-0.5 tabular-nums leading-tight">{value}</div>
-                        {sub && <div className="text-xs text-slate-400 mt-0.5">{sub}</div>}
-                    </div>
+            <div className="flex items-start justify-between">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
+                    <Icon className="w-4.75 h-4.75" strokeWidth={2} />
                 </div>
                 {trend && (
-                    <span className={`text-xs font-semibold inline-flex items-center gap-0.5 shrink-0 ${trendColor}`}>
+                    <span className={`text-xs font-semibold inline-flex items-center gap-0.5 shrink-0 tabular-nums ${trendColor}`}>
                         <TrendIcon className="w-3.5 h-3.5" />
                         {trend.value}
                     </span>
                 )}
             </div>
+            <div className="mt-4 text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
+            <div className="mt-1.5 text-[28px] leading-none font-bold text-slate-900 tabular-nums">{value}</div>
+            {sub && <div className="mt-1.5 text-xs text-slate-400">{sub}</div>}
         </Wrapper>
     );
 }
@@ -133,7 +128,7 @@ const formatMoney = (n) => (n > 0 ? `€${Number(n).toLocaleString('ro')}` : '�
 
 export default function Index({
     stats, hotDeals = [], lastUpdated,
-    scrapedStats = {},
+    scrapedStats = {}, trends = {},
 }) {
     const { t } = useTranslation();
     const { auth } = usePage().props;
@@ -303,18 +298,21 @@ export default function Index({
                             value={Number(stats.properties ?? 0).toLocaleString('ro')}
                             sub={`${stats.active_properties ?? 0} active`}
                             href="/properties"
+                            trend={trends.properties}
                         />
                         <StatCard
                             Icon={Users} label="Clienți CRM"
                             value={Number(stats.contacts ?? 0).toLocaleString('ro')}
                             sub={`${stats.buyers ?? 0} cumpărători`}
                             href="/contacts"
+                            trend={trends.contacts}
                         />
                         <StatCard
                             Icon={RefreshCw} label="Tranzacții / lună"
                             value={Number(stats.deals_month ?? 0).toLocaleString('ro')}
                             sub={`${stats.active_deals ?? 0} în curs`}
                             href="/deals"
+                            trend={trends.deals_month}
                         />
                         <StatCard
                             Icon={Banknote} label="Venit / lună"
@@ -327,12 +325,14 @@ export default function Index({
                             value={Number(stats.upcoming_events ?? 0).toLocaleString('ro')}
                             sub="programate"
                             href="/calendar"
+                            trend={trends.upcoming_events}
                         />
                         <StatCard
                             Icon={Globe} label="Web Oferte"
                             value={Number(scrapedStats.total ?? 0).toLocaleString('ro')}
                             sub={`+${Number(scrapedStats.last_7d ?? 0).toLocaleString('ro')} săpt`}
                             href="/web-offers"
+                            trend={trends.web_offers}
                         />
                     </div>
                 </section>

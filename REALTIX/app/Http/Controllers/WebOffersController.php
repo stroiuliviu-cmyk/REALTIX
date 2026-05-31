@@ -61,7 +61,18 @@ class WebOffersController extends Controller
                         $q->orWhere('id', (int) $s);
                     }
                 }))
-                ->when($request->raion,    fn ($q, $r) => $q->where('raion', $r))
+                ->when($request->raion, fn ($q, $r) => $q->where('raion', $r))
+                // Multi-select cascade: localities[] + sectors[] narrow within
+                // the raion (combined AND, not OR — both must match if both set).
+                ->when(
+                    is_array($request->localities) && count($request->localities) > 0,
+                    fn ($q) => $q->whereIn('city', $request->localities)
+                )
+                ->when(
+                    is_array($request->sectors) && count($request->sectors) > 0,
+                    fn ($q) => $q->whereIn('district', $request->sectors)
+                )
+                // Back-compat with old single-value URLs (?city=X, ?district=Y).
                 ->when($request->city,     fn ($q, $c) => $q->where('city',     'like', "%{$c}%"))
                 ->when($request->district, fn ($q, $d) => $q->where('district', 'like', "%{$d}%"))
                 ->when($request->price_min, fn ($q, $v) => $q->where('price', '>=', (float) $v))
@@ -188,7 +199,7 @@ class WebOffersController extends Controller
             'listings'    => $query->paginate(20)->withQueryString(),
             'filters'     => $request->only([
                 'search', 'sources', 'owner_types', 'types', 'transaction_type',
-                'raion', 'city', 'district',
+                'raion', 'localities', 'sectors', 'city', 'district',
                 'price_min', 'price_max', 'area_min', 'area_max',
                 'rooms', 'floor_min', 'floor_max', 'floors_total_min', 'floors_total_max',
                 'ai_valuation', 'date_from', 'date_to', 'favorite', 'sort',
@@ -250,6 +261,10 @@ class WebOffersController extends Controller
             'floors_total'     => $scrapedListing->floors_total,
             'city'             => $scrapedListing->city ?? 'Chișinău',
             'district'         => $scrapedListing->district,
+            // Prefer the scraped raion (already resolved by the Python scraper);
+            // fall back to PHP resolver so manually-fixed rows still get a value.
+            'raion'            => $scrapedListing->raion
+                                  ?? \App\Services\RegionResolver::resolve($scrapedListing->city ?? 'Chișinău', $scrapedListing->district),
             'address'          => $scrapedListing->address,
             'status'           => 'active',
             'meta'             => array_filter([

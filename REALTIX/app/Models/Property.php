@@ -35,6 +35,7 @@ class Property extends Model
         'address',
         'city',
         'district',
+        'raion',
         'latitude',
         'longitude',
         'status',

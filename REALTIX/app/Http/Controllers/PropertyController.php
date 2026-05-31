@@ -51,12 +51,20 @@ class PropertyController extends Controller
             ->when($request->filled('types') && is_array($request->types), fn ($q) => $q->whereIn('type', $request->types))
             ->when($request->transaction_type, fn ($q, $t) => $q->where('transaction_type', $t))
             ->when($request->filled('statuses') && is_array($request->statuses), fn ($q) => $q->whereIn('status', $request->statuses))
+            ->when($request->raion, fn ($q, $r) => $q->where('raion', $r))
+            // Multi-select cascade: localities[] + sectors[] narrow within the
+            // raion (combined AND, not OR — both must match if both set).
+            ->when(
+                is_array($request->localities) && count($request->localities) > 0,
+                fn ($q) => $q->whereIn('city', $request->localities)
+            )
+            ->when(
+                is_array($request->sectors) && count($request->sectors) > 0,
+                fn ($q) => $q->whereIn('district', $request->sectors)
+            )
+            // Back-compat with old single-value URLs (?city=X, ?district=Y).
             ->when($request->city,     fn ($q, $c) => $q->where('city',     'like', "%{$c}%"))
             ->when($request->district, fn ($q, $d) => $q->where('district', 'like', "%{$d}%"))
-            // Note: `raion` is round-tripped for UI state but not filtered on —
-            // the properties table doesn't carry a raion column (only city +
-            // district). Agency listings are few and curated, so locality-level
-            // filtering is sufficient.
             ->when($request->price_min, fn ($q, $v) => $q->where('price', '>=', (float) $v))
             ->when($request->price_max, fn ($q, $v) => $q->where('price', '<=', (float) $v))
             ->when($request->area_min,  fn ($q, $v) => $q->where('area_total', '>=', (float) $v))
@@ -112,7 +120,7 @@ class PropertyController extends Controller
             'properties'  => $query->paginate(20)->withQueryString(),
             'filters'     => $request->only([
                 'search', 'types', 'transaction_type', 'statuses',
-                'raion', 'city', 'district', 'rooms',
+                'raion', 'localities', 'sectors', 'city', 'district', 'rooms',
                 'price_min', 'price_max', 'area_min', 'area_max',
                 'floor_min', 'floor_max', 'floors_total_min', 'floors_total_max',
                 'date_from', 'date_to', 'favorite', 'sort', 'phone',
@@ -222,6 +230,7 @@ class PropertyController extends Controller
             'address'          => $validated['address'] ?? null,
             'city'             => $validated['city'],
             'district'         => $validated['district'] ?? null,
+            'raion'            => \App\Services\RegionResolver::resolve($validated['city'], $validated['district'] ?? null),
             'latitude'         => $validated['latitude'] ?? null,
             'longitude'        => $validated['longitude'] ?? null,
             'description_ro'   => $validated['description_ro'] ?? null,
@@ -427,9 +436,19 @@ class PropertyController extends Controller
             'deleted_media_ids.*'=> 'integer|exists:property_media,id',
         ] + $this->photoRules());
 
-        $property->update(\Illuminate\Support\Arr::except($validated, [
+        $payload = \Illuminate\Support\Arr::except($validated, [
             'photos', 'cover_index', 'cover_media_id', 'deleted_media_ids',
-        ]));
+        ]);
+        // Re-resolve raion whenever city/district change so the row stays in
+        // sync with the catalog (RegionResolver returns null for unknown
+        // locations — that's fine, raion is nullable).
+        if (array_key_exists('city', $payload) || array_key_exists('district', $payload)) {
+            $payload['raion'] = \App\Services\RegionResolver::resolve(
+                $payload['city']     ?? $property->city,
+                $payload['district'] ?? $property->district,
+            );
+        }
+        $property->update($payload);
 
         // Delete media flagged for removal (only those belonging to this property).
         if (! empty($validated['deleted_media_ids'])) {

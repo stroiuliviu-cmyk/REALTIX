@@ -2,6 +2,7 @@ import AppLayout from '@/Layouts/AppLayout';
 import { Head, Link, router } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
 import Combobox from '@/Components/Combobox';
+import MultiCombobox from '@/Components/MultiCombobox';
 import { RAIOANE, MOLDOVA_LOCATIONS, localitiesForRaion } from '@/lib/moldovaLocations';
 import {
     MapPin, Camera, Star, Image as ImageIcon, Eye, Phone, Handshake,
@@ -289,7 +290,7 @@ function PropertyRow({ p, isFavorite, isSelected, isAdmin, authUserId, onFav, on
 /* ─── Main page ─────────────────────────────────────────────────────────── */
 const EMPTY = {
     search: '', types: [], transaction_type: '', statuses: [],
-    raion: '', city: '', district: '', rooms: [],
+    raion: '', localities: [], sectors: [], rooms: [],
     price_min: '', price_max: '', area_min: '', area_max: '',
     floor_min: '', floor_max: '', floors_total_min: '', floors_total_max: '',
     date_from: '', date_to: '', phone: '', favorite: false, sort: '',
@@ -301,9 +302,11 @@ export default function Index({ properties, filters = {}, isAdmin, authUserId, f
     const [f, setF] = useState({
         ...EMPTY,
         ...filters,
-        types:    Array.isArray(filters.types)    ? filters.types    : [],
-        statuses: Array.isArray(filters.statuses) ? filters.statuses : [],
-        favorite: !!filters.favorite,
+        types:      Array.isArray(filters.types)      ? filters.types      : [],
+        statuses:   Array.isArray(filters.statuses)   ? filters.statuses   : [],
+        localities: Array.isArray(filters.localities) ? filters.localities : [],
+        sectors:    Array.isArray(filters.sectors)    ? filters.sectors    : [],
+        favorite:   !!filters.favorite,
     });
     const [selected, setSelected]   = useState([]);
     const [localFavs, setLocalFavs] = useState(new Set(favoriteIds));
@@ -353,7 +356,7 @@ export default function Index({ properties, filters = {}, isAdmin, authUserId, f
 
     const activeCount = [
         f.types.length, f.statuses.length, f.transaction_type,
-        f.raion, f.city, f.district,
+        f.raion, f.localities.length, f.sectors.length,
         f.rooms.length, f.price_min, f.price_max, f.area_min, f.area_max,
         f.floor_min, f.floor_max, f.floors_total_min, f.floors_total_max,
         f.date_from, f.date_to, f.phone, f.favorite,
@@ -424,17 +427,17 @@ export default function Index({ properties, filters = {}, isAdmin, authUserId, f
                             </div>
                         </div>
 
-                        {/* Raion → Localitate/Sector cascade.
-                            The `raion` value is round-tripped for UI persistence; properties
-                            have no raion column server-side, so narrowing happens at the
-                            city/district level once the user picks a specific locality. */}
+                        {/* Raion (single) → Localități/Sectoare (MULTI-select).
+                            Raion filters exactly on `raion` column; localities/sectors
+                            restrict further inside the raion. Sectors only exposed for
+                            raions whose catalog entry declares them. */}
                         <div className="space-y-2">
                             <div>
                                 <SideLabel>Raion / Municipiu</SideLabel>
                                 <Combobox
                                     value={f.raion}
-                                    onChange={v => setF(s => ({ ...s, raion: v, city: '', district: '' }))}
-                                    onCommit={() => push({ ...f, city: '', district: '' })}
+                                    onChange={v => setF(s => ({ ...s, raion: v, localities: [], sectors: [] }))}
+                                    onCommit={() => push({ ...f, localities: [], sectors: [] })}
                                     options={RAION_OPTIONS}
                                     placeholder="Ex: Chișinău mun."
                                 />
@@ -442,46 +445,45 @@ export default function Index({ properties, filters = {}, isAdmin, authUserId, f
 
                             {(() => {
                                 // Data-driven sector detection: any raion whose entry exposes
-                                // a `sectors` array gets a mixed Sectors+Localities dropdown.
-                                // Works for whatever names the catalog uses ("Chișinău mun.",
-                                // a renamed municipiu, future muns) without hardcoded strings.
-                                const sectors    = MOLDOVA_LOCATIONS[f.raion]?.sectors ?? [];
-                                const hasSectors = sectors.length > 0;
-                                // Sectors imply the city is the municipiu's main settlement.
-                                // Derive it by stripping the " mun." suffix from the raion key.
-                                const baseCity   = f.raion ? f.raion.replace(/\s+mun\.?$/i, '').trim() : '';
+                                // a `sectors` array gets sectors mixed into the dropdown.
+                                const raionSectors = MOLDOVA_LOCATIONS[f.raion]?.sectors ?? [];
+                                const hasSectors   = raionSectors.length > 0;
 
                                 const localityOptions = !f.raion
                                     ? []
                                     : hasSectors
                                         ? [
-                                            ...sectors.map(s => ({ value: s, label: s, sub: 'Sector' })),
-                                            ...localitiesForRaion(f.raion).map(l => ({ value: l, label: l, sub: 'Localitate' })),
+                                            ...raionSectors.map(s => ({ value: `sec::${s}`, label: s, sub: 'Sector' })),
+                                            ...localitiesForRaion(f.raion).map(l => ({ value: `loc::${l}`, label: l, sub: 'Localitate' })),
                                           ]
-                                        : localitiesForRaion(f.raion);
+                                        : localitiesForRaion(f.raion).map(l => ({ value: `loc::${l}`, label: l }));
 
-                                const handleLocalityChange = (v) => {
-                                    if (!v) {
-                                        setF(s => ({ ...s, city: '', district: '' }));
-                                        return;
-                                    }
-                                    if (hasSectors && sectors.includes(v)) {
-                                        setF(s => ({ ...s, city: baseCity, district: v }));
-                                        return;
-                                    }
-                                    setF(s => ({ ...s, city: v, district: '' }));
+                                // Project current state into the prefixed value-space the
+                                // dropdown uses so checkmarks stay in sync.
+                                const selectedKeys = [
+                                    ...f.localities.map(v => `loc::${v}`),
+                                    ...f.sectors.map(v => `sec::${v}`),
+                                ];
+
+                                const onSelectionChange = (keys) => {
+                                    const next = {
+                                        ...f,
+                                        localities: keys.filter(k => k.startsWith('loc::')).map(k => k.slice(5)),
+                                        sectors:    keys.filter(k => k.startsWith('sec::')).map(k => k.slice(5)),
+                                    };
+                                    setF(next);
+                                    push(next);
                                 };
 
                                 return (
                                     <div>
                                         <SideLabel>Localitate / Sector</SideLabel>
-                                        <Combobox
-                                            value={f.district || f.city}
-                                            onChange={handleLocalityChange}
-                                            onCommit={() => push({ ...f })}
+                                        <MultiCombobox
+                                            values={selectedKeys}
+                                            onChange={onSelectionChange}
                                             options={localityOptions}
                                             disabled={!f.raion}
-                                            placeholder={f.raion ? (hasSectors ? 'Ex: Botanica' : 'Alege localitatea…') : 'Alege întâi raionul'}
+                                            placeholder={f.raion ? (hasSectors ? 'Bifează una sau mai multe…' : 'Bifează localități…') : 'Alege întâi raionul'}
                                         />
                                     </div>
                                 );

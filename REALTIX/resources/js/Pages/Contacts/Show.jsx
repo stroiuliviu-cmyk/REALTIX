@@ -361,7 +361,9 @@ export default function Show({ contact, contracts = [], meetings = [], available
                 <TransferOwnershipModal
                     subject="clientul"
                     currentOwner={contact.user?.name ?? `User #${contact.user_id}`}
+                    currentOwnerId={contact.user_id}
                     agents={agencyAgents}
+                    transferHistory={activityLogs.filter(l => l.action === 'contact.transfer')}
                     routeName="contacts.transfer"
                     routeId={contact.id}
                     onClose={() => setShowTransfer(false)}

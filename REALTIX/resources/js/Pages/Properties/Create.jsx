@@ -37,6 +37,13 @@ const FEATURES = [
 ];
 const TRACKED = ['title', 'type', 'transaction_type', 'city', 'price', 'area_total', 'rooms', 'address', 'district', 'description_ro'];
 
+// Per-type field visibility — matches PropertyController validation `required_if` rules.
+// Suprafața totală e mereu vizibilă (orice tip o are).
+const SHOW_LIVING_AREA_TYPES  = new Set(['apartment', 'house', 'cottage', 'commercial']);
+const SHOW_ROOMS_TYPES        = new Set(['apartment', 'house', 'cottage']);
+const SHOW_FLOOR_TYPES        = new Set(['apartment', 'house', 'cottage', 'garage', 'commercial']);
+const SHOW_FLOORS_TOTAL_TYPES = new Set(['apartment', 'house', 'cottage', 'commercial']);
+
 const AI_LOCALES = [{ v: 'ro', l: 'RO' }, { v: 'ru', l: 'RU' }];
 const AI_STYLES  = [
     { v: 'short',    l: 'Scurt' },
@@ -180,6 +187,23 @@ export default function Create({ authUser = {} }) {
 
     const setData = (key, val) => setDataRaw(prev => ({ ...prev, [key]: val }));
     const setMeta = (key, val) => setData('meta', { ...data.meta, [key]: val });
+
+    // Reset hidden fields when type changes so we don't ship stale orphan data
+    // (e.g. user fills rooms for an apartment, then switches to "Teren" — rooms
+    // should drop, not silently persist in the payload).
+    const changeType = (newType) => setDataRaw(prev => ({
+        ...prev,
+        type: newType,
+        ...(SHOW_LIVING_AREA_TYPES.has(newType)  ? {} : { area_living: '' }),
+        ...(SHOW_ROOMS_TYPES.has(newType)        ? {} : { rooms: '' }),
+        ...(SHOW_FLOOR_TYPES.has(newType)        ? {} : { floor: '' }),
+        ...(SHOW_FLOORS_TOTAL_TYPES.has(newType) ? {} : { floors_total: '' }),
+    }));
+
+    const showLivingArea  = SHOW_LIVING_AREA_TYPES.has(data.type);
+    const showRooms       = SHOW_ROOMS_TYPES.has(data.type);
+    const showFloor       = SHOW_FLOOR_TYPES.has(data.type);
+    const showFloorsTotal = SHOW_FLOORS_TOTAL_TYPES.has(data.type);
 
     // ── autosave to localStorage every 30s ───────────────────────────────────
     useEffect(() => {
@@ -366,7 +390,7 @@ export default function Create({ authUser = {} }) {
                                 {TYPE_OPTIONS.map(t => {
                                     const Icon = TYPE_ICONS[t.value] ?? Building2;
                                     return (
-                                        <PillBtn key={t.value} active={data.type === t.value} onClick={() => setData('type', t.value)}>
+                                        <PillBtn key={t.value} active={data.type === t.value} onClick={() => changeType(t.value)}>
                                             <Icon className="w-4 h-4" />
                                             {t.label}
                                         </PillBtn>
@@ -433,45 +457,55 @@ export default function Create({ authUser = {} }) {
                             />
                         </Field>
 
-                        {/* Area */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {/* Area — totală e mereu vizibilă; locativă doar pentru tipuri locuibile */}
+                        <div className={showLivingArea ? 'grid grid-cols-1 sm:grid-cols-2 gap-3' : ''}>
                             <Field label="Suprafață totală (m²)" error={errors.area_total}>
                                 <input type="number" min="0" step="0.1" value={data.area_total} onChange={e => setData('area_total', e.target.value)} className={inputCls} />
                             </Field>
-                            <Field label="Suprafață locativă (m²)" error={errors.area_living}>
-                                <input type="number" min="0" step="0.1" value={data.area_living} onChange={e => setData('area_living', e.target.value)} className={inputCls} />
-                            </Field>
+                            {showLivingArea && (
+                                <Field label="Suprafață locativă (m²)" error={errors.area_living}>
+                                    <input type="number" min="0" step="0.1" value={data.area_living} onChange={e => setData('area_living', e.target.value)} className={inputCls} />
+                                </Field>
+                            )}
                         </div>
 
-                        {/* Rooms */}
-                        <div>
-                            <label className="block text-xs font-semibold text-slate-500 mb-2">Număr camere</label>
-                            <div className="flex flex-wrap gap-2">
-                                {['1','2','3','4','5','5+'].map(r => (
-                                    <PillBtn key={r} small active={String(data.rooms) === (r === '5+' ? '5' : r)} onClick={() => setData('rooms', r === '5+' ? 5 : parseInt(r))}>
-                                        {r}
-                                    </PillBtn>
-                                ))}
-                                <input
-                                    type="number"
-                                    min="0"
-                                    value={data.rooms}
-                                    onChange={e => setData('rooms', e.target.value)}
-                                    className="w-20 rounded-xl border border-slate-200 px-3 py-1 text-sm text-center focus:outline-none focus:border-blue-600"
-                                    placeholder="nr."
-                                />
+                        {/* Rooms — doar pentru spații de locuit */}
+                        {showRooms && (
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-500 mb-2">Număr camere</label>
+                                <div className="flex flex-wrap gap-2">
+                                    {['1','2','3','4','5','5+'].map(r => (
+                                        <PillBtn key={r} small active={String(data.rooms) === (r === '5+' ? '5' : r)} onClick={() => setData('rooms', r === '5+' ? 5 : parseInt(r))}>
+                                            {r}
+                                        </PillBtn>
+                                    ))}
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        value={data.rooms}
+                                        onChange={e => setData('rooms', e.target.value)}
+                                        className="w-20 rounded-xl border border-slate-200 px-3 py-1 text-sm text-center focus:outline-none focus:border-blue-600"
+                                        placeholder="nr."
+                                    />
+                                </div>
                             </div>
-                        </div>
+                        )}
 
-                        {/* Floor */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <Field label="Etaj" error={errors.floor}>
-                                <input type="number" value={data.floor} onChange={e => setData('floor', e.target.value)} className={inputCls} />
-                            </Field>
-                            <Field label="Total etaje clădire" error={errors.floors_total}>
-                                <input type="number" min="1" value={data.floors_total} onChange={e => setData('floors_total', e.target.value)} className={inputCls} />
-                            </Field>
-                        </div>
+                        {/* Floor — orice tip cu structură de niveluri */}
+                        {(showFloor || showFloorsTotal) && (
+                            <div className={showFloor && showFloorsTotal ? 'grid grid-cols-1 sm:grid-cols-2 gap-3' : ''}>
+                                {showFloor && (
+                                    <Field label="Etaj" error={errors.floor}>
+                                        <input type="number" value={data.floor} onChange={e => setData('floor', e.target.value)} className={inputCls} />
+                                    </Field>
+                                )}
+                                {showFloorsTotal && (
+                                    <Field label="Total etaje clădire" error={errors.floors_total}>
+                                        <input type="number" min="1" value={data.floors_total} onChange={e => setData('floors_total', e.target.value)} className={inputCls} />
+                                    </Field>
+                                )}
+                            </div>
+                        )}
 
                         {/* Price */}
                         <div className="flex gap-3">

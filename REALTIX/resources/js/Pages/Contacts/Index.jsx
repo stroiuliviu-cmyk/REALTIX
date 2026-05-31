@@ -1,4 +1,5 @@
 import AppLayout from '@/Layouts/AppLayout';
+import CloseContactWizard from '@/Components/CloseContactWizard';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
 import { Plus, Clock, Search } from 'lucide-react';
@@ -11,10 +12,16 @@ const statusColors = {
 
 const statusLabels = { lead: 'Lead', active: 'Activ', closed: 'Închis' };
 
-function StatusDropdown({ contact }) {
+function StatusDropdown({ contact, onRequestClose }) {
     const handleChange = (e) => {
         const next = e.target.value;
         if (next === contact.status) return;
+        // Tranziția → "Închis" trece prin wizard (alegere imobil + comision).
+        // Lead/Activ rămân patch-uri directe ca până acum.
+        if (next === 'closed') {
+            onRequestClose?.(contact);
+            return;
+        }
         router.patch(route('contacts.status', contact.id), { status: next }, {
             preserveScroll: true,
             preserveState: true,
@@ -163,19 +170,45 @@ function AddContactModal({ onClose }) {
     );
 }
 
-export default function Index({ contacts, filters }) {
+export default function Index({ contacts, filters, availableProperties = [] }) {
     const [showModal, setShowModal] = useState(false);
     const [search, setSearch] = useState(filters?.search ?? '');
+    // A single CloseContactWizard rendered at page level. When a row's
+    // StatusDropdown requests the close-wizard for its contact, we stash the
+    // contact here and the modal mounts with the right context.
+    const [wizardContact, setWizardContact] = useState(null);
 
     const handleSearch = (e) => {
         e.preventDefault();
         router.get('/contacts', { search, status: filters?.status }, { preserveState: true });
     };
 
+    // Wizard-finalize callback: deal already POSTed (if any). Flip the
+    // contact to closed as a separate step so a deal-creation failure
+    // doesn't leave us with a half-closed contact.
+    const finalizeClose = ({ onSettled }) => {
+        if (!wizardContact) { onSettled?.(); return; }
+        router.patch(route('contacts.status', wizardContact.id), { status: 'closed' }, {
+            preserveScroll: true,
+            onSuccess: () => { setWizardContact(null); onSettled?.(); },
+            onError:   () => onSettled?.(),
+        });
+    };
+
     return (
         <AppLayout title="Clienți CRM">
             <Head title="Clienți" />
             {showModal && <AddContactModal onClose={() => setShowModal(false)} />}
+
+            {wizardContact && (
+                <CloseContactWizard
+                    contactId={wizardContact.id}
+                    contactName={`${wizardContact.first_name} ${wizardContact.last_name ?? ''}`.trim()}
+                    availableProperties={availableProperties}
+                    onClose={() => setWizardContact(null)}
+                    onFinalize={finalizeClose}
+                />
+            )}
 
             <div className="space-y-6">
                 {/* Header card */}
@@ -276,7 +309,7 @@ export default function Index({ contacts, filters }) {
                                         <td className="px-4 py-4">{contact.phone ?? '—'}</td>
                                         <td className="px-4 py-4">{typeLabels[contact.type] ?? contact.type}</td>
                                         <td className="px-4 py-4">
-                                            <StatusDropdown contact={contact} />
+                                            <StatusDropdown contact={contact} onRequestClose={setWizardContact} />
                                         </td>
                                         <td className="px-4 py-4 text-slate-400">{contact.source ?? '—'}</td>
                                         <td className="px-4 py-4">

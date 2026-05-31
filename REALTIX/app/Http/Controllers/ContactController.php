@@ -51,9 +51,21 @@ class ContactController extends Controller
             return $c;
         });
 
+        // Properties roster shipped to the CloseContactWizard (triggered from
+        // the per-row StatusDropdown when an agent flips a contact to closed).
+        // Same projection as Show(), without the per-contact linkedIds filter
+        // since the list view has no "current contact" context. Property uses
+        // the BelongsToAgency global scope, so the query is auto-restricted.
+        $availableProperties = Property::query()
+            ->select('id', 'title', 'address', 'city', 'price', 'currency', 'type', 'transaction_type')
+            ->latest()
+            ->limit(100)
+            ->get();
+
         return Inertia::render('Contacts/Index', [
-            'contacts' => $contacts,
-            'filters'  => $request->only(['search', 'status', 'type', 'forgotten']),
+            'contacts'            => $contacts,
+            'filters'             => $request->only(['search', 'status', 'type', 'forgotten']),
+            'availableProperties' => $availableProperties,
         ]);
     }
 

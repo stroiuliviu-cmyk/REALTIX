@@ -4,7 +4,7 @@ import LastInteractionHint from '@/Components/LastInteractionHint';
 import { Head, router } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import Combobox from '@/Components/Combobox';
-import { RAIOANE, CHISINAU_SECTORS, localitiesForRaion } from '@/lib/moldovaLocations';
+import { RAIOANE, MOLDOVA_LOCATIONS, localitiesForRaion } from '@/lib/moldovaLocations';
 import {
     Camera, MapPin, Calendar, Phone, Star, Plus, Check,
     Image as ImageIcon, Building2, User, ExternalLink,
@@ -459,17 +459,26 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
                                     onChange={v => setF(s => ({ ...s, raion: v, city: '', district: '' }))}
                                     onCommit={() => push({ ...f, city: '', district: '' })}
                                     options={RAION_OPTIONS}
-                                    placeholder="Ex: Chișinău (mun.)"
+                                    placeholder="Ex: Chișinău mun."
                                 />
                             </div>
 
                             {(() => {
-                                const isChisinau = f.raion === 'Chișinău (mun.)';
+                                // Data-driven sector detection: any raion whose entry exposes
+                                // a `sectors` array gets a mixed Sectors+Localities dropdown.
+                                // Works for whatever names the catalog uses ("Chișinău mun.",
+                                // a renamed municipiu, future muns) without hardcoded strings.
+                                const sectors    = MOLDOVA_LOCATIONS[f.raion]?.sectors ?? [];
+                                const hasSectors = sectors.length > 0;
+                                // Sectors imply the city is the municipiu's main settlement.
+                                // Derive it by stripping the " mun." suffix from the raion key.
+                                const baseCity   = f.raion ? f.raion.replace(/\s+mun\.?$/i, '').trim() : '';
+
                                 const localityOptions = !f.raion
                                     ? []
-                                    : isChisinau
+                                    : hasSectors
                                         ? [
-                                            ...CHISINAU_SECTORS.map(s => ({ value: s, label: s, sub: 'Sector' })),
+                                            ...sectors.map(s => ({ value: s, label: s, sub: 'Sector' })),
                                             ...localitiesForRaion(f.raion).map(l => ({ value: l, label: l, sub: 'Localitate' })),
                                           ]
                                         : localitiesForRaion(f.raion);
@@ -479,8 +488,8 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
                                         setF(s => ({ ...s, city: '', district: '' }));
                                         return;
                                     }
-                                    if (isChisinau && CHISINAU_SECTORS.includes(v)) {
-                                        setF(s => ({ ...s, city: 'Chișinău', district: v }));
+                                    if (hasSectors && sectors.includes(v)) {
+                                        setF(s => ({ ...s, city: baseCity, district: v }));
                                         return;
                                     }
                                     setF(s => ({ ...s, city: v, district: '' }));
@@ -495,7 +504,7 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
                                             onCommit={() => push({ ...f })}
                                             options={localityOptions}
                                             disabled={!f.raion}
-                                            placeholder={f.raion ? (isChisinau ? 'Ex: Botanica' : 'Alege localitatea…') : 'Alege întâi raionul'}
+                                            placeholder={f.raion ? (hasSectors ? 'Ex: Botanica' : 'Alege localitatea…') : 'Alege întâi raionul'}
                                         />
                                     </div>
                                 );

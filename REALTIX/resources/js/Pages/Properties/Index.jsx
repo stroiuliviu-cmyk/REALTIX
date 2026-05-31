@@ -8,6 +8,7 @@ import {
     Edit, Archive, Trash2, Filter, Plus, ArrowDown, ArrowUp, MoreHorizontal, X as XIcon,
 } from 'lucide-react';
 import { getTypeLabel, getTransactionLabel, TYPE_OPTIONS } from '@/lib/propertyLabels';
+import { contextualFiltersForTypes } from '@/lib/propertyFilters';
 
 /* ─── Constants ─────────────────────────────────────────────────────────── */
 const STATUS_COLORS = {
@@ -289,6 +290,7 @@ const EMPTY = {
     search: '', types: [], transaction_type: '', statuses: [],
     city: '', district: '', rooms: [],
     price_min: '', price_max: '', area_min: '', area_max: '',
+    floor_min: '', floor_max: '', floors_total_min: '', floors_total_max: '',
     date_from: '', date_to: '', phone: '', favorite: false, sort: '',
 };
 
@@ -340,9 +342,12 @@ export default function Index({ properties, filters = {}, isAdmin, authUserId, f
         router.delete(route('properties.destroy', id));
     };
 
+    const ctxFilters = contextualFiltersForTypes(f.types);
+
     const activeCount = [
         f.types.length, f.statuses.length, f.transaction_type, f.city, f.district,
         f.rooms.length, f.price_min, f.price_max, f.area_min, f.area_max,
+        f.floor_min, f.floor_max, f.floors_total_min, f.floors_total_max,
         f.date_from, f.date_to, f.phone, f.favorite,
     ].filter(Boolean).length + (f.search ? 1 : 0);
 
@@ -465,26 +470,49 @@ export default function Index({ properties, filters = {}, isAdmin, authUserId, f
                             onApply={() => push(f)}
                         />
 
-                        {/* Rooms (multi-select) */}
-                        <div>
-                            <SideLabel>Camere</SideLabel>
-                            <div className="flex gap-1">
-                                {['1','2','3','4','5+'].map(r => {
-                                    const active = f.rooms.includes(r);
-                                    return (
-                                        <button
-                                            key={r}
-                                            onClick={() => set('rooms', active ? f.rooms.filter(x => x !== r) : [...f.rooms, r])}
-                                            className={`flex-1 text-xs font-bold py-1.5 rounded-xl transition-colors ${
-                                                active
-                                                    ? 'bg-blue-600 text-white'
-                                                    : 'bg-slate-100 text-slate-700 hover:bg-blue-50 hover:text-blue-700'
-                                            }`}
-                                        >{r}</button>
-                                    );
-                                })}
+                        {/* Contextual filters — appear based on the selected property types
+                            (e.g. "Teren" hides everything; "Casă" shows rooms + floors_total). */}
+                        {ctxFilters.includes('rooms') && (
+                            <div>
+                                <SideLabel>Camere</SideLabel>
+                                <div className="flex gap-1">
+                                    {['1','2','3','4','5+'].map(r => {
+                                        const active = f.rooms.includes(r);
+                                        return (
+                                            <button
+                                                key={r}
+                                                onClick={() => set('rooms', active ? f.rooms.filter(x => x !== r) : [...f.rooms, r])}
+                                                className={`flex-1 text-xs font-bold py-1.5 rounded-xl transition-colors ${
+                                                    active
+                                                        ? 'bg-blue-600 text-white'
+                                                        : 'bg-slate-100 text-slate-700 hover:bg-blue-50 hover:text-blue-700'
+                                                }`}
+                                            >{r}</button>
+                                        );
+                                    })}
+                                </div>
                             </div>
-                        </div>
+                        )}
+
+                        {ctxFilters.includes('floor') && (
+                            <RangeRow
+                                label="Etaj"
+                                minVal={f.floor_min} maxVal={f.floor_max}
+                                onMin={v => setF(s => ({ ...s, floor_min: v }))}
+                                onMax={v => setF(s => ({ ...s, floor_max: v }))}
+                                onApply={() => push(f)}
+                            />
+                        )}
+
+                        {ctxFilters.includes('floors_total') && (
+                            <RangeRow
+                                label="Nr. etaje clădire"
+                                minVal={f.floors_total_min} maxVal={f.floors_total_max}
+                                onMin={v => setF(s => ({ ...s, floors_total_min: v }))}
+                                onMax={v => setF(s => ({ ...s, floors_total_max: v }))}
+                                onApply={() => push(f)}
+                            />
+                        )}
 
                         {/* Date range */}
                         <div>

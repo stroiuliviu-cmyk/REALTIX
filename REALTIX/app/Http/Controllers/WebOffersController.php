@@ -67,6 +67,19 @@ class WebOffersController extends Controller
                 ->when($request->price_max, fn ($q, $v) => $q->where('price', '<=', (float) $v))
                 ->when($request->area_min,  fn ($q, $v) => $q->where('area', '>=', (float) $v))
                 ->when($request->area_max,  fn ($q, $v) => $q->where('area', '<=', (float) $v))
+                ->when($request->filled('rooms'), function ($q) use ($request) {
+                    $rooms = is_array($request->rooms) ? $request->rooms : [$request->rooms];
+                    $q->where(function ($q) use ($rooms) {
+                        foreach ($rooms as $r) {
+                            if ($r === '5+' || (int) $r >= 5) $q->orWhere('rooms', '>=', 5);
+                            else $q->orWhere('rooms', (int) $r);
+                        }
+                    });
+                })
+                ->when($request->floor_min,        fn ($q, $v) => $q->where('floor', '>=', (int) $v))
+                ->when($request->floor_max,        fn ($q, $v) => $q->where('floor', '<=', (int) $v))
+                ->when($request->floors_total_min, fn ($q, $v) => $q->where('floors_total', '>=', (int) $v))
+                ->when($request->floors_total_max, fn ($q, $v) => $q->where('floors_total', '<=', (int) $v))
                 ->when($request->ai_valuation, fn ($q, $v) => $q->where('ai_valuation', $v))
                 ->when($request->date_from, fn ($q, $d) => $q->where('created_at', '>=', \Carbon\Carbon::parse($d)->startOfDay()))
                 ->when($request->date_to,   fn ($q, $d) => $q->where('created_at', '<=', \Carbon\Carbon::parse($d)->endOfDay()))
@@ -175,6 +188,7 @@ class WebOffersController extends Controller
             'filters'     => $request->only([
                 'search', 'sources', 'owner_types', 'types', 'transaction_type',
                 'city', 'district', 'price_min', 'price_max', 'area_min', 'area_max',
+                'rooms', 'floor_min', 'floor_max', 'floors_total_min', 'floors_total_max',
                 'ai_valuation', 'date_from', 'date_to', 'favorite', 'sort',
             ]),
             'counts' => [

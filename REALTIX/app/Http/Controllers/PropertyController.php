@@ -69,6 +69,10 @@ class PropertyController extends Controller
                     }
                 });
             })
+            ->when($request->floor_min,        fn ($q, $v) => $q->where('floor', '>=', (int) $v))
+            ->when($request->floor_max,        fn ($q, $v) => $q->where('floor', '<=', (int) $v))
+            ->when($request->floors_total_min, fn ($q, $v) => $q->where('floors_total', '>=', (int) $v))
+            ->when($request->floors_total_max, fn ($q, $v) => $q->where('floors_total', '<=', (int) $v))
             ->when($request->date_from, fn ($q, $v) => $q->where('created_at', '>=', $v))
             ->when($request->date_to,   fn ($q, $v) => $q->where('created_at', '<=', $v . ' 23:59:59'))
             ->when($request->favorite,  fn ($q) => $q->whereHas('favoritedByUsers', fn ($fq) => $fq->where('user_id', $user->id)));
@@ -106,6 +110,7 @@ class PropertyController extends Controller
                 'search', 'types', 'transaction_type', 'statuses',
                 'city', 'district', 'rooms',
                 'price_min', 'price_max', 'area_min', 'area_max',
+                'floor_min', 'floor_max', 'floors_total_min', 'floors_total_max',
                 'date_from', 'date_to', 'favorite', 'sort', 'phone',
             ]),
             'cities'      => $cities,

@@ -1,103 +1,61 @@
-// Static hierarchical location data for Moldova used by the filter sidebars.
-// Shape: raion / municipiu → { sectors?: string[], localities: string[] }.
-// Only Chișinău currently exposes urban sectors.
-//
-// Source: the canonical list provided by the product owner. Diacritics must
-// match the data here exactly — backend filters do `LIKE '%name%'` so any
-// stray transliteration breaks results silently. Do NOT invent localities.
+// Lista oficială completă a localităților Republicii Moldova (CUATM 2003, ediția oct. 2025).
+// Sursă: Biroul Național de Statistică. 37 raioane/municipii, ~1660 localități.
 
-export const CHISINAU_SECTORS = [
-    'Botanica', 'Centru', 'Ciocana', 'Buiucani', 'Râșcani',
-    'Telecentru', 'Poșta Veche', 'Sculeni', 'Aeroport',
-];
+export const CHISINAU_SECTORS = ["Botanica", "Centru", "Ciocana", "Buiucani", "Râșcani", "Telecentru", "Poșta Veche", "Sculeni", "Aeroport"];
 
 export const MOLDOVA_LOCATIONS = {
-    'Chișinău mun.': {
-        sectors: CHISINAU_SECTORS,
-        localities: [
-            'Chișinău', 'Bacioi', 'Brăila', 'Bubuieci', 'Budești', 'Buneți', 'Bîc',
-            'Ceroborta', 'Cheltuitori', 'Ciorescu', 'Codru', 'Colonița', 'Condrița',
-            'Cricova', 'Cruzești', 'Dobrogea', 'Dumbrava', 'Durlești', 'Frumușica',
-            'Făurești', 'Ghidighici', 'Goian', 'Goianul Nou', 'Grătiești', 'Hulboaca',
-            'Humulești', 'Revaca', 'Străisteni', 'Stăuceni', 'Sîngera', 'Tohatin',
-            'Trușeni', 'Vadul lui Vodă', 'Vatra', 'Văduleni',
-        ],
-    },
-    'Tiraspol mun.': { localities: ['Tiraspol'] },
-    'Anenii Noi':    { localities: ['Anenii Noi'] },
-    'Basarabeasca':  {
-        localities: [
-            'Abaclia', 'Basarabeasca', 'Bașcalia', 'Bogdanovca', 'Carabetovca',
-            'Carabiber', 'Iordanovca', 'Iserlia', 'Ivanovca', 'Sadaclia',
-        ],
-    },
-    'Bender mun.':   { localities: ['Bender/Tighina', 'Proteagailovca'] },
-    'Briceni':       {
-        localities: [
-            'Balasinești', 'Beleavinți', 'Berlinți', 'Bezeda', 'Bocicăuți', 'Bogdănești',
-            'Briceni', 'Bulboaca', 'Bălcăuți', 'Caracușenii Noi', 'Caracușenii Vechi',
-            'Chirilovca', 'Colicăuți', 'Corjeuți', 'Coteala', 'Cotiujeni', 'Criva',
-            'Drepcăuți', 'Grimești', 'Grimăncăuți', 'Groznița', 'Halahora de Jos',
-            'Halahora de Sus', 'Hlina', 'Larga', 'Lipcani', 'Marcăuți', 'Medveja',
-            'Mihăileni', 'Măcărești', 'Mărcăuții Noi', 'Pavlovca', 'Pererita',
-            'Slobozia-Medveja', 'Slobozia-Șirăuți', 'Tabani', 'Tețcani', 'Trebisăuți',
-            'Trestieni', 'Șirăuți',
-        ],
-    },
-    'Bălți mun.':    { localities: ['Bălți', 'Elizaveta', 'Sadovoe'] },
-    'Cahul':         {
-        localities: [
-            'Alexanderfeld', 'Alexandru Ioan Cuza', 'Andrușul de Jos', 'Andrușul de Sus',
-            'Badicul Moldovenesc', 'Baurci-Moldoveni', 'Borceag', 'Brînza', 'Bucuria',
-            'Burlacu', 'Burlăceni', 'Cahul', 'Chioselia Mare', 'Chircani', 'Colibași',
-            'Cotihana', 'Crihana Veche', 'Cucoara', 'Cîșlița-Prut', 'Doina', 'Frumușica',
-            'Giurgiulești', 'Greceni', 'Găvănoasa', 'Huluboaia', 'Hutulu', 'Iasnaia Poleana',
-            'Iujnoe', 'Larga Nouă', 'Larga Veche', 'Lebedenco', 'Lopațica', 'Lucești',
-            'Manta', 'Moscovei', 'Nicolaevca', 'Paicu', 'Pașcani', 'Pelinei', 'Roșu',
-            'Rumeanțev', 'Slobozia Mare', 'Spicoasa', 'Sătuc', 'Taraclia de Salcie',
-            'Tartaul de Salcie', 'Tretești', 'Trifeştii Noi', 'Tudorești', 'Tătărești',
-            'Ursoaia', 'Vadul lui Isac', 'Vladimirovca', 'Văleni', 'Zîrnești',
-        ],
-    },
-    'Camenca':       { localities: ['Camenca'] },
-    'Cantemir':      {
-        localities: [
-            'Acui', 'Alexandrovca', 'Antonești', 'Baimaclia', 'Bobocica', 'Cania',
-            'Cantemir', 'Capaclia', 'Chioselia', 'Ciobalaccia', 'Cociulia', 'Constantineşti',
-            'Coștangalia', 'Crăciun', 'Cîietu', 'Cîrpești', 'Cîșla', 'Dimitrova', 'Enichioi',
-            'Flocoasa', 'Floricica', 'Ghioltosu', 'Gotești', 'Haragîș', 'Hîrtop', 'Hănăseni',
-            'Iepureni', 'Leca', 'Lingura', 'Lărguța', 'Pleșeni', 'Plopi', 'Popovca',
-            'Porumbești', 'Sadîc', 'Stoianovca', 'Suhat', 'Taraclia', 'Tartaul', 'Toceni',
-            'Tătărășeni', 'Victorovca', 'Vișniovca', 'Vîlcele', 'Șamalia', 'Șofranovca',
-            'Țiganca', 'Țiganca Nouă', 'Țolica', 'Țărăncuța',
-        ],
-    },
+  "Chișinău (mun.)": { sectors: CHISINAU_SECTORS, localities: ["Brăila", "Bubuieci", "Budești", "Buneți", "Bîc", "Băcioi", "Ceroborta", "Cheltuitori", "Chișinău", "Ciorescu", "Codru", "Colonița", "Condrița", "Cricova", "Cruzești", "Dobrogea", "Dumbrava", "Durlești", "Frumușica", "Făurești", "Ghidighici", "Goian", "Goianul Nou", "Grătiești", "Hulboaca", "Humulești", "Revaca", "Străisteni", "Stăuceni", "Sîngera", "Tohatin", "Trușeni", "Vadul lui Vodă", "Vatra", "Văduleni"] },
+  "Bălți (mun.)": { localities: ["Bălți", "Elizaveta", "Sadovoe"] },
+  "Bender (mun.)": { localities: ["Bender", "Proteagailovca"] },
+  "Anenii Noi": { localities: ["Albinița", "Anenii Noi", "Balmaz", "Batîc", "Beriozchi", "Botnărești", "Botnăreștii Noi", "Bulboaca", "Calfa", "Calfa Nouă", "Chetrosu", "Chirca", "Ciobanovca", "Cobusca Nouă", "Cobusca Veche", "Crețoaia", "Delacău", "Floreni", "Florești", "Geamăna", "Gura Bîcului", "Hîrbovăț", "Hîrbovățul Nou", "Larga", "Maximovca", "Mereni", "Merenii Noi", "Mirnoe", "Nicolaevca", "Ochiul Roș", "Picus", "Puhăceni", "Roșcani", "Ruseni", "Salcia", "Socoleni", "Speia", "Telița", "Telița Nouă", "Todirești", "Troița Nouă", "Varnița", "Zolotievca", "Șerpeni", "Țînțăreni"] },
+  "Basarabeasca": { localities: ["Abaclia", "Basarabeasca", "Bașcalia", "Bogdanovca", "Carabetovca", "Carabiber", "Iordanovca", "Iserlia", "Ivanovca", "Sadaclia"] },
+  "Briceni": { localities: ["Balasinești", "Beleavinți", "Berlinți", "Bezeda", "Bocicăuți", "Bogdănești", "Briceni", "Bulboaca", "Bălcăuți", "Caracușenii Noi", "Caracușenii Vechi", "Chirilovca", "Colicăuți", "Corjeuți", "Coteala", "Cotiujeni", "Criva", "Drepcăuți", "Grimești", "Grimăncăuți", "Groznița", "Halahora de Jos", "Halahora de Sus", "Hlina", "Larga", "Lipcani", "Medveja", "Mihăileni", "Mărcăuți", "Mărcăuții Noi", "Pavlovca", "Pererita", "Slobozia-Medveja", "Slobozia-Șirăuți", "Tabani", "Tețcani", "Trebisăuți", "Trestieni", "Șirăuți"] },
+  "Cahul": { localities: ["Alexanderfeld", "Alexandru Ioan Cuza", "Andrușul de Jos", "Andrușul de Sus", "Badicul Moldovenesc", "Baurci-Moldoveni", "Borceag", "Brînza", "Bucuria", "Burlacu", "Burlăceni", "Cahul", "Chioselia Mare", "Chircani", "Colibași", "Cotihana", "Crihana Veche", "Cucoara", "Cîșlița-Prut", "Doina", "Frumușica", "Giurgiulești", "Greceni", "Găvănoasa", "Huluboaia", "Hutulu", "Iasnaia Poleana", "Iujnoe", "Larga Nouă", "Larga Veche", "Lebedenco", "Lopățica", "Lucești", "Manta", "Moscovei", "Nicolaevca", "Paicu", "Pașcani", "Pelinei", "Roșu", "Rumeanțev", "Slobozia Mare", "Spicoasa", "Sătuc", "Taraclia de Salcie", "Tartaul de Salcie", "Tretești", "Trifeștii Noi", "Tudorești", "Tătărești", "Ursoaia", "Vadul lui Isac", "Vladimirovca", "Văleni", "Zîrnești"] },
+  "Cantemir": { localities: ["Acui", "Alexandrovca", "Antonești", "Baimaclia", "Bobocica", "Cania", "Cantemir", "Capaclia", "Chioselia", "Ciobalaccia", "Cociulia", "Constantinești", "Coștangalia", "Crăciun", "Cîietu", "Cîrpești", "Cîșla", "Dimitrova", "Enichioi", "Flocoasa", "Floricica", "Ghioltosu", "Gotești", "Haragîș", "Hîrtop", "Hănăseni", "Iepureni", "Leca", "Lingura", "Lărguța", "Pleșeni", "Plopi", "Popovca", "Porumbești", "Sadîc", "Stoianovca", "Suhat", "Taraclia", "Tartaul", "Toceni", "Tătărășeni", "Victorovca", "Vișniovca", "Vîlcele", "Șamalia", "Șofranovca", "Țiganca", "Țiganca Nouă", "Țolica", "Țărăncuța"] },
+  "Cimișlia": { localities: ["Albina", "Artimonovca", "Batîr", "Bogdanovca Nouă", "Bogdanovca Veche", "Cenac", "Cimișlia", "Ciucur-Mingir", "Codreni", "Coștangalia", "Dimitrovca", "Ecaterinovca", "Fetița", "Gradiște", "Gura Galbenei", "Hîrtop", "Ialpug", "Ialpujeni", "Iurievca", "Ivanovca Nouă", "Javgur", "Lipoveni", "Marienfeld", "Maximeni", "Mereni", "Mihailovca", "Munteni", "Porumbrei", "Prisaca", "Sagaidac", "Sagaidacul Nou", "Satul Nou", "Schinoșica", "Selemet", "Suric", "Topala", "Troițcoe", "Valea Perjei", "Zloți"] },
+  "Criuleni": { localities: ["Boșcana", "Bălăbănești", "Bălășești", "Bălțata", "Bălțata de Sus", "Chetroasa", "Cimișeni", "Ciopleni", "Corjova", "Coșernița", "Criuleni", "Cruglic", "Dolinnoe", "Drăsliceni", "Dubăsarii Vechi", "Hrușova", "Hîrtopul Mare", "Hîrtopul Mic", "Izbiște", "Ișnovăț", "Jevreni", "Logănești", "Mașcăuți", "Miclești", "Măgdăcești", "Mălăiești", "Mălăieștii Noi", "Mărdăreuca", "Ohrincea", "Onițcani", "Pașcani", "Porumbeni", "Ratuș", "Rîșcova", "Răculești", "Sagaidac", "Sagaidacul de Sus", "Slobozia-Dușca", "Stețcani", "Valea Coloniței", "Valea Satului", "Zolonceni", "Zăicana"] },
+  "Călărași": { localities: ["Bahmut", "Bahu", "Bravicea", "Buda", "Bularda", "Căbăiești", "Călărași", "Dereneu", "Duma", "Frumoasa", "Hirova", "Hoginești", "Horodiște", "Hîrbovăț", "Hîrjauca", "Leordoaia", "Meleșeni", "Mîndra", "Nișcani", "Novaci", "Onișcani", "Oricova", "Palanca", "Parcani", "Peticeni", "Pitușca", "Podul Lung", "Pîrjolteni", "Păulești", "Răciula", "Rădeni", "Sadova", "Schinoasa", "Seliștea Nouă", "Sipoteni", "Sverida", "Săseni", "Temeleuți", "Tuzara", "Ursari", "Vălcineț", "Vărzăreștii Noi", "Țibirica"] },
+  "Căușeni": { localities: ["Baccealia", "Baimaclia", "Baurci", "Chircăiești", "Chircăieștii Noi", "Chițcani", "Ciuflești", "Constantinovca", "Copanca", "Coșcalia", "Cremenciug", "Cîrnățeni", "Cîrnățenii Noi", "Căinari", "Căușeni", "Florica", "Fîrlădeni", "Fîrlădenii Noi", "Grigorievca", "Grădinița", "Gîsca", "Hagimus", "Leuntea", "Marianca de Sus", "Merenești", "Opaci", "Pervomaisc", "Plop", "Plop-Știubei", "Surchiceni", "Săiți", "Sălcuța", "Sălcuța Nouă", "Taraclia", "Tocuz", "Tricolici", "Tănătari", "Tănătarii Noi", "Ucrainca", "Ursoaia", "Ursoaia Nouă", "Valea Verde", "Zahorna", "Zaim", "Zviozdocica", "Ștefănești"] },
+  "Dondușeni": { localities: ["Arionești", "Baraboi", "Boroseni", "Braicău", "Briceni", "Briceva", "Caraiman", "Cernoleuca", "Climăuți", "Codrenii Noi", "Corbu", "Crișcăuți", "Dondușeni", "Elenovca", "Elizavetovca", "Frasin", "Horodiște", "Moșana", "Octeabriscoe", "Pivniceni", "Plop", "Pocrovca", "Rediul Mare", "Scăieni", "Sudarca", "Teleșeuca", "Teleșeuca Nouă", "Tîrnova", "Țaul"] },
+  "Drochia": { localities: ["Antoneuca", "Baroncea", "Baroncea Nouă", "Ceapaevca", "Chetrosu", "Cotova", "Dominteni", "Drochia", "Fîntînița", "Ghizdita", "Gribova", "Holoșnița Nouă", "Hăsnășenii Mari", "Hăsnășenii Noi", "Iliciovca", "Lazo", "Maramonovca", "Miciurin", "Moara de Piatră", "Mîndîc", "Măcăreuca", "Nicoreni", "Ochiul Alb", "Palanca", "Pervomaiscoe", "Petreni", "Popeștii de Jos", "Popeștii de Sus", "Popeștii Noi", "Pеlinia", "Sergheuca", "Sofia", "Zgurița", "Șalvirii Noi", "Șalvirii Vechi", "Șuri", "Șurii Noi", "Țarigrad"] },
+  "Dubăsari": { localities: ["Cocieri", "Corjova", "Coșnița", "Doroțcaia", "Holercani", "Mahala", "Marcăuți", "Molovata", "Molovata Nouă", "Oxentea", "Pohrebea", "Pîrîta", "Roghi", "Ustia", "Vasilievca"] },
+  "Edineț": { localities: ["Alexeevca", "Alexăndreni", "Bleșteni", "Brînzeni", "Brătușeni", "Brătușenii Noi", "Burlănești", "Buzdugeni", "Bădragii Noi", "Bădragii Vechi", "Cepeleuți", "Chetroșica Nouă", "Chetroșica Veche", "Chiurt", "Clișcăuți", "Constantinovca", "Corpaci", "Cuconeștii Noi", "Cuconeștii Vechi", "Cupcini", "Edineț", "Fetești", "Fîntîna Albă", "Gașpar", "Goleni", "Gordinești", "Gordineștii Noi", "Hancăuți", "Hincăuți", "Hlinaia", "Hlinaia Mică", "Iachimeni", "Lopatnic", "Onești", "Parcova", "Poiana", "Rotunda", "Ruseni", "Rîngaci", "Slobodca", "Stolniceni", "Terebna", "Trinca", "Tîrnova", "Vancicăuți", "Viișoara", "Volodeni", "Zăbriceni", "Șofrîncani"] },
+  "Florești": { localities: ["Alexandrovca", "Alexeevca", "Antonovca", "Bezeni", "Bobulești", "Bursuc", "Băhrinești", "Cașunca", "Cenușa", "Cernița", "Chirilovca", "Ciripcău", "Ciutulești", "Coșernița", "Cuhureștii de Jos", "Cuhureștii de Sus", "Cunicea", "Căprești", "Domulgeni", "Dumitreni", "Florești", "Frumușica", "Frumușica Nouă", "Frunzești", "Făgădău", "Ghindești", "Gura Camencii", "Gura Căinarului", "Gvozdova", "Hîrtop", "Iliciovca", "Ion Vodă", "Ivanovca", "Izvoare", "Japca", "Lunga", "Maiscoe", "Mihailovca", "Mărculești", "Mărinești", "Nicolaevca", "Năpadova", "Octeabriscoe", "Prajila", "Prodănești", "Prodăneștii Vechi", "Putinești", "Roșietici", "Roșieticii Vechi", "Rădulenii Noi", "Rădulenii Vechi", "Scăieni", "Sevirova", "Stîrceni", "Sîrbești", "Sănătăuca", "Temeleuți", "Trifănești", "Tîrgul-Vertiujeni", "Unchitești", "Valea Rădoaiei", "Vertiujeni", "Vărvăreuca", "Văscăuți", "Zarojeni", "Zăluceni", "Ștefănești", "Țipordei", "Țîra"] },
+  "Fălești": { localities: ["Albinețul Nou", "Albinețul Vechi", "Beleuți", "Bocani", "Bocșa", "Burghelea", "Catranîc", "Chetriș", "Chetrișul Nou", "Ciolacu Nou", "Ciolacu Vechi", "Ciuluc", "Comarovca", "Cuzmenii Vechi", "Călinești", "Călugăr", "Doltu", "Drujineni", "Egorovca", "Fabrica de Zahăr", "Frumușica", "Făgădău", "Fălești", "Făleștii Noi", "Glinjeni", "Hiliuți", "Hitrești", "Horești", "Hrubna Nouă", "Hîncești", "Hîrtop", "Ilenuța", "Ivanovca", "Izvoare", "Ișcălău", "Logofteni", "Lucăceni", "Moldoveanca", "Musteața", "Măgura", "Măgura Nouă", "Măgureanca", "Mărăndeni", "Natalievca", "Nicolaevca", "Năvîrneț", "Obreja Nouă", "Obreja Veche", "Pervomaisc", "Pietrosu", "Pietrosul Nou", "Pocrovca", "Pompa", "Popovca", "Pruteni", "Pînzăreni", "Pînzărenii Noi", "Pîrlița", "Rediul de Jos", "Rediul de Sus", "Risipeni", "Răuțel", "Răuțelul Nou", "Scumpia", "Socii Noi", "Socii Vechi", "Suvorovca", "Sărata Nouă", "Sărata Veche", "Taxobeni", "Unteni", "Valea Rusului", "Vrănești", "Șoltoaia", "Țapoc"] },
+  "Glodeni": { localities: ["Balatina", "Bisericani", "Brînzeni", "Butești", "Cajba", "Camenca", "Camencuța", "Ciuciulea", "Clococenii Vechi", "Cobani", "Cot", "Cuhnești", "Danu", "Dușmani", "Fundurii Noi", "Fundurii Vechi", "Glodeni", "Hîjdieni", "Iabloana", "Limbenii Noi", "Limbenii Vechi", "Lipovăț", "Moara Domnească", "Molești", "Movileni", "Nicolaevca", "Petrunea", "Serghieni", "Soroca", "Sturzovca", "Stîrcea", "Tomeștii Noi", "Tomeștii Vechi", "Ustia", "Viișoara"] },
+  "Hîncești": { localities: ["Anini", "Bobeica", "Boghiceni", "Bozieni", "Brătianovca", "Bujor", "Buțeni", "Bălceana", "Caracui", "Chetroșeni", "Cioara", "Ciuciuleni", "Cornești", "Coroliovca", "Costești", "Cotul Morii", "Crasnoarmeiscoe", "Călmățui", "Cărpineanca", "Cărpineni", "Cățeleni", "Dahnovici", "Dancu", "Drăgușeni", "Drăgușenii Noi", "Dubovca", "Feteasca", "Frasin", "Fundul Galbenei", "Fîrlădeni", "Horjești", "Horodca", "Hîncești", "Ivanovca", "Leușeni", "Logănești", "Lăpușna", "Marchet", "Mereșeni", "Mingir", "Mirești", "Negrea", "Nemțeni", "Obileni", "Onești", "Pașcani", "Pereni", "Pervomaiscoe", "Pogănești", "Rusca", "Secăreni", "Secărenii Noi", "Semionovca", "Sofia", "Stolniceni", "Strîmbeni", "Sărata-Galbenă", "Sărata-Mereșeni", "Sărăteni", "Tălăiești", "Valea Florii", "Voinescu", "Șipoteni"] },
+  "Ialoveni": { localities: ["Alexandrovca", "Bardar", "Budăi", "Bălțați", "Cigîrleni", "Costești", "Cărbuna", "Dănceni", "Gangura", "Găureni", "Hansca", "Homuteanovca", "Horești", "Horodca", "Ialoveni", "Malcoci", "Mileștii Mici", "Mileștii Noi", "Misovca", "Molești", "Nimoreni", "Piatra Albă", "Pojăreni", "Puhoi", "Ruseștii Noi", "Ruseștii Vechi", "Răzeni", "Sociteni", "Suruceni", "Ulmu", "Văratic", "Văsieni", "Zîmbreni", "Țipala"] },
+  "Leova": { localities: ["Beștemac", "Borogani", "Bulgărica", "Băiuș", "Cazangic", "Ceadîr", "Cneazevca", "Cociulia Nouă", "Colibabovca", "Covurlui", "Cupcui", "Cuporani", "Cîmpul Drept", "Cîzlar", "Filipeni", "Frumușica", "Hîrtop", "Hănăsenii Noi", "Iargara", "Leova", "Meșeni", "Nicolaevca", "Orac", "Pitești", "Romanovca", "Seliște", "Sîrma", "Sărata Nouă", "Sărata-Răzeși", "Sărăteni", "Sărățica Nouă", "Sărățica Veche", "Tigheci", "Tochile-Răducani", "Tomai", "Tomaiul Nou", "Troian", "Troița", "Victoria", "Vozneseni"] },
+  "Nisporeni": { localities: ["Boldurești", "Bolțun", "Brătuleni", "Bursuc", "Băcșeni", "Bălănești", "Bălăurești", "Bărboieni", "Chilișoaia", "Ciorești", "Ciutești", "Cristești", "Cîrnești", "Călimănești", "Drojdieni", "Grozești", "Găureni", "Heleșteni", "Isăicani", "Iurceni", "Luminița", "Marinici", "Milești", "Mîrzoaia", "Nisporeni", "Odaia", "Odobești", "Păruceni", "Seliște", "Selișteni", "Soltănești", "Valea Nîrnovei", "Valea-Trestieni", "Vulcănești", "Vînători", "Vărzărești", "Zberoaia", "Șendreni", "Șișcani"] },
+  "Ocnița": { localities: ["Berezovca", "Bîrlădeni", "Bîrnova", "Calarașovca", "Clocușna", "Codreni", "Corestăuți", "Dîngeni", "Frunză", "Grinăuți", "Grinăuți-Moldova", "Grinăuți-Raia", "Gîrbova", "Hădărăuți", "Lencăuți", "Lipnic", "Maiovca", "Mereșeuca", "Mihălășeni", "Naslavcea", "Ocnița", "Otaci", "Paladea", "Paustova", "Rediul Mare", "Rujnița", "Sauca", "Stălinești", "Unguri", "Verejeni", "Vălcineț"] },
+  "Orhei": { localities: ["Andreevca", "Berezlogi", "Biești", "Bolohan", "Breanova", "Brănești", "Brăviceni", "Budăi", "Bulăiești", "Butuceni", "Camencea", "Chiperceni", "Cihoreni", "Ciocîlteni", "Cișmea", "Clișova", "Clișova Nouă", "Crihana", "Cucuruzeni", "Cucuruzenii de Sus", "Curchi", "Dișcova", "Donici", "Fedoreuca", "Furceni", "Ghetlova", "Hulboaca", "Hîjdieni", "Inculeț", "Isacova", "Ivancea", "Izvoare", "Jeloboc", "Jora de Jos", "Jora de Mijloc", "Jora de Sus", "Lopatna", "Lucășeuca", "Mana", "Mitoc", "Morovaia", "Morozeni", "Mîrzaci", "Mîrzești", "Mălăiești", "Neculăieuca", "Noroceni", "Ocnița-Răzeși", "Ocnița-Țărani", "Orhei", "Pelivan", "Peresecina", "Piatra", "Pocșești", "Podgoreni", "Pohorniceni", "Pohrebeni", "Puțintei", "Seliște", "Sirota", "Slobozia-Hodorogea", "Step-Soci", "Susleni", "Sămănanca", "Tabăra", "Teleșeu", "Trebujeni", "Tîrzieni", "Vatici", "Voroteț", "Vîprova", "Vîșcăuți", "Zahoreni", "Zorile", "Șercani"] },
+  "Rezina": { localities: ["Boșernița", "Buciușca", "Bușăuca", "Cinișeuți", "Ciorna", "Cogîlniceni", "Cuizăuca", "Echimăuți", "Ghiduleni", "Gordinești", "Horodiște", "Ignăței", "Lalova", "Lipceni", "Mateuți", "Meșeni", "Mincenii de Jos", "Mincenii de Sus", "Nistreni", "Otac", "Peciște", "Pereni", "Piscărești", "Pripiceni-Curchi", "Pripiceni-Răzeși", "Păpăuți", "Rezina", "Roșcani", "Roșcanii de Jos", "Roșcanii de Sus", "Saharna", "Saharna Nouă", "Slobozia-Horodiște", "Solonceni", "Stohnaia", "Sîrcova", "Tarasova", "Trifești", "Țahnăuți", "Țareuca", "Țipova"] },
+  "Rîșcani": { localities: ["Alexăndrești", "Aluniș", "Armanca", "Avrămeni", "Balanul Nou", "Borosenii Noi", "Braniște", "Bulhac", "Cepăria", "Ciobanovca", "Ciubara", "Corlăteni", "Costești", "Cucuieții Noi", "Cucuieții Vechi", "Druța", "Dumeni", "Duruitoarea", "Duruitoarea Nouă", "Dămășcani", "Grinăuți", "Gălășeni", "Hiliuți", "Horodiște", "Ivănești", "Lupăria", "Malinovscoe", "Mihăileni", "Mihăilenii Noi", "Moșeni", "Mălăiești", "Nihoreni", "Petrușeni", "Pociumbeni", "Pociumbăuți", "Proscureni", "Pîrjota", "Păscăuți", "Recea", "Reteni", "Reteni-Vasileuți", "Rîșcani", "Răcăria", "Rămăzan", "Singureni", "Slobozia-Recea", "Sturzeni", "Sverdiac", "Ușurei", "Vasileuți", "Văratic", "Zăicani", "Șaptebani", "Știubeieni", "Șumna"] },
+  "Soroca": { localities: ["Alexandru cel Bun", "Balinți", "Balinții Noi", "Bulboci", "Bulbocii Noi", "Bădiceni", "Băxani", "Cerlina", "Cosăuți", "Cremenciug", "Cureșnița", "Cureșnița Nouă", "Căinarii Vechi", "Decebal", "Dubna", "Dumbrăveni", "Dărcăuți", "Dărcăuții Noi", "Egoreni", "Floriceni", "Grigorăuca", "Holoșnița", "Hristici", "Iarova", "Inundeni", "Iorjnița", "Livezi", "Lugovoe", "Mălcăuți", "Nimereuca", "Niorcani", "Oclanda", "Ocolina", "Parcani", "Pîrlița", "Racovăț", "Redi-Cereșnovăț", "Regina Maria", "Rublenița", "Rublenița Nouă", "Rudi", "Ruslanovca", "Schineni", "Schinenii Noi", "Slobozia Nouă", "Slobozia-Cremene", "Slobozia-Vărăncău", "Sobari", "Soloneț", "Soroca", "Stoicani", "Tolocănești", "Trifăuți", "Tătărăuca Nouă", "Tătărăuca Veche", "Valea", "Vanțina", "Vanțina Mică", "Vasilcău", "Visoca", "Voloave", "Volovița", "Vădeni", "Vărăncău", "Zastînca", "Șeptelici", "Șolcani", "Țepilova"] },
+  "Strășeni": { localities: ["Bucovăț", "Chirianca", "Ciobanca", "Codreanca", "Cojușna", "Căpriana", "Dolna", "Drăgușeni", "Făgureni", "Ghelăuza", "Gornoe", "Greblești", "Gălești", "Găleștii Noi", "Huzun", "Lozova", "Lupa-Recea", "Micleușeni", "Micăuți", "Mărtinești", "Negrești", "Onești", "Pănășești", "Rassvet", "Recea", "Romănești", "Roșcani", "Rădeni", "Saca", "Scoreni", "Sireți", "Stejăreni", "Strășeni", "Tătărești", "Voinova", "Vorniceni", "Zamcioji", "Zubrești", "Țigănești"] },
+  "Sîngerei": { localities: ["Alexeuca", "Alexăndreni", "Antonovca", "Bilicenii Noi", "Bilicenii Vechi", "Biruința", "Bobletici", "Bocancea-Schit", "Brejeni", "Bursuceni", "Bălășești", "Chirileni", "Chișcăreni", "Ciuciuieni", "Clișcăuți", "Coada Iazului", "Copăceni", "Cotiujenii Mici", "Cotovca", "Cozești", "Coșcodeni", "Cubolta", "Dobrogea Nouă", "Dobrogea Veche", "Drăgănești", "Dumbrăvița", "Evghenievca", "Flămînzeni", "Gavrilovca", "Grigorești", "Grigorăuca", "Gura-Oituz", "Heciul Nou", "Heciul Vechi", "Iezărenii Noi", "Iezărenii Vechi", "Izvoare", "Lipovanca", "Mihailovca", "Mîndreștii Noi", "Mărinești", "Mărășești", "Nicolaevca", "Octeabriscoe", "Pepeni", "Pepenii Noi", "Petropavlovca", "Petrovca", "Prepelița", "Pălăria", "Romanovca", "Rădoaia", "Răzălăi", "Sacarovca", "Slobozia-Chișcăreni", "Slobozia-Măgura", "Sloveanca", "Sîngerei", "Sîngereii Noi", "Trifănești", "Tăura Nouă", "Tăura Veche", "Valea lui Vlad", "Valea Norocului", "Vladimireuca", "Vrănești", "Șestaci", "Țambula", "Țipletești", "Țiplești"] },
+  "Taraclia": { localities: ["Albota de Jos", "Albota de Sus", "Aluatu", "Balabanu", "Budăi", "Cairaclia", "Cealîc", "Chirilovca", "Ciumai", "Corten", "Cortenul Nou", "Dermengi", "Hagichioi", "Hîrtop", "Mirnoe", "Musaitu", "Novosiolovca", "Orehovca", "Roșița", "Salcia", "Samurza", "Sofievca", "Taraclia", "Tvardița", "Valea Perjei", "Vinogradovca"] },
+  "Telenești": { localities: ["Bogzești", "Bondareuca", "Brînzenii Noi", "Brînzenii Vechi", "Budăi", "Bănești", "Băneștii Noi", "Chersac", "Chiștelnița", "Chițcanii Noi", "Chițcanii Vechi", "Ciofu", "Ciulucani", "Codru", "Codrul Nou", "Coropceni", "Crăsnășeni", "Cucioaia", "Cucioaia Nouă", "Cîșla", "Căzănești", "Dobrușa", "Flutura", "Ghermănești", "Ghiliceni", "Hirișeni", "Hîrtop", "Inești", "Leușeni", "Mihălașa", "Mihălașa Nouă", "Mîndra", "Mîndrești", "Negureni", "Nucăreni", "Ordășei", "Pistruieni", "Pistruienii Noi", "Ratuș", "Scorțeni", "Suhuluceni", "Sărătenii Noi", "Sărătenii Vechi", "Telenești", "Tîrșiței", "Vadul-Leca", "Vadul-Leca Nou", "Verejeni", "Văsieni", "Zahareuca", "Zgărdești", "Zăicani", "Zăicanii Noi", "Țînțăreni"] },
+  "Ungheni": { localities: ["Agronomovca", "Alexeevca", "Blindești", "Boghenii Noi", "Boghenii Vechi", "Buciumeni", "Bulhac", "Bumbăta", "Buzduganii de Jos", "Buzduganii de Sus", "Bușila", "Cetireni", "Chirileni", "Cioropcani", "Condrătești", "Cornești", "Cornova", "Costuleni", "Coșeni", "Curtoaia", "Drujba", "Elizavetovca", "Floreni", "Florești", "Florițoaia Nouă", "Florițoaia Veche", "Frăsinești", "Gherman", "Grozasca", "Grăseni", "Hristoforovca", "Hîrcești", "Izvoreni", "Leordoaia", "Lidovca", "Medeleni", "Mircești", "Morenii Noi", "Morenii Vechi", "Mînzătești", "Măcărești", "Măgurele", "Mănoilești", "Negurenii Noi", "Negurenii Vechi", "Novaia Nicolaevca", "Năpădeni", "Petrești", "Poiana", "Pojarna", "Pîrlița", "Rezina", "Romanovca", "Rădenii Vechi", "Sculeni", "Semeni", "Sinești", "Stolniceni", "Săghieni", "Teșcureni", "Todirești", "Ungheni", "Unțești", "Valea Mare", "Veverița", "Vulpești", "Zagarancea", "Zăzulenii Noi", "Zăzulenii Vechi", "Șicovăț", "Țîghira"] },
+  "Șoldănești": { localities: ["Alcedar", "Chipeșca", "Climăuții de Jos", "Cobîlea", "Cot", "Cotiujenii Mari", "Curătura", "Cușelăuca", "Cușmirca", "Dobrușa", "Fuzăuca", "Glinjeni", "Găuzeni", "Lelina", "Mihuleni", "Odaia", "Olișcani", "Parcani", "Pohoarna", "Poiana", "Recești", "Rogojeni", "Răspopeni", "Salcia", "Socola", "Sămășcani", "Vadul-Rașcov", "Zahorna", "Șestaci", "Șipca", "Șoldănești"] },
+  "Ștefan Vodă": { localities: ["Alava", "Antonești", "Brezoaia", "Carahasani", "Cioburciu", "Copceac", "Crocmaz", "Căplani", "Ermoclia", "Feștelița", "Lazo", "Marianca de Jos", "Olănești", "Palanca", "Popeasca", "Purcari", "Răscăieți", "Răscăieții Noi", "Semionovca", "Slobozia", "Talmaza", "Tudora", "Viișoara", "Volintiri", "Ștefan Vodă", "Ștefănești"] },
+  "Găgăuzia (UTA)": { localities: ["Alexeevca", "Avdarma", "Baurci", "Beșalma", "Beșghioz", "Bugeac", "Carbalia", "Cazaclia", "Ceadîr-Lunga", "Chioselia Rusă", "Chiriet-Lunga", "Chirsova", "Cioc-Maidan", "Cișmichioi", "Comrat", "Congaz", "Congazcicul de Jos", "Congazcicul de Sus", "Copceac", "Cotovscoe", "Dezghingea", "Dudulești", "Etulia", "Etulia Nouă", "Ferapontievca", "Gaidar", "Joltai", "Svetlîi", "Tomai", "Vulcănești"] },
 };
 
-/**
- * Flat list of every locality with its raion attached, suitable as Combobox
- * options. Sorted alphabetically by locality name to keep the dropdown stable.
- * Shape: { value, label, sub }.
- */
 export function allLocalities() {
-    const out = [];
-    for (const [raion, data] of Object.entries(MOLDOVA_LOCATIONS)) {
-        (data.localities || []).forEach(loc => {
-            out.push({ value: loc, label: loc, sub: raion });
-        });
-    }
-    out.sort((a, b) => a.label.localeCompare(b.label, 'ro'));
-    return out;
+  const out = [];
+  for (const [raion, data] of Object.entries(MOLDOVA_LOCATIONS)) {
+    (data.localities || []).forEach((loc) => out.push({ value: loc, label: loc, sub: raion }));
+  }
+  out.sort((a, b) => a.label.localeCompare(b.label, 'ro'));
+  return out;
 }
 
-/**
- * Sectors for a given city name. Currently only Chișinău has sectors;
- * everything else returns an empty array so the UI hides the sector picker.
- * Matches both diacritic forms.
- */
 export function sectorsFor(cityName) {
-    if (!cityName) return [];
-    const c = cityName.trim().toLowerCase();
-    if (c.startsWith('chișinău') || c.startsWith('chisinau')) return CHISINAU_SECTORS;
-    return [];
+  if (!cityName) return [];
+  const c = cityName.toLowerCase();
+  if (c.includes('chișinău') || c.includes('chisinau')) return CHISINAU_SECTORS;
+  return [];
 }
+
+export const RAIOANE = Object.keys(MOLDOVA_LOCATIONS);

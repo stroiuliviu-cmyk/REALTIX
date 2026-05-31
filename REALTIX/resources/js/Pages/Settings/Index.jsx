@@ -724,77 +724,76 @@ function UsersTab({ agents, invitations = [], currentUserId, canInvite = true, c
             {/* Agent list */}
             <div className="space-y-3">
                 {agents.map(agent => (
-                    <div key={agent.id} className="rounded-xl border border-slate-200/70 bg-white shadow-sm p-4 flex items-center gap-4 hover:shadow-lg hover:border-slate-300/70 transition-all duration-200">
-                        {/* Avatar with online dot */}
-                        <div className="relative shrink-0">
-                            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm">
-                                {agent.name[0].toUpperCase()}
-                            </div>
-                            <span
-                                className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${agent.is_online ? 'bg-emerald-500' : 'bg-slate-300'}`}
-                                title={agent.is_online ? 'Online' : 'Offline'}
-                            />
-                        </div>
-
-                        {/* Info */}
-                        <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-semibold text-slate-900 text-sm">{agent.name}</span>
-                                {agent.is_self && <span className="text-[11px] font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md">Tu</span>}
-                                <span className={`text-[11px] px-2 py-0.5 rounded-md font-semibold ${agent.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-600'}`}>
-                                    {agent.is_active ? 'Activ' : 'Suspendat'}
-                                </span>
-                                {agent.is_online && (
-                                    <span className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wider inline-flex items-center gap-1">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                        online
-                                    </span>
-                                )}
-                            </div>
-                            <div className="text-xs text-slate-500 mt-0.5">{agent.email} {agent.position ? `· ${agent.position}` : ''}</div>
-
-                            {/* Last login info */}
-                            {agent.last_login_at && (
-                                <div className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-2 flex-wrap">
-                                    <span title="Ultimul login" className="inline-flex items-center gap-1">
-                                        <Clock className="w-3 h-3" />
-                                        {new Date(agent.last_login_at).toLocaleString('ro-RO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                                    </span>
-                                    {agent.last_login_ip && <span className="font-mono">· {agent.last_login_ip}</span>}
-                                    {agent.last_login_device && agent.last_login_device !== '—' && <span>· {agent.last_login_device}</span>}
-                                    {agent.last_login_browser && agent.last_login_browser !== '—' && <span>· {agent.last_login_browser}</span>}
+                    <div key={agent.id} className="rounded-xl border border-slate-200/70 bg-white shadow-sm p-4 flex flex-col sm:flex-row sm:items-center gap-4 hover:shadow-lg hover:border-slate-300/70 transition-all duration-200">
+                        {/* Avatar + info group — stays horizontal even on mobile */}
+                        <div className="flex items-center gap-4 min-w-0 flex-1">
+                            {/* Avatar with online dot */}
+                            <div className="relative shrink-0">
+                                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm">
+                                    {agent.name[0].toUpperCase()}
                                 </div>
-                            )}
+                                <span
+                                    className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${agent.is_online ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                                    title={agent.is_online ? 'Online' : 'Offline'}
+                                />
+                            </div>
 
-                            <div className="flex items-center gap-3 mt-1.5 text-xs text-slate-500">
-                                <span className="inline-flex items-center gap-1"><Home className="w-3 h-3" /> {agent.properties_count}</span>
-                                <span className="inline-flex items-center gap-1"><Users className="w-3 h-3" /> {agent.contacts_count}</span>
-                                <span className="inline-flex items-center gap-1"><Handshake className="w-3 h-3" /> {agent.deals_count}</span>
-                                <button
-                                    onClick={() => setHistoryAgent(agent)}
-                                    className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 hover:underline font-semibold"
-                                >
-                                    <ScrollText className="w-3 h-3" />
-                                    Istoric
-                                </button>
+                            {/* Info */}
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-semibold text-slate-900 text-sm">{agent.name}</span>
+                                    {agent.is_self && <span className="text-[11px] font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md">Tu</span>}
+                                    <span className={`text-[11px] px-2 py-0.5 rounded-md font-semibold ${agent.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-600'}`}>
+                                        {agent.is_active ? 'Activ' : 'Suspendat'}
+                                    </span>
+                                    {agent.is_online && (
+                                        <span className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wider inline-flex items-center gap-1">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                            online
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="text-xs text-slate-500 mt-0.5 truncate">{agent.email} {agent.position ? `· ${agent.position}` : ''}</div>
+
+                                {/* Last login info */}
+                                {agent.last_login_at && (
+                                    <div className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-2 flex-wrap">
+                                        <span title="Ultimul login" className="inline-flex items-center gap-1">
+                                            <Clock className="w-3 h-3" />
+                                            {new Date(agent.last_login_at).toLocaleString('ro-RO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                        </span>
+                                        {agent.last_login_ip && <span className="font-mono">· {agent.last_login_ip}</span>}
+                                        {agent.last_login_device && agent.last_login_device !== '—' && <span>· {agent.last_login_device}</span>}
+                                        {agent.last_login_browser && agent.last_login_browser !== '—' && <span>· {agent.last_login_browser}</span>}
+                                    </div>
+                                )}
+
+                                <div className="flex items-center gap-3 mt-1.5 text-xs text-slate-500 flex-wrap">
+                                    <span className="inline-flex items-center gap-1"><Home className="w-3 h-3" /> {agent.properties_count}</span>
+                                    <span className="inline-flex items-center gap-1"><Users className="w-3 h-3" /> {agent.contacts_count}</span>
+                                    <span className="inline-flex items-center gap-1"><Handshake className="w-3 h-3" /> {agent.deals_count}</span>
+                                    <button
+                                        onClick={() => setHistoryAgent(agent)}
+                                        className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 hover:underline font-semibold"
+                                    >
+                                        <ScrollText className="w-3 h-3" />
+                                        Istoric
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
-                        {/* Role selector */}
+                        {/* Role + actions group — full-width row on mobile, inline on desktop */}
                         {!agent.is_self && (
-                            <select
-                                value={agent.role}
-                                onChange={e => changeRole(agent, e.target.value)}
-                                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
-                            >
-                                <option value="realtor">Realtor</option>
-                                <option value="admin">Admin</option>
-                            </select>
-                        )}
-
-                        {/* Actions */}
-                        {!agent.is_self && (
-                            <div className="flex items-center gap-1 shrink-0">
+                            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:shrink-0">
+                                <select
+                                    value={agent.role}
+                                    onChange={e => changeRole(agent, e.target.value)}
+                                    className="flex-1 sm:flex-initial rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+                                >
+                                    <option value="realtor">Realtor</option>
+                                    <option value="admin">Admin</option>
+                                </select>
                                 <button
                                     onClick={() => toggleActive(agent)}
                                     className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${agent.is_active ? 'bg-slate-100 text-slate-600 hover:bg-rose-50 hover:text-rose-600' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'}`}

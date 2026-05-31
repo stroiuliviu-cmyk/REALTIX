@@ -338,7 +338,7 @@ function LinkedProperties({ contact, availableProperties = [] }) {
     );
 }
 
-export default function Show({ contact, contracts = [], meetings = [], availableProperties = [], isAdmin = false, agencyAgents = [] }) {
+export default function Show({ contact, contracts = [], meetings = [], availableProperties = [], isAdmin = false, agencyAgents = [], activityLogs = [] }) {
     const { data, setData, post, processing, reset } = useForm({
         type: 'note',
         body: '',
@@ -504,6 +504,38 @@ export default function Show({ contact, contracts = [], meetings = [], available
                             </div>
                         )}
                     </div>
+
+                    {/* Activity history (transfers etc) */}
+                    {activityLogs.length > 0 && (
+                        <div className="rounded-xl bg-white p-6 shadow-sm border border-slate-200/70">
+                            <h3 className="font-semibold text-slate-900 text-sm mb-4 inline-flex items-center gap-2">
+                                <ArrowLeftRight className="w-4 h-4 text-slate-500" />
+                                Istoric activitate
+                            </h3>
+                            <div className="space-y-3">
+                                {activityLogs.map(log => (
+                                    <div key={log.id} className="flex items-start gap-3 text-sm">
+                                        <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
+                                            <ArrowLeftRight className="w-4 h-4" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-slate-700">
+                                                Transfer: <span className="font-semibold text-slate-900">{log.from_user ?? '—'}</span>
+                                                {' → '}
+                                                <span className="font-semibold text-slate-900">{log.to_user ?? '—'}</span>
+                                            </div>
+                                            {log.notes && (
+                                                <div className="text-xs text-slate-500 mt-0.5 italic">„{log.notes}"</div>
+                                            )}
+                                            <div className="text-[11px] text-slate-400 mt-0.5">
+                                                {new Date(log.created_at).toLocaleString('ro-RO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Meetings timeline */}
                     {meetings.length > 0 && (

@@ -133,6 +133,38 @@ class ContactController extends Controller
                 ->get(['id', 'name', 'email'])
             : collect();
 
+        // Activity log for this contact (transfers etc). Resolve user names
+        // once via an in() lookup instead of N+1 inside the map.
+        $rawLogs = \App\Models\ActivityLog::query()
+            ->where('subject_type', Contact::class)
+            ->where('subject_id', $contact->id)
+            ->whereIn('action', ['contact.transfer'])
+            ->latest('created_at')
+            ->limit(20)
+            ->get();
+
+        $userIds = $rawLogs->flatMap(fn ($l) => [
+            $l->properties['from_user_id'] ?? null,
+            $l->properties['to_user_id']   ?? null,
+        ])->filter()->unique()->all();
+        $userNames = \App\Models\User::withoutGlobalScopes()
+            ->whereIn('id', $userIds)
+            ->pluck('name', 'id');
+
+        $activityLogs = $rawLogs->map(function ($log) use ($userNames) {
+            $props = $log->properties ?? [];
+            $resolve = fn ($id) => $id ? ($userNames[$id] ?? "User #{$id}") : null;
+            return [
+                'id'          => $log->id,
+                'action'      => $log->action,
+                'description' => $log->description,
+                'notes'       => $props['notes'] ?? null,
+                'from_user'   => $resolve($props['from_user_id'] ?? null),
+                'to_user'     => $resolve($props['to_user_id'] ?? null),
+                'created_at'  => $log->created_at->toIso8601String(),
+            ];
+        });
+
         return Inertia::render('Contacts/Show', [
             'contact'             => $contact,
             'contracts'           => $contracts,
@@ -140,6 +172,7 @@ class ContactController extends Controller
             'availableProperties' => $availableProperties,
             'isAdmin'             => $user->isAdmin(),
             'agencyAgents'        => $agencyAgents,
+            'activityLogs'        => $activityLogs,
         ]);
     }
 

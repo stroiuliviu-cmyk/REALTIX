@@ -491,6 +491,34 @@ from selenium.webdriver.support.ui import WebDriverWait
 
 # ── Config ────────────────────────────────────────────────────────────────────
 BASE_URL = "https://999.md"
+
+# ── Raion resolver (catalog 999.md din shared/) ────────────────────────
+import json as _json_raion, collections as _coll_raion
+_CATALOG_PATH = "/home/forge/realtix.eu/shared/scraper_data/catalog_999.json"
+try:
+    _CAT_RAION = _json_raion.load(open(_CATALOG_PATH, encoding="utf-8"))["regions"]
+    _SECTORS_RAION = set(_CAT_RAION.get("Chișinău mun.", {}).get("sectors", []))
+    _LOC2REG = _coll_raion.defaultdict(list)
+    for _rn, _e in _CAT_RAION.items():
+        for _loc in _e.get("localities", []):
+            _LOC2REG[_loc].append(_rn)
+except Exception as _e_raion:
+    _CAT_RAION, _SECTORS_RAION, _LOC2REG = {}, set(), {}
+
+def resolve_region(city, district):
+    """Mapeaza city/district -> regiune 999.md. None daca ambiguu/negasit."""
+    if not city:
+        return None
+    if city in _SECTORS_RAION or (district and district in _SECTORS_RAION):
+        return "Chișinău mun."
+    if city in _CAT_RAION:
+        return city
+    regs = _LOC2REG.get(city)
+    if regs and len(regs) == 1:
+        return regs[0]
+    return None
+# ───────────────────────────────────────────────────────────────────────
+
 CDN_PREFIX = "https://i.simpalsmedia.com/999.md/"
 
 # Use Forge SHARED storage path (NOT release-local), so files survive deploys
@@ -2194,6 +2222,7 @@ def upsert_listing(
         "floors_total":      ad.get("floors_total"),
         "city":              (ad.get("city") or "Chișinău")[:100],
         "district":          ad["district"][:100] if ad.get("district") else None,
+        "raion":              resolve_region(ad.get("city"), ad.get("district")),
         "address":           ad["address"][:255] if ad.get("address") else None,
         "year_built":        ad.get("year_built"),
         "condition":         ad.get("condition"),

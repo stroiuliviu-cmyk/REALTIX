@@ -1,4 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
+import ThemeToggle from '@/Components/ui/ThemeToggle';
 
 const features = [
     { title: 'Sistem CRM', desc: 'Gestionează clienții și tranzacțiile într-un singur loc.', icon: '👥' },
@@ -53,7 +54,7 @@ export default function Welcome() {
                 />
             </Head>
 
-            <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-blue-50 text-slate-900">
+            <div className="rt-landing-canvas min-h-screen bg-linear-to-br from-slate-50 via-white to-blue-50 text-slate-900">
 
                 {/* Header */}
                 <header className="fixed top-0 w-full z-50 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
@@ -68,7 +69,8 @@ export default function Welcome() {
                             <a href="#preturi" className="hover:text-[#1E3A8A] transition-colors">Prețuri</a>
                         </nav>
 
-                        <div className="flex gap-2 sm:gap-4 items-center">
+                        <div className="flex gap-2 sm:gap-3 items-center">
+                            <ThemeToggle className="w-9 h-9 sm:w-10 sm:h-10" />
                             <Link
                                 href={route('login')}
                                 className="hidden sm:block text-sm font-semibold text-[#1E3A8A] hover:text-blue-900 transition-colors"

@@ -1,8 +1,15 @@
 import { Link } from '@inertiajs/react';
+import ThemeToggle from '@/Components/ui/ThemeToggle';
 
 export default function GuestLayout({ children }) {
     return (
-        <div className="flex min-h-screen">
+        <div className="relative flex min-h-screen">
+            {/* Theme toggle pinned top-right, above the form panel — visible on
+                login + register, both light and dark. z-10 keeps it above the
+                form card without overlapping the navy brand panel content. */}
+            <div className="absolute top-4 right-4 z-10">
+                <ThemeToggle />
+            </div>
             {/* Left brand panel */}
             <div className="hidden lg:flex lg:w-5/12 bg-linear-to-br from-blue-950 via-blue-900 to-blue-800 flex-col justify-between p-12 relative overflow-hidden">
                 {/* Background pattern */}

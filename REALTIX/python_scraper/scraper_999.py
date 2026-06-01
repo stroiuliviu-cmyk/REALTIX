@@ -936,6 +936,13 @@ PRICE_DIGITS = re.compile(r"\d[\d\s]*\d|\d")
 NUMERIC_RE = re.compile(r"\d+(?:[.,]\d+)?")
 
 
+# Sentinel returned by extract_ad when the ad is a "Cumpăr"/"Куплю" buy
+# request — distinct from None (which means real extraction error). Callers
+# branch on `is SKIP_BUY` BEFORE checking `if not ad` so skips are counted
+# under stats["skipped_buy"] instead of polluting the extraction-error stat.
+SKIP_BUY = "__skip_buy__"
+
+
 def extract_ad(driver, url: str) -> dict | None:
     m = re.search(r"/ro/(\d+)", url)
     if not m:
@@ -1055,12 +1062,11 @@ def extract_ad(driver, url: str) -> dict | None:
     )
 
     # Buy requests ("Cumpăr"/"Куплю") are demand-side posts, not offers of a
-    # specific property. Drop them so they never reach the catalog; the
-    # caller treats a None return as an error tick, which is fine for the
-    # tiny share of ads this filter rejects.
+    # specific property. Return the SKIP_BUY sentinel so callers can bump
+    # stats["skipped_buy"] separately from real extraction errors.
     if transaction_type_override == "buy":
         print(f"  ⏭️  skipped buy request: {url}")
-        return None
+        return SKIP_BUY
 
     # Download images locally if requested
     if _DOWNLOAD_IMAGES and images:
@@ -2359,7 +2365,7 @@ def _run_rescrape_mode(args) -> int:
     if SCRAPER_RUN_ID:
         log.info(f"Scraper run ID: {SCRAPER_RUN_ID} (mode=rescrape)")
 
-    stats = {"processed": 0, "new": 0, "updated": 0, "skipped": 0, "errors": 0}
+    stats = {"processed": 0, "new": 0, "updated": 0, "skipped": 0, "skipped_buy": 0, "errors": 0}
     failed_urls: list[str] = []
     _write_heartbeat()
 
@@ -2417,6 +2423,9 @@ def _run_rescrape_mode(args) -> int:
                 # matches the standard main-loop spacing.
                 time.sleep(random.uniform(3, 5))
 
+                if ad is SKIP_BUY:
+                    stats["skipped_buy"] += 1
+                    continue
                 if not ad:
                     stats["errors"] += 1
                     failed_urls.append(ext_id)
@@ -2486,7 +2495,7 @@ def _run_rescrape_mode(args) -> int:
         _run_finalized = True
 
         print()
-        print(f"✅ Rescrape complete: updated={stats['updated']} skipped={stats['skipped']} errors={stats['errors']}")
+        print(f"✅ Rescrape complete: updated={stats['updated']} skipped={stats['skipped']} skipped_buy={stats['skipped_buy']} errors={stats['errors']}")
         if failed_urls:
             preview = ", ".join(failed_urls[:20])
             more = "" if len(failed_urls) <= 20 else f" (+{len(failed_urls) - 20} more)"
@@ -2697,7 +2706,7 @@ def main() -> int:
         if recently_updated:
             print(f"💾 Skipping {len(recently_updated)} ads updated within last {args.skip_recent_hours}h")
 
-    stats = {"new": 0, "updated": 0, "errors": 0, "skipped": 0, "processed": 0, "by_category": {}}
+    stats = {"new": 0, "updated": 0, "errors": 0, "skipped": 0, "skipped_buy": 0, "processed": 0, "by_category": {}}
     # Per-type breakdown for the scraper_runs.category_stats JSON column.
     # Keyed by cat["type"] (apartment/house/…) so the UI can look up directly.
     category_stats_db: dict = {}
@@ -2719,7 +2728,7 @@ def main() -> int:
         global _current_category_name
         for cat in cats:
             cat_stats = {
-                "new": 0, "updated": 0, "errors": 0, "skipped": 0, "processed": 0,
+                "new": 0, "updated": 0, "errors": 0, "skipped": 0, "skipped_buy": 0, "processed": 0,
                 # URLs whose detail-fetch failed (None return, generic exception, or
                 # WebDriverException after the per-run restart budget was already
                 # exhausted). Capped at 10 per category on flush to keep the JSON
@@ -2816,6 +2825,10 @@ def main() -> int:
                             # NEW listing — full extraction (only branch that fetches the detail page)
                             ad = extract_ad(driver, url)
                             time.sleep(random.uniform(3, 5))  # anti-rate-limit between detail fetches
+                            if ad is SKIP_BUY:
+                                stats["skipped_buy"] += 1
+                                cat_stats["skipped_buy"] += 1
+                                continue
                             if not ad:
                                 stats["errors"] += 1
                                 cat_stats["errors"] += 1
@@ -2873,6 +2886,13 @@ def main() -> int:
                             # Existing but missing phone — retry detail fetch to capture it.
                             ad = extract_ad(driver, url)
                             time.sleep(random.uniform(3, 5))
+                            if ad is SKIP_BUY:
+                                # First-scrape classification flipped to buy on retry —
+                                # unusual but possible if seller edited the ad. Count
+                                # under skipped_buy and leave the existing row alone.
+                                stats["skipped_buy"] += 1
+                                cat_stats["skipped_buy"] += 1
+                                continue
                             if not ad:
                                 # Detail failed — at least bump price + updated_at so we don't
                                 # re-attempt within skip-recent-hours.
@@ -3045,7 +3065,7 @@ def main() -> int:
     elapsed = time.time() - started
     print("=" * 70)
     print(f"🎉 Done in {elapsed:.1f}s")
-    print(f"   Processed: {stats['processed']}  |  New: {stats['new']}  |  Updated: {stats['updated']}  |  Skipped (recent): {stats['skipped']}  |  Errors: {stats['errors']}")
+    print(f"   Processed: {stats['processed']}  |  New: {stats['new']}  |  Updated: {stats['updated']}  |  Skipped (recent): {stats['skipped']}  |  Skipped (buy): {stats['skipped_buy']}  |  Errors: {stats['errors']}")
     print()
     for slug, s in stats["by_category"].items():
         print(f"   {slug:30} new={s['new']:3} upd={s['updated']:3} err={s['errors']:3}")

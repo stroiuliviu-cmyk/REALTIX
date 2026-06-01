@@ -1048,11 +1048,19 @@ def extract_ad(driver, url: str) -> dict | None:
     # Owner type detection: "Persoană fizică" vs agency
     owner_type = _detect_owner_type(soup)
 
-    # Transaction type from breadcrumb (most reliable) → fallback to text heuristic
+    # Transaction type from breadcrumb (most reliable) → fallback to structured "Tip ofertă" field
     transaction_type_override = (
         _detect_transaction_type_from_breadcrumb(soup)
         or _detect_transaction_type(soup, features_text)
     )
+
+    # Buy requests ("Cumpăr"/"Куплю") are demand-side posts, not offers of a
+    # specific property. Drop them so they never reach the catalog; the
+    # caller treats a None return as an error tick, which is fine for the
+    # tiny share of ads this filter rejects.
+    if transaction_type_override == "buy":
+        print(f"  ⏭️  skipped buy request: {url}")
+        return None
 
     # Download images locally if requested
     if _DOWNLOAD_IMAGES and images:
@@ -1955,13 +1963,17 @@ def _download_image(url: str, ext_id: str, idx: int) -> str | None:
 
 
 def _detect_transaction_type_from_breadcrumb(soup: BeautifulSoup) -> str | None:
-    """The 999.md detail page breadcrumb usually contains 'Vând' / 'Închiriez' (the offer type).
+    """The 999.md detail page breadcrumb usually contains 'Vând' / 'Închiriez' / 'Cumpăr' (the offer type).
     This is the most reliable signal because it's structured navigation."""
     # Look for breadcrumb-like containers with anchor links
     for el in soup.find_all(attrs={"class": re.compile(r"breadcrumb|navigation|filter-link", re.IGNORECASE)}):
         text = el.get_text(" | ", strip=True).lower()
         if not text:
             continue
+        # "Cumpăr"/"Куплю" first — most specific, and signals a buy request
+        # which the caller skips entirely (not an offer of property).
+        if "cumpăr" in text or "cumpar" in text or "куплю" in text:
+            return "buy"
         if "închiri" in text or "аренд" in text or "сдам" in text:
             # Daily rental requires an EXPLICIT short-term phrase. Bare
             # "scurt" matched too broadly (e.g. "scurtă descriere",
@@ -2000,17 +2012,26 @@ _TIP_OFERTA_LABEL_RE = re.compile(r"Tip\s+ofert|Тип\s+предложени", 
 
 
 def _detect_transaction_type(soup: BeautifulSoup, features_text: str) -> str | None:
-    """Return 'rent' / 'sale' / 'inchiriere_zilnica' if detected from page; None to keep category default.
+    """Return 'buy' / 'sale' / 'rent' / 'inchiriere_zilnica' if the structured
+    "Tip ofertă" field is present and unambiguous, else None.
 
-    Order of precedence (highest confidence first):
-      1. Structured "Tip ofertă" sidebar field on 999.md detail pages.
-      2. General page text heuristic (legacy fallback).
-    The breadcrumb-based detector (_detect_transaction_type_from_breadcrumb)
-    is called separately by the caller before this function.
+    Structured-field-only classification. The legacy page-wide text fallback
+    (soup.get_text() + features_text) was removed because it produced 1427+
+    false-positive 'inchiriere_zilnica' classifications by matching menu
+    copy, recommended-ads strips and sidebar metadata phrases like
+    "actualizat pe ziua de…". The breadcrumb detector
+    (_detect_transaction_type_from_breadcrumb) is the only remaining
+    cheap-fallback signal — also structured — invoked by the caller before
+    this function.
+
+    Real 999.md "Tip ofertă" values (confirmed on live pages):
+        Romanian               Russian                  → mapped
+        ─────────────────────  ───────────────────────  ──────────────────
+        Cumpăr                 Куплю                    buy
+        Vând                   Продам / Продаю          sale
+        De închiriat lunar     Сдаю в аренду            rent
+        De închiriat pe zi     Посуточно / Сдаю посут.  inchiriere_zilnica
     """
-    # 1) Structured field — most reliable when present. Iterate every label
-    # node matching "Tip ofertă" / "Тип предложения" and inspect parent +
-    # next sibling text (999.md typically renders label/value as siblings).
     for label in soup.find_all(string=_TIP_OFERTA_LABEL_RE):
         parent = label.parent
         if not parent:
@@ -2020,35 +2041,30 @@ def _detect_transaction_type(soup: BeautifulSoup, features_text: str) -> str | N
         if nxt:
             context += " " + nxt.get_text(" ", strip=True).lower()
 
-        # Check the most specific bucket first so "chirie pe zi" doesn't
-        # collapse into the generic rent branch. Bare "pe zi" was previously
-        # accepted but matched non-rental copy like "actualizat pe ziua
-        # de…" in the sidebar metadata; require the explicit phrase.
-        if "chirie pe zi" in context or "închiriere pe zi" in context \
-                or "inchiriere pe zi" in context \
-                or "посуточно" in context or "termen scurt" in context:
+        # 1) Cumpăr / Куплю — most specific, also a request not an offer.
+        #    Caller will skip these so they never land in the catalog.
+        if "cumpăr" in context or "cumpar" in context or "куплю" in context:
+            return "buy"
+
+        # 2) Daily rental. Real label is "De închiriat pe zi" / "Посуточно".
+        #    Bare "pe zi" is safe here — context is bounded to the Tip ofertă
+        #    cell, not the whole page, so no metadata copy leaks in.
+        if "pe zi" in context or "посуточно" in context or "termen scurt" in context:
             return "inchiriere_zilnica"
-        if "închiri" in context or "chirie" in context \
+
+        # 3) Monthly rental. Catches both Romanian forms ("lunar", "închiri",
+        #    "chirie") and Russian ("аренд", "сда[мю]").
+        if "lunar" in context or "închiri" in context or "chirie" in context \
                 or "аренд" in context or "сда" in context:
             return "rent"
+
+        # 4) Sale.
         if "vând" in context or "vinde" in context or "vanzare" in context \
-                or "продаж" in context or "продаю" in context:
+                or "продаю" in context or "продам" in context or "продаж" in context:
             return "sale"
 
-    # 2) Fallback: scan the whole page text.
-    text = (soup.get_text(" ", strip=True) + " " + features_text).lower()
-    if "chirie" in text or "аренд" in text or "închiri" in text:
-        # Daily rental needs an EXPLICIT short-term phrase. Bare "pe zi"
-        # appeared in unrelated copy ("actualizat pe ziua de…",
-        # "vizualizări pe zi") on the page-wide text scan and was the
-        # main contributor to the 1427 false-positive 'inchiriere_zilnica'
-        # classifications.
-        if "посуточно" in text or "termen scurt" in text \
-                or "chirie pe zi" in text or "închiriere pe zi" in text:
-            return "inchiriere_zilnica"
-        return "rent"
-    if "vânz" in text or "продаж" in text or "vand " in text or "продаю" in text:
-        return "sale"
+    # No structured field → undecided. Caller falls back to breadcrumb or
+    # category default; we intentionally do NOT scan the page text here.
     return None
 
 

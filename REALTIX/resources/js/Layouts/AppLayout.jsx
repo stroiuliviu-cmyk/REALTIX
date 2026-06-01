@@ -11,6 +11,15 @@ import {
     User, Bell, CreditCard, HelpCircle, LogOut,
 } from 'lucide-react';
 
+// Mirror of EnsureCanManageSubscription middleware: agency managers and
+// super-admins always pass; realtors only on Solo (starter) plan where
+// they're effectively their own manager.
+function canManageSubscription(user) {
+    if (!user) return false;
+    if (user.is_super_admin || user.is_admin) return true;
+    return user.agency?.subscription_plan === 'starter';
+}
+
 function ProfileDropdown({ user }) {
     const { t } = useTranslation();
     const [open, setOpen] = useState(false);
@@ -90,9 +99,11 @@ function ProfileDropdown({ user }) {
                     <Link href="/settings?tab=notifications" className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
                         <Bell className="w-4 h-4 text-slate-500" /> {t('profile.notifications')}
                     </Link>
-                    <Link href="/subscription" className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
-                        <CreditCard className="w-4 h-4 text-slate-500" /> {t('profile.subscription')}
-                    </Link>
+                    {canManageSubscription(user) && (
+                        <Link href="/subscription" className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                            <CreditCard className="w-4 h-4 text-slate-500" /> {t('profile.subscription')}
+                        </Link>
+                    )}
                     <Link href="/suport" className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
                         <HelpCircle className="w-4 h-4 text-slate-500" /> {t('profile.support')}
                     </Link>
@@ -141,7 +152,7 @@ export default function AppLayout({ children, title }) {
     const headerNavItems = [
         { label: t('nav.dashboard'),    href: '/dashboard' },
         { label: t('nav.statistics'),   href: '/statistics' },
-        { label: t('nav.subscription'), href: '/subscription' },
+        ...(canManageSubscription(user) ? [{ label: t('nav.subscription'), href: '/subscription' }] : []),
         ...(user?.is_super_admin ? [{ label: 'Admin', href: route('super-admin.dashboard'), highlight: true }] : []),
     ];
 
@@ -477,27 +488,33 @@ export default function AppLayout({ children, title }) {
                         </span>
                     </Link>
 
-                    {/* Agency card — links to /subscription so the chevron + cursor-pointer
-                        + hover state all map to actual behaviour (plan management). */}
-                    {user?.agency && (
-                        <Link
-                            href="/subscription"
-                            className="mx-1 mb-4 rounded-2xl bg-white/4 border border-white/7 px-3 py-3 flex items-center gap-3 hover:bg-white/7 transition-colors"
-                        >
-                            <div className="w-10 h-10 rounded-xl bg-blue-500/15 flex items-center justify-center shrink-0 overflow-hidden">
-                                {user.agency.logo_path ? (
-                                    <img src={`/storage/${user.agency.logo_path}`} alt={user.agency.name} className="w-full h-full rounded-xl object-cover" />
-                                ) : (
-                                    <Home className="w-5 h-5 text-blue-400" />
-                                )}
-                            </div>
-                            <div className="flex-1 min-w-0 leading-tight">
-                                <div className="text-sm font-semibold text-white truncate">{user.agency.name}</div>
-                                <div className="text-[11px] text-slate-400 font-medium truncate">{planLabel}</div>
-                            </div>
-                            <ChevronDown className="w-4 h-4 text-slate-500 shrink-0" />
-                        </Link>
-                    )}
+                    {/* Agency card — clickable shortcut to /subscription for managers
+                        (chevron + hover); a plain identity badge for realtors who can't
+                        manage billing on team plans (no link, no chevron). */}
+                    {user?.agency && (() => {
+                        const canManage = canManageSubscription(user);
+                        const Wrapper = canManage ? Link : 'div';
+                        const wrapperProps = canManage ? { href: '/subscription' } : {};
+                        return (
+                            <Wrapper
+                                {...wrapperProps}
+                                className={`mx-1 mb-4 rounded-2xl bg-white/4 border border-white/7 px-3 py-3 flex items-center gap-3 ${canManage ? 'hover:bg-white/7 transition-colors' : ''}`}
+                            >
+                                <div className="w-10 h-10 rounded-xl bg-blue-500/15 flex items-center justify-center shrink-0 overflow-hidden">
+                                    {user.agency.logo_path ? (
+                                        <img src={`/storage/${user.agency.logo_path}`} alt={user.agency.name} className="w-full h-full rounded-xl object-cover" />
+                                    ) : (
+                                        <Home className="w-5 h-5 text-blue-400" />
+                                    )}
+                                </div>
+                                <div className="flex-1 min-w-0 leading-tight">
+                                    <div className="text-sm font-semibold text-white truncate">{user.agency.name}</div>
+                                    <div className="text-[11px] text-slate-400 font-medium truncate">{planLabel}</div>
+                                </div>
+                                {canManage && <ChevronDown className="w-4 h-4 text-slate-500 shrink-0" />}
+                            </Wrapper>
+                        );
+                    })()}
 
                     {/* Navigate label */}
                     <div className="px-3 pt-1 pb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">

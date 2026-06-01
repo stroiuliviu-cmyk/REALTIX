@@ -208,8 +208,9 @@ Route::middleware(['auth', 'verified', 'onboarded'])->group(function () {
     Route::get('/statistics/export/pdf',  [StatisticsController::class, 'exportPdf'])->middleware('agency.subscription:export')->name('statistics.export.pdf');
     Route::get('/statistics/export/csv',  [StatisticsController::class, 'exportCsv'])->middleware('agency.subscription:export')->name('statistics.export.csv');
 
-    // Subscription
-    Route::prefix('subscription')->name('subscription.')->group(function () {
+    // Subscription — gated to agency managers + solo realtors (employees on
+    // Team/Growth plans can't see or trigger billing actions).
+    Route::prefix('subscription')->name('subscription.')->middleware('subscription.manage')->group(function () {
         Route::get('/', [SubscriptionController::class, 'index'])->name('index');
         Route::post('/subscribe/{plan}', [SubscriptionController::class, 'subscribe'])->name('subscribe');
         Route::get('/portal', [SubscriptionController::class, 'portal'])->name('portal');

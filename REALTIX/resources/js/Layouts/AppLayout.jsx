@@ -3,6 +3,7 @@ import { Link, usePage, router } from '@inertiajs/react';
 import { useTranslation } from '@/Hooks/useTranslation';
 import NotificationsBell from '@/Components/NotificationsBell';
 import ThemeToggle from '@/Components/ui/ThemeToggle';
+import { canManageSubscription } from '@/lib/permissions';
 import {
     Home, Globe, Plus, Send, FileText, Calendar, Users,
     Settings, LifeBuoy, ChevronDown, LayoutGrid, MoreHorizontal,
@@ -10,15 +11,6 @@ import {
     Building, Shield, Check, X, AlertTriangle,
     User, Bell, CreditCard, HelpCircle, LogOut,
 } from 'lucide-react';
-
-// Mirror of EnsureCanManageSubscription middleware: agency managers and
-// super-admins always pass; realtors only on Solo (starter) plan where
-// they're effectively their own manager.
-function canManageSubscription(user) {
-    if (!user) return false;
-    if (user.is_super_admin || user.is_admin) return true;
-    return user.agency?.subscription_plan === 'starter';
-}
 
 function ProfileDropdown({ user }) {
     const { t } = useTranslation();

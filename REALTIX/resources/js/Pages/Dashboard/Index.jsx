@@ -1,13 +1,18 @@
 import AppLayout from '@/Layouts/AppLayout';
 import { Head, Link, usePage } from '@inertiajs/react';
+import { useState } from 'react';
 import { useTranslation } from '@/Hooks/useTranslation';
 import Badge from '@/Components/ui/Badge';
 import { areaUnit } from '@/lib/propertyLabels';
+import { canManageSubscription } from '@/lib/permissions';
 import {
     AlertTriangle, ArrowRight, BarChart3, Banknote, Building,
     CalendarCheck, Clock, Globe, MapPin, RefreshCw, Sparkles,
-    TrendingDown, TrendingUp, Users,
+    TrendingDown, TrendingUp, Users, X as XIcon,
 } from 'lucide-react';
+
+const TRIAL_DISMISS_KEY = 'trial-banner-dismissed';
+const todayKey = () => new Date().toISOString().slice(0, 10);
 
 // ─── Stat tile (enterprise) ──────────────────────────────────────────────────
 // Vertical layout: icon + optional trend badge on row 1 (justify-between),
@@ -136,9 +141,26 @@ export default function Index({
     const user = auth?.user;
     const agency = user?.agency;
 
+    // Daily-dismiss state for the trial banner. Saves today's date in
+    // localStorage on click; next-day mount sees a stale value and the banner
+    // reappears automatically. SSR-safe init via the typeof window guard.
+    const [trialDismissedDay, setTrialDismissedDay] = useState(() => {
+        if (typeof window === 'undefined') return null;
+        try { return localStorage.getItem(TRIAL_DISMISS_KEY); } catch (_) { return null; }
+    });
+    const trialDismissedToday = trialDismissedDay === todayKey();
+    const dismissTrialBanner = () => {
+        const today = todayKey();
+        setTrialDismissedDay(today);
+        try { localStorage.setItem(TRIAL_DISMISS_KEY, today); } catch (_) {}
+    };
+
     const trialBanner = (() => {
         if (!agency) return null;
+        // Super-admins are platform staff — no agency trial of their own.
         if (user?.is_super_admin) return null;
+        // Realtors on Team/Growth can't manage billing; hide the nudge.
+        if (!canManageSubscription(user)) return null;
         if (agency.subscription_active === false) {
             return {
                 tone:  'red',
@@ -190,11 +212,11 @@ export default function Index({
             <Head title={t('dashboard.page_title')} />
             <div className="space-y-6">
 
-                {trialBanner && (() => {
+                {trialBanner && !trialDismissedToday && (() => {
                     const palette = TRIAL_PALETTE[trialBanner.tone];
                     const Icon = trialBanner.Icon;
                     return (
-                        <div className={`rounded-xl border p-5 flex items-center justify-between gap-4 flex-wrap ${palette.surface}`}>
+                        <div className={`relative rounded-xl border p-5 flex items-center justify-between gap-4 flex-wrap ${palette.surface}`}>
                             <div className="flex items-start gap-3">
                                 <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${palette.iconBg}`}>
                                     <Icon className="w-5 h-5" />
@@ -204,12 +226,22 @@ export default function Index({
                                     <div className="text-sm opacity-80">{trialBanner.msg}</div>
                                 </div>
                             </div>
-                            <Link
-                                href="/subscription"
-                                className={`rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-sm ${palette.cta}`}
-                            >
-                                {trialBanner.cta}
-                            </Link>
+                            <div className="flex items-center gap-2">
+                                <Link
+                                    href="/subscription"
+                                    className={`rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-sm ${palette.cta}`}
+                                >
+                                    {trialBanner.cta}
+                                </Link>
+                                <button
+                                    type="button"
+                                    onClick={dismissTrialBanner}
+                                    aria-label="Închide bannerul pentru azi"
+                                    className="p-1.5 rounded-lg hover:bg-black/5 opacity-70 hover:opacity-100 transition-opacity"
+                                >
+                                    <XIcon className="w-4 h-4" />
+                                </button>
+                            </div>
                         </div>
                     );
                 })()}

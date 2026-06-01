@@ -3,6 +3,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
 import Combobox from '@/Components/Combobox';
 import MultiCombobox from '@/Components/MultiCombobox';
+import TypeFilterTree from '@/Components/TypeFilterTree';
 import { RAIOANE, MOLDOVA_LOCATIONS, localitiesForRaion } from '@/lib/moldovaLocations';
 import {
     MapPin, Camera, Star, Image as ImageIcon, Eye, Phone, Handshake,
@@ -291,7 +292,7 @@ function PropertyRow({ p, isFavorite, isSelected, isAdmin, authUserId, onFav, on
 
 /* ─── Main page ─────────────────────────────────────────────────────────── */
 const EMPTY = {
-    search: '', types: [], transaction_type: '', statuses: [],
+    search: '', types: [], subtypes: [], transaction_type: '', statuses: [],
     raion: '', localities: [], sectors: [], rooms: [],
     price_min: '', price_max: '', area_min: '', area_max: '',
     floor_min: '', floor_max: '', floors_total_min: '', floors_total_max: '',
@@ -305,6 +306,7 @@ export default function Index({ properties, filters = {}, isAdmin, authUserId, f
         ...EMPTY,
         ...filters,
         types:      Array.isArray(filters.types)      ? filters.types      : [],
+        subtypes:   Array.isArray(filters.subtypes)   ? filters.subtypes   : [],
         statuses:   Array.isArray(filters.statuses)   ? filters.statuses   : [],
         localities: Array.isArray(filters.localities) ? filters.localities : [],
         sectors:    Array.isArray(filters.sectors)    ? filters.sectors    : [],
@@ -357,7 +359,7 @@ export default function Index({ properties, filters = {}, isAdmin, authUserId, f
     const ctxFilters = contextualFiltersForTypes(f.types);
 
     const activeCount = [
-        f.types.length, f.statuses.length, f.transaction_type,
+        f.types.length, f.subtypes.length, f.statuses.length, f.transaction_type,
         f.raion, f.localities.length, f.sectors.length,
         f.rooms.length, f.price_min, f.price_max, f.area_min, f.area_max,
         f.floor_min, f.floor_max, f.floors_total_min, f.floors_total_max,
@@ -404,11 +406,12 @@ export default function Index({ properties, filters = {}, isAdmin, authUserId, f
                             />
                         </div>
 
-                        <CheckGroup
+                        <TypeFilterTree
                             label="Tip proprietate"
-                            options={TYPE_OPTIONS.map(o => [o.value, o.label])}
-                            values={f.types}
-                            onChange={v => set('types', v)}
+                            types={f.types}
+                            subtypes={f.subtypes}
+                            onTypesChange={v => set('types', v)}
+                            onSubtypesChange={v => set('subtypes', v)}
                         />
 
                         {/* Transaction type */}

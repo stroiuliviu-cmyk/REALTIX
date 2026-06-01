@@ -48,7 +48,20 @@ class PropertyController extends Controller
                       ->orWhere('scraped_listing_id', (int) $s);
                 }
             }))
-            ->when($request->filled('types') && is_array($request->types), fn ($q) => $q->whereIn('type', $request->types))
+            // Combined "what kind of property" facet — types[] OR subtypes[].
+            // Subtype lives on the same column structure as scraped_listings.
+            ->when(
+                (is_array($request->types)    && count($request->types)    > 0)
+                || (is_array($request->subtypes) && count($request->subtypes) > 0),
+                function ($q) use ($request) {
+                    $q->where(function ($g) use ($request) {
+                        $hasTypes    = is_array($request->types)    && count($request->types)    > 0;
+                        $hasSubtypes = is_array($request->subtypes) && count($request->subtypes) > 0;
+                        if ($hasTypes)    $g->orWhereIn('type',    $request->types);
+                        if ($hasSubtypes) $g->orWhereIn('subtype', $request->subtypes);
+                    });
+                }
+            )
             ->when($request->transaction_type, fn ($q, $t) => $q->where('transaction_type', $t))
             ->when($request->filled('statuses') && is_array($request->statuses), fn ($q) => $q->whereIn('status', $request->statuses))
             ->when($request->raion, fn ($q, $r) => $q->where('raion', $r))
@@ -129,7 +142,7 @@ class PropertyController extends Controller
         return Inertia::render('Properties/Index', [
             'properties'  => $query->paginate(20)->withQueryString(),
             'filters'     => $request->only([
-                'search', 'types', 'transaction_type', 'statuses',
+                'search', 'types', 'subtypes', 'transaction_type', 'statuses',
                 'raion', 'localities', 'sectors', 'city', 'district', 'rooms',
                 'price_min', 'price_max', 'area_min', 'area_max',
                 'floor_min', 'floor_max', 'floors_total_min', 'floors_total_max',

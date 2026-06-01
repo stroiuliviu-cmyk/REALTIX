@@ -119,9 +119,19 @@ class WebOffersController extends Controller
                 fn ($q) => $q->whereIn('owner_type', $request->owner_types));
         };
 
+        // Combined "what kind of property" facet: types[] and subtypes[] live
+        // on different columns but the UI treats them as one logical group
+        // (an item that matches either is shown). Keeping them in a single
+        // closure keeps facet count exclusions symmetric — the by_type and
+        // by_subtype facets both exclude this whole filter.
         $applyTypes = function ($q) use ($request) {
-            $q->when($request->filled('types') && is_array($request->types),
-                fn ($q) => $q->whereIn('type', $request->types));
+            $hasTypes    = is_array($request->types)    && count($request->types)    > 0;
+            $hasSubtypes = is_array($request->subtypes) && count($request->subtypes) > 0;
+            if (! $hasTypes && ! $hasSubtypes) return;
+            $q->where(function ($g) use ($request, $hasTypes, $hasSubtypes) {
+                if ($hasTypes)    $g->orWhereIn('type',    $request->types);
+                if ($hasSubtypes) $g->orWhereIn('subtype', $request->subtypes);
+            });
         };
 
         $applyTransaction = function ($q) use ($request) {
@@ -154,6 +164,20 @@ class WebOffersController extends Controller
             ->selectRaw('type, COUNT(*) as cnt')
             ->groupBy('type')
             ->pluck('cnt', 'type');
+
+        // Subtype facet — symmetric with by_type: applies every other filter
+        // except the combined type/subtype group, so checkboxes inside the
+        // expanded tree show counts respecting the rest of the query.
+        $countsBySubtype = ScrapedListing::query()
+            ->tap($applyNonFacetFilters)
+            ->tap($applySources)
+            ->tap($applyOwnerTypes)
+            ->tap($applyTransaction)
+            ->whereNotNull('subtype')
+            ->where('subtype', '!=', '')
+            ->selectRaw('subtype, COUNT(*) as cnt')
+            ->groupBy('subtype')
+            ->pluck('cnt', 'subtype');
 
         $countsByTransaction = ScrapedListing::query()
             ->tap($applyNonFacetFilters)
@@ -208,7 +232,7 @@ class WebOffersController extends Controller
         return Inertia::render('WebOffers/Index', [
             'listings'    => $query->paginate(20)->withQueryString(),
             'filters'     => $request->only([
-                'search', 'sources', 'owner_types', 'types', 'transaction_type',
+                'search', 'sources', 'owner_types', 'types', 'subtypes', 'transaction_type',
                 'raion', 'localities', 'sectors', 'city', 'district',
                 'price_min', 'price_max', 'area_min', 'area_max',
                 'rooms', 'floor_min', 'floor_max', 'floors_total_min', 'floors_total_max',
@@ -217,6 +241,7 @@ class WebOffersController extends Controller
             'counts' => [
                 'total'        => $totalCount,
                 'by_type'      => $countsByType,
+                'by_subtype'   => $countsBySubtype,
                 'by_transaction'=> $countsByTransaction,
                 'by_source'    => $countsBySource,
                 'by_owner'     => $countsByOwner,

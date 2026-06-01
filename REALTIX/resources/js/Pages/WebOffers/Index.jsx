@@ -5,6 +5,7 @@ import { Head, router } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import Combobox from '@/Components/Combobox';
 import MultiCombobox from '@/Components/MultiCombobox';
+import TypeFilterTree from '@/Components/TypeFilterTree';
 import { RAIOANE, MOLDOVA_LOCATIONS, localitiesForRaion } from '@/lib/moldovaLocations';
 import {
     Camera, MapPin, Calendar, Phone, Star, Plus, Check,
@@ -273,7 +274,7 @@ function ListingRow({ l, isFavorite, isImported, onFav, onImport, onShowContact,
 
 /* ─── Main page ─────────────────────────────────────────────────────────── */
 const EMPTY = {
-    search: '', sources: [], owner_types: [], types: [], transaction_type: '',
+    search: '', sources: [], owner_types: [], types: [], subtypes: [], transaction_type: '',
     raion: '', localities: [], sectors: [],
     price_min: '', price_max: '', area_min: '', area_max: '',
     rooms: [],
@@ -291,6 +292,7 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
         sources:     Array.isArray(filters.sources)     ? filters.sources     : [],
         owner_types: Array.isArray(filters.owner_types) ? filters.owner_types : [],
         types:       Array.isArray(filters.types)       ? filters.types       : [],
+        subtypes:    Array.isArray(filters.subtypes)    ? filters.subtypes    : [],
         rooms:       Array.isArray(filters.rooms)       ? filters.rooms       : [],
         localities:  Array.isArray(filters.localities)  ? filters.localities  : [],
         sectors:     Array.isArray(filters.sectors)     ? filters.sectors     : [],
@@ -345,7 +347,7 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
     const ctxFilters = contextualFiltersForTypes(f.types);
 
     const activeCount = [
-        f.sources.length, f.owner_types.length, f.types.length,
+        f.sources.length, f.owner_types.length, f.types.length, f.subtypes.length,
         f.transaction_type, f.raion, f.localities.length, f.sectors.length,
         f.price_min, f.price_max, f.area_min, f.area_max,
         f.rooms.length,
@@ -410,12 +412,14 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
                             counts={counts.by_owner ?? {}}
                         />
 
-                        <CheckGroup
+                        <TypeFilterTree
                             label="Tip proprietate"
-                            options={TYPE_OPTIONS.map(o => [o.value, o.label])}
-                            values={f.types}
-                            onChange={v => set('types', v)}
-                            counts={counts.by_type ?? {}}
+                            types={f.types}
+                            subtypes={f.subtypes}
+                            onTypesChange={v => set('types', v)}
+                            onSubtypesChange={v => set('subtypes', v)}
+                            countsByType={counts.by_type ?? {}}
+                            countsBySubtype={counts.by_subtype ?? {}}
                         />
 
                         {/* Transaction type */}

@@ -24,6 +24,7 @@ class Property extends Model
         'description_ru',
         'description_en',
         'type',
+        'subtype',
         'transaction_type',
         'price',
         'currency',

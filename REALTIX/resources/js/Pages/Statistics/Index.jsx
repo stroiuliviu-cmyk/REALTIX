@@ -855,6 +855,9 @@ function AdminDashboard(props) {
     const tabs = [
         { id: 'overview', label: 'Prezentare generală' },
         { id: 'agents',   label: 'Agenți' },
+        // External tab — navigates to the standalone /deals page instead of
+        // swapping local content. Detected by the presence of `href`.
+        { id: 'deals',    label: 'Tranzacții',   href: '/deals', Icon: Briefcase },
         { id: 'market',   label: 'Piață' },
         { id: 'ai',       label: 'AI Insights' },
     ];
@@ -867,13 +870,14 @@ function AdminDashboard(props) {
                     {tabs.map(t => (
                         <button
                             key={t.id}
-                            onClick={() => setActiveTab(t.id)}
-                            className={`px-3 py-1.5 text-xs font-medium rounded-md transition ${
+                            onClick={() => t.href ? router.visit(t.href) : setActiveTab(t.id)}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition ${
                                 activeTab === t.id
                                     ? 'bg-white text-slate-900 shadow-sm'
                                     : 'text-slate-600 hover:text-slate-900'
                             }`}
                         >
+                            {t.Icon && <t.Icon className="w-3.5 h-3.5" />}
                             {t.label}
                         </button>
                     ))}

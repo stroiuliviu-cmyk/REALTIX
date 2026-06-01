@@ -708,10 +708,6 @@ export default function Index({ listings, filters = {}, favoriteIds = [], import
                                 <Globe className="w-7 h-7" strokeWidth={1.5} />
                             </div>
                             <h3 className="text-lg font-semibold text-slate-900 mb-2">Nicio ofertă web disponibilă</h3>
-                            <p className="text-slate-500 text-sm max-w-sm mx-auto">
-                                Platforma REALTIX poate importa automat anunțuri din surse externe conectate.
-                                Configurează integrarea din <strong>Setări → Integrări</strong>.
-                            </p>
                         </div>
                     ) : (
                         <div className="space-y-2">

@@ -3,7 +3,7 @@ import { Head, router, Link } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import Combobox from '@/Components/Combobox';
 import { MOLDOVA_LOCALITIES, CHISINAU_DISTRICTS } from '@/Constants/moldova';
-import { TYPE_OPTIONS, TRANSACTION_OPTIONS } from '@/lib/propertyLabels';
+import { TYPE_OPTIONS, TRANSACTION_OPTIONS, areaUnit } from '@/lib/propertyLabels';
 import {
     Building, Building2, Home, House, Trees, Car, Store,
     Sparkles, RotateCw, Brain, AlertTriangle, Camera, X as XIcon,
@@ -979,8 +979,8 @@ export default function Edit({ property }) {
 
                             {data.area_total && (
                                 <p className="text-xs text-slate-500">
-                                    {data.area_total} m² total
-                                    {data.area_living ? ` · ${data.area_living} m² locativă` : ''}
+                                    {data.area_total} {areaUnit(data.type)} total
+                                    {data.area_living ? ` · ${data.area_living} ${areaUnit(data.type)} locativă` : ''}
                                     {data.floor ? ` · et. ${data.floor}${data.floors_total ? `/${data.floors_total}` : ''}` : ''}
                                 </p>
                             )}

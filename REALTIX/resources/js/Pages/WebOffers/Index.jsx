@@ -11,7 +11,7 @@ import {
     Image as ImageIcon, Building2, User, ExternalLink,
     RefreshCw, Globe, X as XIcon, SlidersHorizontal,
 } from 'lucide-react';
-import { getTypeLabel, getTransactionLabel, TYPE_OPTIONS } from '@/lib/propertyLabels';
+import { getTypeLabel, getTransactionLabel, TYPE_OPTIONS, areaUnit } from '@/lib/propertyLabels';
 import { contextualFiltersForTypes } from '@/lib/propertyFilters';
 
 /* ─── Constants ─────────────────────────────────────────────────────────── */
@@ -113,7 +113,7 @@ function ListingRow({ l, isFavorite, isImported, onFav, onImport, onShowContact,
     const roomsLabel = l.rooms != null
         ? `${l.rooms} ${l.rooms === 1 ? 'cameră' : (l.rooms < 5 ? 'camere' : 'de camere')}`
         : null;
-    const areaLabel  = l.area ? `${l.area} m²` : null;
+    const areaLabel  = l.area ? `${l.area} ${areaUnit(l.type)}` : null;
     const floorLabel = l.floor != null
         ? `etaj ${l.floor}${l.floors_total ? `/${l.floors_total}` : ''}`
         : null;

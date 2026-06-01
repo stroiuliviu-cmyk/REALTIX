@@ -4,7 +4,7 @@ import PhoneInteractionModal from '@/Components/PhoneInteractionModal';
 import PropertyGallery from '@/Components/PropertyGallery';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
-import { getTransactionLabel } from '@/lib/propertyLabels';
+import { getTransactionLabel, areaUnit } from '@/lib/propertyLabels';
 import {
     Users, MessageSquare, Calendar, FileText, Eye, User as UserIcon,
     Edit, Phone, Upload, Link as LinkIcon, ArrowLeftRight, Trash2,
@@ -363,7 +363,7 @@ export default function Show({ property, contracts = [], viewings = [], availabl
                                 const cards = [
                                     property.area_total && {
                                         label: 'Suprafață',
-                                        value: `${property.area_total} m²`,
+                                        value: `${property.area_total} ${areaUnit(property.type)}`,
                                     },
                                     property.rooms && {
                                         label: 'Camere',

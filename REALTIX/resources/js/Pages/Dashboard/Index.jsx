@@ -2,6 +2,7 @@ import AppLayout from '@/Layouts/AppLayout';
 import { Head, Link, usePage } from '@inertiajs/react';
 import { useTranslation } from '@/Hooks/useTranslation';
 import Badge from '@/Components/ui/Badge';
+import { areaUnit } from '@/lib/propertyLabels';
 import {
     AlertTriangle, ArrowRight, BarChart3, Banknote, Building,
     CalendarCheck, Clock, Globe, MapPin, RefreshCw, Sparkles,
@@ -97,7 +98,7 @@ function AiDealCard({ listing, t }) {
                         <div className="text-lg font-bold text-slate-900 tabular-nums">
                             {listing.price ? `€${Number(listing.price).toLocaleString('ro')}` : '—'}
                         </div>
-                        {listing.area && <div className="text-xs text-slate-400">{listing.area} m²</div>}
+                        {listing.area && <div className="text-xs text-slate-400">{listing.area} {areaUnit(listing.type)}</div>}
                     </div>
                     {listing.external_url ? (
                         <a

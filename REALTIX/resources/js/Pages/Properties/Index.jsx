@@ -9,7 +9,7 @@ import {
     Edit, Archive, Trash2, Filter, Plus, ArrowDown, ArrowUp, MoreHorizontal, X as XIcon,
     Building2,
 } from 'lucide-react';
-import { getTypeLabel, getTransactionLabel, TYPE_OPTIONS } from '@/lib/propertyLabels';
+import { getTypeLabel, getTransactionLabel, TYPE_OPTIONS, areaUnit } from '@/lib/propertyLabels';
 import { contextualFiltersForTypes } from '@/lib/propertyFilters';
 
 /* ─── Constants ─────────────────────────────────────────────────────────── */
@@ -258,7 +258,7 @@ function PropertyRow({ p, isFavorite, isSelected, isAdmin, authUserId, onFav, on
                             : '—'}
                     </div>
                     <div className="text-xs text-slate-500">
-                        {[p.area_total && `${p.area_total} m²`, p.rooms && `${p.rooms} cam.`].filter(Boolean).join(' · ') || '—'}
+                        {[p.area_total && `${p.area_total} ${areaUnit(p.type)}`, p.rooms && `${p.rooms} cam.`].filter(Boolean).join(' · ') || '—'}
                     </div>
                     {aiEst && (
                         <div className="text-xs text-slate-500 inline-flex items-center gap-1">

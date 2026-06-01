@@ -161,6 +161,7 @@ class DashboardController extends Controller
             ->map(fn ($l) => [
                 'id'           => $l->id,
                 'title'        => $l->title,
+                'type'         => $l->type,
                 'price'        => $l->price,
                 'area'         => $l->area,
                 'city'         => $l->city,

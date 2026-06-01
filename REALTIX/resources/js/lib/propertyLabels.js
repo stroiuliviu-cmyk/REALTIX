@@ -40,6 +40,10 @@ export const getTypeLabel = (type, locale = 'ro') =>
 export const getTransactionLabel = (txn, locale = 'ro') =>
   (locale === 'ru' ? TRANSACTION_LABELS_RU : TRANSACTION_LABELS)[txn] ?? txn;
 
+// Surface unit per property type. Land parcels are quoted in ari (sotka)
+// — 1 ar = 100 m² — every other type uses regular floor area in m².
+export const areaUnit = (type) => type === 'land' ? 'ari' : 'm²';
+
 export const TYPE_OPTIONS = Object.keys(PROPERTY_TYPE_LABELS).map(key => ({
   value: key,
   label: PROPERTY_TYPE_LABELS[key],

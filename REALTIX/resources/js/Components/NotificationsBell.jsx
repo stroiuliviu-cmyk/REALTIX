@@ -36,30 +36,44 @@ export default function NotificationsBell({ unreadCount = 0 }) {
         if (next) fetchNotifications();
     };
 
+    // Fire-and-forget mark-read endpoints. We hit them via fetch instead of
+    // router.post on purpose: `router.post(..., { preserveState })` ties the
+    // request to the Inertia navigation cycle, which on GET-only pages (e.g.
+    // /properties/create) causes Inertia to attempt a POST re-render of the
+    // current route → 405. fetch keeps these calls out of the Inertia loop.
+    const csrfToken = () =>
+        document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+
+    const postSilent = (url) =>
+        fetch(url, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type':     'application/json',
+                'Accept':           'application/json',
+                'X-CSRF-TOKEN':     csrfToken(),
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        }).catch(() => { /* silent — UI is already updated optimistically */ });
+
     const handleClickItem = (n) => {
         if (!n.read_at) {
-            router.post(`/notifications/${n.id}/read`, {}, {
-                preserveState: true,
-                preserveScroll: true,
-                onSuccess: () => {
-                    setItems(prev => prev.map(x => x.id === n.id ? { ...x, read_at: new Date().toISOString() } : x));
-                    setCount(c => Math.max(0, c - 1));
-                },
-            });
+            // Optimistic UI first so the user sees the dot disappear immediately,
+            // then ping the server in the background.
+            setItems(prev => prev.map(x => x.id === n.id ? { ...x, read_at: new Date().toISOString() } : x));
+            setCount(c => Math.max(0, c - 1));
+            postSilent(`/notifications/${n.id}/read`);
         }
         setOpen(false);
+        // router.visit is a real GET navigation — that's the legitimate use of
+        // Inertia routing; it doesn't 405 because GET-only pages accept GET.
         if (n.data?.url) router.visit(n.data.url);
     };
 
     const handleMarkAllRead = () => {
-        router.post('/notifications/read-all', {}, {
-            preserveState: true,
-            preserveScroll: true,
-            onSuccess: () => {
-                setItems(prev => prev.map(x => ({ ...x, read_at: x.read_at ?? new Date().toISOString() })));
-                setCount(0);
-            },
-        });
+        setItems(prev => prev.map(x => ({ ...x, read_at: x.read_at ?? new Date().toISOString() })));
+        setCount(0);
+        postSilent('/notifications/read-all');
     };
 
     return (

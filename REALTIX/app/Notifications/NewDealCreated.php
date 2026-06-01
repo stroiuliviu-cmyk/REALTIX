@@ -22,7 +22,7 @@ class NewDealCreated extends Notification
     public function toMail($notifiable): MailMessage
     {
         $deal = $this->deal;
-        $url = url("/deals/{$deal->id}");
+        $url = url("/deals");
 
         return (new MailMessage)
             ->subject('REALTIX — Tranzacție nouă creată')
@@ -39,7 +39,7 @@ class NewDealCreated extends Notification
             'type'    => 'new_deal',
             'title'   => 'Tranzacție nouă',
             'message' => 'S-a creat tranzacția „' . $this->deal->title . '".',
-            'url'     => "/deals/{$this->deal->id}",
+            'url'     => "/deals",
             'deal_id' => $this->deal->id,
             'icon'    => '💼',
         ];

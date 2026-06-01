@@ -35,12 +35,30 @@ class StatisticsController extends Controller
             ? $this->adminStats($user, $dateFrom, $internalPeriod, $dateTo)
             : $this->realtorStats($user, $dateFrom, $dateTo);
 
+        // Deals tab payload — mirrors DealController@index so the in-page
+        // "Tranzacții" tab renders the same data without an extra navigation.
+        // Capped at 50 latest rows because the tab uses a simple list, not
+        // pagination; the dedicated /deals page keeps full paginated access.
+        $own = fn ($q) => $isAdmin ? $q : $q->where('user_id', $user->id);
+        $dealsList = Deal::with(['contact', 'property'])
+            ->when(! $isAdmin, fn ($q) => $q->where('user_id', $user->id))
+            ->latest()
+            ->limit(50)
+            ->get();
+        $dealsStats = [
+            'total_volume'     => $own(Deal::query())->where('status', 'closed')->sum('value'),
+            'total_commission' => $own(Deal::query())->where('status', 'closed')->sum('commission'),
+            'active_count'     => $own(Deal::query())->whereNotIn('status', ['closed', 'lost'])->count(),
+        ];
+
         return Inertia::render('Statistics/Index', array_merge($data, [
             'isAdmin'     => $isAdmin,
             'period'      => $period,                  // kept for ExportModal links
             'from'        => $dateFrom->toDateString(),
             'to'          => $dateTo->toDateString(),
             'periodLabel' => $periodLabel,
+            'dealsList'   => $dealsList,
+            'dealsStats'  => $dealsStats,
         ]));
     }
 

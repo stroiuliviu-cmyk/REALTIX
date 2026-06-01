@@ -846,6 +846,98 @@ function AIInsightsTab({ aiInsights }) {
     );
 }
 
+// ─── Admin: Deals tab — mirrors /deals (KpiCards + history table) ────────────
+
+const DEAL_STATUS_LABELS = {
+    new:         'Nou',
+    negotiation: 'Negociere',
+    advance:     'Avans',
+    signing:     'La notar',
+    closed:      'Finalizat',
+    lost:        'Pierdut',
+};
+const DEAL_STATUS_TONE = {
+    new:         'slate',
+    negotiation: 'blue',
+    advance:     'amber',
+    signing:     'violet',
+    closed:      'green',
+    lost:        'red',
+};
+
+function DealsTab({ dealsList = [], dealsStats = {} }) {
+    return (
+        <div className="space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <KpiCard
+                    Icon={Banknote}
+                    label="Volum total vânzări"
+                    value={`€${Number(dealsStats.total_volume ?? 0).toLocaleString('ro')}`}
+                />
+                <KpiCard
+                    Icon={TrendingUp}
+                    label="Comision total"
+                    value={`€${Number(dealsStats.total_commission ?? 0).toLocaleString('ro')}`}
+                />
+                <KpiCard
+                    Icon={Briefcase}
+                    label="Tranzacții active"
+                    value={Number(dealsStats.active_count ?? 0).toLocaleString('ro')}
+                />
+            </div>
+
+            <Card title="Istoric tranzacții" subtitle={`${dealsList.length} cele mai recente`} padding="p-0">
+                {dealsList.length === 0 ? (
+                    <p className="text-sm text-slate-400 text-center py-12">Nu există tranzacții.</p>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left">
+                            <thead className="bg-slate-50 border-b border-slate-200">
+                                <tr>
+                                    {['Client', 'Proprietate', 'Valoare', 'Comision', 'Status', 'Data'].map(h => (
+                                        <th key={h} className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
+                                            {h}
+                                        </th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {dealsList.map(d => {
+                                    const clientName = d.contact
+                                        ? `${d.contact.first_name ?? ''} ${d.contact.last_name ?? ''}`.trim() || `#${d.contact.id}`
+                                        : '—';
+                                    const propLabel = d.property?.title ?? d.title ?? '—';
+                                    const date = d.closed_at ?? d.created_at;
+                                    return (
+                                        <tr key={d.id} className="hover:bg-slate-50 transition-colors">
+                                            <td className="px-5 py-3 font-semibold text-slate-900">{clientName}</td>
+                                            <td className="px-5 py-3 text-slate-600 max-w-xs truncate">{propLabel}</td>
+                                            <td className="px-5 py-3 font-semibold text-slate-900 tabular-nums">
+                                                {d.value ? `€${Number(d.value).toLocaleString('ro')}` : '—'}
+                                            </td>
+                                            <td className="px-5 py-3 font-semibold text-emerald-600 tabular-nums">
+                                                {d.commission ? `€${Number(d.commission).toLocaleString('ro')}` : '—'}
+                                            </td>
+                                            <td className="px-5 py-3">
+                                                <Badge color={DEAL_STATUS_TONE[d.status] ?? 'slate'}>
+                                                    {DEAL_STATUS_LABELS[d.status] ?? d.status}
+                                                </Badge>
+                                            </td>
+                                            <td className="px-5 py-3 text-xs text-slate-400 whitespace-nowrap">
+                                                {date ? new Date(date).toLocaleDateString('ro') : '—'}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </Card>
+        </div>
+    );
+}
+
 // ─── Admin dashboard shell (tabs + content) ──────────────────────────────────
 
 function AdminDashboard(props) {
@@ -855,9 +947,7 @@ function AdminDashboard(props) {
     const tabs = [
         { id: 'overview', label: 'Prezentare generală' },
         { id: 'agents',   label: 'Agenți' },
-        // External tab — navigates to the standalone /deals page instead of
-        // swapping local content. Detected by the presence of `href`.
-        { id: 'deals',    label: 'Tranzacții',   href: '/deals', Icon: Briefcase },
+        { id: 'deals',    label: 'Tranzacții', Icon: Briefcase },
         { id: 'market',   label: 'Piață' },
         { id: 'ai',       label: 'AI Insights' },
     ];
@@ -870,7 +960,7 @@ function AdminDashboard(props) {
                     {tabs.map(t => (
                         <button
                             key={t.id}
-                            onClick={() => t.href ? router.visit(t.href) : setActiveTab(t.id)}
+                            onClick={() => setActiveTab(t.id)}
                             className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition ${
                                 activeTab === t.id
                                     ? 'bg-white text-slate-900 shadow-sm'
@@ -915,6 +1005,7 @@ function AdminDashboard(props) {
 
             {activeTab === 'overview' && <OverviewTab {...props} />}
             {activeTab === 'agents'   && <AgentsTab   {...props} />}
+            {activeTab === 'deals'    && <DealsTab    {...props} />}
             {activeTab === 'market'   && <MarketTab   {...props} />}
             {activeTab === 'ai'       && <AIInsightsTab {...props} />}
         </>

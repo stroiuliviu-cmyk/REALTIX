@@ -11,7 +11,7 @@
    (rt-reveal, rt-hero-*, rt-float, rt-band).
    ============================================================================ */
 import { useState, useRef, useEffect } from 'react';
-import { Head as InertiaHead, router } from '@inertiajs/react';
+import { Head as InertiaHead, Link, router, usePage } from '@inertiajs/react';
 
 /* ============================================================================
    Icon set (Lucide-derived SVG paths, currentColor)
@@ -103,6 +103,32 @@ function ThemeToggle({ className = '' }) {
             className={`w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors ${className}`}>
             <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={18} />
         </button>
+    );
+}
+
+/* LangSwitcher — POST /language/{lang} cu preserveState; pill-toggle, light/dark aware. */
+function LangSwitcher() {
+    const { locale } = usePage().props;
+    const langs = ['ro', 'ru'];
+    const activeIndex = langs.indexOf(locale);
+    const switchLanguage = (lang) => router.post(`/language/${lang}`, {}, { preserveState: true });
+    return (
+        <div className="hidden sm:flex relative text-xs font-bold bg-slate-100 rounded-xl p-1">
+            <span className="absolute top-1 bottom-1 rounded-lg bg-white shadow-sm"
+                style={{
+                    width: `calc((100% - 8px) / ${langs.length})`,
+                    left: '4px',
+                    transform: `translateX(calc(${activeIndex} * 100%))`,
+                    transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                    opacity: activeIndex < 0 ? 0 : 1,
+                }} />
+            {langs.map((lang) => (
+                <button key={lang} onClick={() => switchLanguage(lang)}
+                    className={`relative z-10 flex-1 px-2.5 py-1 rounded-lg uppercase transition-colors duration-200 ${locale === lang ? 'text-slate-900' : 'text-slate-400 hover:text-slate-700'}`}>
+                    {lang}
+                </button>
+            ))}
+        </div>
     );
 }
 
@@ -393,10 +419,8 @@ function AIVisual() {
 /* ============================================================================
    Footer
    ============================================================================ */
-const FOOT_COLS = [
-    ['Companie', ['Contact', 'Termeni', 'Confidențialitate']],
-];
 function RichFooter() {
+    const linkCls = 'text-sm text-slate-500 hover:text-blue-600 transition-colors cursor-pointer';
     return (
         <footer className="bg-white border-t border-slate-200/70">
             <div className="mx-auto max-w-7xl px-6 py-14">
@@ -404,22 +428,15 @@ function RichFooter() {
                     <div className="max-w-md">
                         <Wordmark dark={false} size={18} />
                         <p className="text-sm text-slate-500 mt-4 leading-relaxed">Anunțuri, clienți, estimare AI și autopostare — într-o singură platformă. <span className="text-slate-400">realtix.eu</span></p>
-                        <div className="flex items-center gap-2 mt-5">
-                            {['ro', 'ru'].map((l, i) => (
-                                <span key={l} className={`text-xs font-bold uppercase px-2.5 py-1 rounded-md ${i === 0 ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'}`}>{l}</span>
-                            ))}
-                        </div>
                     </div>
-                    {FOOT_COLS.map(([title, links]) => (
-                        <div key={title}>
-                            <div className="text-xs font-bold uppercase tracking-[0.1em] text-slate-400 mb-4">{title}</div>
-                            <ul className="space-y-2.5">
-                                {links.map((l) => (
-                                    <li key={l}><a className="text-sm text-slate-500 hover:text-blue-600 transition-colors cursor-pointer">{l}</a></li>
-                                ))}
-                            </ul>
-                        </div>
-                    ))}
+                    <div>
+                        <div className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4">Companie</div>
+                        <ul className="space-y-2.5">
+                            <li><a className={linkCls} href="tel:060963509">Contact</a></li>
+                            <li><Link className={linkCls} href="/terms">Termeni</Link></li>
+                            <li><Link className={linkCls} href="/privacy">Confidențialitate</Link></li>
+                        </ul>
+                    </div>
                 </div>
                 <div className="mt-12 pt-6 border-t border-slate-200/70 flex items-center justify-between flex-wrap gap-4">
                     <span className="text-xs text-slate-400">© {new Date().getFullYear()} REALTIX. Platformă SaaS pentru agenții imobiliare.</span>
@@ -534,6 +551,7 @@ function NavBar({ onLogin, onRegister }) {
                     <a className={link} onClick={() => go('preturi')}>Prețuri</a>
                 </nav>
                 <div className="flex items-center gap-2">
+                    <LangSwitcher />
                     <ThemeToggle />
                     <button onClick={onLogin} className="hidden sm:inline-flex text-sm font-semibold text-slate-700 hover:text-slate-900 px-3 py-2 rounded-lg hover:bg-slate-100/70 transition-colors">Autentificare</button>
                     <button onClick={onRegister} className="inline-flex items-center gap-1.5 rounded-full bg-blue-600 hover:bg-blue-700 transition-colors px-5 py-2 text-white text-sm font-semibold shadow-sm">Încearcă Gratuit</button>

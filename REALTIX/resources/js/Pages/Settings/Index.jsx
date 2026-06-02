@@ -1039,11 +1039,11 @@ function SecurityTab({ sessions, activityLog = [] }) {
 
             {/* Danger zone — account deletion */}
             <div>
-                <h4 className="font-semibold text-red-600 text-sm mb-4 mt-2 inline-flex items-center gap-1.5">
+                <h4 className="font-semibold text-red-600 dark:text-red-400 text-sm mb-4 mt-2 inline-flex items-center gap-1.5">
                     <AlertTriangle className="w-4 h-4" strokeWidth={2.5} />
                     Zonă periculoasă
                 </h4>
-                <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+                <div className="rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50 p-4">
                     <div className="text-sm font-semibold text-red-700">Ștergere cont</div>
                     <p className="text-xs text-red-700/80 mt-1.5 leading-relaxed">
                         Odată ce contul este șters, toate datele asociate vor fi eliminate
@@ -1113,7 +1113,7 @@ function SecurityTab({ sessions, activityLog = [] }) {
                         </p>
 
                         {isOwner && (
-                            <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                            <div className="mt-4 rounded-lg border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/30 p-3 text-sm text-red-700 dark:text-red-300">
                                 <strong className="font-semibold">ATENȚIE:</strong>{' '}
                                 Ești administratorul agenției. Ștergerea contului
                                 va anula abonamentul și va șterge PERMANENT agenția,

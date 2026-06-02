@@ -432,7 +432,12 @@ function RichFooter() {
                     <div>
                         <div className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4">Companie</div>
                         <ul className="space-y-2.5">
-                            <li><a className={linkCls} href="tel:060963509">Contact</a></li>
+                            <li>
+                                <a className={`${linkCls} inline-flex items-center gap-1.5`} href="tel:060963509">
+                                    <Icon name="phone" size={14} className="text-slate-400" />
+                                    060 963 509
+                                </a>
+                            </li>
                             <li><Link className={linkCls} href="/terms">Termeni</Link></li>
                             <li><Link className={linkCls} href="/privacy">Confidențialitate</Link></li>
                         </ul>
@@ -550,7 +555,8 @@ function NavBar({ onLogin, onRegister }) {
                     <a className={link} onClick={() => go('rezultate')}>Rezultate</a>
                     <a className={link} onClick={() => go('preturi')}>Prețuri</a>
                 </nav>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
+                    <span aria-hidden="true" className="hidden lg:block w-px h-6 bg-slate-200" />
                     <LangSwitcher />
                     <ThemeToggle />
                     <button onClick={onLogin} className="hidden sm:inline-flex text-sm font-semibold text-slate-700 hover:text-slate-900 px-3 py-2 rounded-lg hover:bg-slate-100/70 transition-colors">Autentificare</button>

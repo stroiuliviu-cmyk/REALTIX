@@ -127,9 +127,51 @@ function PaymentHistoryModal({ invoices, onClose }) {
     );
 }
 
+/* ─── Cancel Confirmation Modal ───────────────────────────────────────── */
+function CancelConfirmModal({ planEndsAt, onConfirm, onClose, processing }) {
+    return (
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4"
+            onClick={onClose}
+        >
+            <div
+                className="w-full max-w-md rounded-3xl bg-white p-7 shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <h3 className="text-lg font-bold text-slate-900">Anulează abonamentul?</h3>
+                <p className="mt-2 text-sm text-slate-600 leading-relaxed">
+                    Abonamentul nu se va mai reînnoi automat. Accesul rămâne activ până
+                    {planEndsAt ? <> la <strong className="text-slate-900">{planEndsAt}</strong></> : ' la sfârșitul perioadei plătite curente'}.
+                    Poți reactiva oricând alegând din nou un plan.
+                </p>
+                <div className="mt-6 flex justify-end gap-2">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        disabled={processing}
+                        className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                    >
+                        Renunță
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onConfirm}
+                        disabled={processing}
+                        className="rounded-xl bg-rose-600 hover:bg-rose-700 px-4 py-2 text-sm font-bold text-white transition-colors disabled:opacity-50"
+                    >
+                        {processing ? 'Se anulează...' : 'Da, anulează'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 /* ─── Main Page ───────────────────────────────────────────────────────── */
 export default function Index({ agency, plans, activeSubscription, invoices, stripe_key, isAdmin }) {
     const [showHistory, setShowHistory]   = useState(false);
+    const [showCancel, setShowCancel]     = useState(false);
+    const [cancelling, setCancelling]     = useState(false);
     const [loading, setLoading]           = useState(null);
     const { flash }                       = usePage().props;
 
@@ -156,10 +198,31 @@ export default function Index({ agency, plans, activeSubscription, invoices, str
         });
     };
 
+    const handleCancel = () => {
+        setCancelling(true);
+        router.post(route('subscription.cancel'), {}, {
+            preserveScroll: true,
+            onFinish: () => {
+                setCancelling(false);
+                setShowCancel(false);
+            },
+        });
+    };
+
+    const canCancel = isAdmin && isActive;
+
     return (
         <AppLayout title="Plan abonament">
             <Head title="Plan abonament" />
             {showHistory && <PaymentHistoryModal invoices={invoices} onClose={() => setShowHistory(false)} />}
+            {showCancel && (
+                <CancelConfirmModal
+                    planEndsAt={planEndsAt}
+                    processing={cancelling}
+                    onConfirm={handleCancel}
+                    onClose={() => !cancelling && setShowCancel(false)}
+                />
+            )}
 
             <div className="space-y-8 max-w-4xl mx-auto">
 
@@ -246,6 +309,14 @@ export default function Index({ agency, plans, activeSubscription, invoices, str
                                 >
                                     Istoric plăți
                                 </button>
+                                {canCancel && (
+                                    <button
+                                        onClick={() => setShowCancel(true)}
+                                        className="rounded-2xl border border-rose-200 bg-white px-5 py-2.5 text-rose-700 text-sm font-semibold hover:bg-rose-50 transition-colors"
+                                    >
+                                        Anulează abonament
+                                    </button>
+                                )}
                             </div>
                         )}
 

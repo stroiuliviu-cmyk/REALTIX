@@ -4,12 +4,15 @@ import InputLabel from '@/Components/InputLabel';
 import Modal from '@/Components/Modal';
 import SecondaryButton from '@/Components/SecondaryButton';
 import TextInput from '@/Components/TextInput';
-import { useForm } from '@inertiajs/react';
+import { useForm, usePage } from '@inertiajs/react';
 import { useRef, useState } from 'react';
 
 export default function DeleteUserForm({ className = '' }) {
     const [confirmingUserDeletion, setConfirmingUserDeletion] = useState(false);
     const passwordInput = useRef();
+
+    const { auth } = usePage().props;
+    const isOwner = !!(auth?.user?.is_admin && auth?.user?.agency);
 
     const {
         data,
@@ -49,38 +52,45 @@ export default function DeleteUserForm({ className = '' }) {
         <section className={`space-y-6 ${className}`}>
             <header>
                 <h2 className="text-lg font-medium text-gray-900">
-                    Delete Account
+                    Ștergere cont
                 </h2>
 
                 <p className="mt-1 text-sm text-gray-600">
-                    Once your account is deleted, all of its resources and data
-                    will be permanently deleted. Before deleting your account,
-                    please download any data or information that you wish to
-                    retain.
+                    Odată ce contul este șters, toate datele asociate vor fi
+                    eliminate permanent. Înainte de ștergere, descarcă orice
+                    informații pe care vrei să le păstrezi.
                 </p>
             </header>
 
             <DangerButton onClick={confirmUserDeletion}>
-                Delete Account
+                Șterge contul
             </DangerButton>
 
             <Modal show={confirmingUserDeletion} onClose={closeModal}>
                 <form onSubmit={deleteUser} className="p-6">
                     <h2 className="text-lg font-medium text-gray-900">
-                        Are you sure you want to delete your account?
+                        Ești sigur că vrei să ștergi contul?
                     </h2>
 
                     <p className="mt-1 text-sm text-gray-600">
-                        Once your account is deleted, all of its resources and
-                        data will be permanently deleted. Please enter your
-                        password to confirm you would like to permanently delete
-                        your account.
+                        Această acțiune este permanentă. Toate datele tale vor
+                        fi șterse definitiv. Introdu parola pentru a confirma.
                     </p>
+
+                    {isOwner && (
+                        <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+                            <strong className="font-semibold">ATENȚIE:</strong>{' '}
+                            Ești administratorul agenției. Ștergerea contului
+                            va anula abonamentul și va șterge PERMANENT agenția,
+                            împreună cu toate proprietățile, contactele,
+                            tranzacțiile și agenții asociați.
+                        </div>
+                    )}
 
                     <div className="mt-6">
                         <InputLabel
                             htmlFor="password"
-                            value="Password"
+                            value="Parola"
                             className="sr-only"
                         />
 
@@ -95,7 +105,7 @@ export default function DeleteUserForm({ className = '' }) {
                             }
                             className="mt-1 block w-3/4"
                             isFocused
-                            placeholder="Password"
+                            placeholder="Parola"
                         />
 
                         <InputError
@@ -106,11 +116,11 @@ export default function DeleteUserForm({ className = '' }) {
 
                     <div className="mt-6 flex justify-end">
                         <SecondaryButton onClick={closeModal}>
-                            Cancel
+                            Anulează
                         </SecondaryButton>
 
                         <DangerButton className="ms-3" disabled={processing}>
-                            Delete Account
+                            Șterge contul
                         </DangerButton>
                     </div>
                 </form>

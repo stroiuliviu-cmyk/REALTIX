@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\Agency;
+use App\Models\ConsumedTrial;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
@@ -52,11 +53,15 @@ class RegisteredUserController extends Controller
             $slug = $baseSlug . '-' . $i++;
         }
 
+        $trialEndsAt = ConsumedTrial::wasConsumed($request->email)
+            ? null
+            : now()->addDays(14);
+
         $agency = Agency::create([
             'name'              => $agencyName,
             'slug'              => $slug,
             'subscription_plan' => 'starter',
-            'trial_ends_at'     => now()->addDays(14),
+            'trial_ends_at'     => $trialEndsAt,
         ]);
 
         $user = User::create([

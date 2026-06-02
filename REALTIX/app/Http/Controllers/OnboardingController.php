@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
+use App\Models\ConsumedTrial;
 use App\Models\SubscriptionPlan;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -189,8 +190,13 @@ class OnboardingController extends Controller
                 $builder->price($extraSeatPriceId, $extra);
             }
 
+            // Anti-abuz: dacă emailul owner-ului a mai consumat trial-ul
+            // (cont șters anterior), forțăm plata imediată — fără 14 zile gratis.
+            if (! ConsumedTrial::wasConsumed($request->user()->email)) {
+                $builder->trialUntil(now()->addDays(14)->endOfDay());
+            }
+
             $checkout = $builder
-                ->trialUntil(now()->addDays(14)->endOfDay())
                 ->checkout([
                     'success_url'      => route('onboarding.success') . '?session_id={CHECKOUT_SESSION_ID}',
                     'cancel_url'       => route('onboarding.plan'),

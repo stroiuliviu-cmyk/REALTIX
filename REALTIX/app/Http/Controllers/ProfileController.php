@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Models\ConsumedTrial;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -59,6 +60,11 @@ class ProfileController extends Controller
         $user    = $request->user();
         $agency  = $user->agency;
         $isOwner = ($user->isAdmin() || $user->isSuperAdmin()) && $agency !== null;
+
+        // Anti-abuz: hash-uim emailul ca trial consumat, ca re-înregistrarea
+        // cu aceeași adresă să nu mai obțină 14 zile gratuite. Permitem totuși
+        // re-înregistrarea — doar trial-ul e blocat.
+        ConsumedTrial::markConsumed($user->email);
 
         if ($isOwner && $agency->subscribed('default')) {
             try {

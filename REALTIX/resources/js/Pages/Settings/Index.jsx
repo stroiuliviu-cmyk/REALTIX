@@ -909,6 +909,12 @@ function SecurityTab({ sessions, activityLog = [] }) {
     const pw = useForm({ current_password: '', password: '', password_confirmation: '' });
     const logoutOthers = useForm({ password: '' });
     const [showLogoutForm, setShowLogoutForm] = useState(false);
+    const [confirmingDelete, setConfirmingDelete] = useState(false);
+
+    const { auth } = usePage().props;
+    const isOwner = !!((auth?.user?.is_admin || auth?.user?.is_super_admin) && auth?.user?.agency);
+
+    const deleteForm = useForm({ password: '' });
 
     const submitPw = (e) => {
         e.preventDefault();
@@ -919,6 +925,20 @@ function SecurityTab({ sessions, activityLog = [] }) {
         e.preventDefault();
         logoutOthers.post(route('settings.logout.others'), {
             onSuccess: () => { setShowLogoutForm(false); logoutOthers.reset(); },
+        });
+    };
+
+    const closeDeleteModal = () => {
+        setConfirmingDelete(false);
+        deleteForm.clearErrors();
+        deleteForm.reset();
+    };
+
+    const submitDelete = (e) => {
+        e.preventDefault();
+        deleteForm.delete(route('profile.destroy'), {
+            preserveScroll: true,
+            onError: () => {},
         });
     };
 
@@ -1017,6 +1037,29 @@ function SecurityTab({ sessions, activityLog = [] }) {
                 </div>
             </div>
 
+            {/* Danger zone — account deletion */}
+            <div>
+                <h4 className="font-semibold text-red-600 text-sm mb-4 mt-2 inline-flex items-center gap-1.5">
+                    <AlertTriangle className="w-4 h-4" strokeWidth={2.5} />
+                    Zonă periculoasă
+                </h4>
+                <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+                    <div className="text-sm font-semibold text-red-700">Ștergere cont</div>
+                    <p className="text-xs text-red-700/80 mt-1.5 leading-relaxed">
+                        Odată ce contul este șters, toate datele asociate vor fi eliminate
+                        permanent. Această acțiune nu poate fi anulată.
+                    </p>
+                    <button
+                        type="button"
+                        onClick={() => setConfirmingDelete(true)}
+                        className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-red-600 hover:bg-red-700 px-4 py-2 text-white text-sm font-semibold shadow-sm transition-colors"
+                    >
+                        <Trash2 className="w-4 h-4" strokeWidth={2.5} />
+                        Șterge contul
+                    </button>
+                </div>
+            </div>
+
             {/* Activity log */}
             <div>
                 <SectionTitle>Jurnal activitate</SectionTitle>
@@ -1049,6 +1092,68 @@ function SecurityTab({ sessions, activityLog = [] }) {
                     </div>
                 )}
             </div>
+
+            {/* Delete-account confirmation modal */}
+            {confirmingDelete && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+                    onClick={() => !deleteForm.processing && closeDeleteModal()}
+                >
+                    <form
+                        onSubmit={submitDelete}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
+                    >
+                        <h3 className="text-lg font-semibold text-slate-900">
+                            Ești sigur că vrei să ștergi contul?
+                        </h3>
+                        <p className="text-sm text-slate-600 mt-2 leading-relaxed">
+                            Această acțiune este permanentă. Toate datele tale vor fi
+                            șterse definitiv. Introdu parola pentru a confirma.
+                        </p>
+
+                        {isOwner && (
+                            <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                                <strong className="font-semibold">ATENȚIE:</strong>{' '}
+                                Ești administratorul agenției. Ștergerea contului
+                                va anula abonamentul și va șterge PERMANENT agenția,
+                                împreună cu toate proprietățile, contactele,
+                                tranzacțiile și agenții asociați.
+                            </div>
+                        )}
+
+                        <div className="mt-5">
+                            <Label>Parola</Label>
+                            <Input
+                                type="password"
+                                value={deleteForm.data.password}
+                                onChange={(v) => deleteForm.setData('password', v)}
+                                placeholder="Parola"
+                            />
+                            <FieldError msg={deleteForm.errors.password} />
+                        </div>
+
+                        <div className="mt-6 flex justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={closeDeleteModal}
+                                disabled={deleteForm.processing}
+                                className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                            >
+                                Anulează
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={deleteForm.processing}
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 hover:bg-red-700 px-4 py-2 text-white text-sm font-semibold shadow-sm transition-colors disabled:opacity-50"
+                            >
+                                <Trash2 className="w-4 h-4" strokeWidth={2.5} />
+                                {deleteForm.processing ? 'Se șterge…' : 'Șterge contul'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            )}
         </div>
     );
 }

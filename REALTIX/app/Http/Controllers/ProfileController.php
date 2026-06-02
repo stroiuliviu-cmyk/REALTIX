@@ -58,7 +58,7 @@ class ProfileController extends Controller
 
         $user    = $request->user();
         $agency  = $user->agency;
-        $isOwner = $user->isAdmin() && $agency !== null;
+        $isOwner = ($user->isAdmin() || $user->isSuperAdmin()) && $agency !== null;
 
         if ($isOwner && $agency->subscribed('default')) {
             try {

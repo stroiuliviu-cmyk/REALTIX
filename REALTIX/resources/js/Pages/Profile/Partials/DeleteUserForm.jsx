@@ -12,7 +12,7 @@ export default function DeleteUserForm({ className = '' }) {
     const passwordInput = useRef();
 
     const { auth } = usePage().props;
-    const isOwner = !!(auth?.user?.is_admin && auth?.user?.agency);
+    const isOwner = !!((auth?.user?.is_admin || auth?.user?.is_super_admin) && auth?.user?.agency);
 
     const {
         data,

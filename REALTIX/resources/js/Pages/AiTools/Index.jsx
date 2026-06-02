@@ -44,14 +44,25 @@ const VALUATION_CFG = {
 };
 
 // ── helpers ──────────────────────────────────────────────────────────────────
+// Read the FRESH CSRF token from the XSRF-TOKEN cookie (Laravel rotates it on
+// every response). The meta tag is rendered server-side once on page load and
+// goes stale if the session regenerates while the page is open — that was the
+// source of the 419 "Page Expired" on the first AI click after idle.
+// Pair this with the 'X-XSRF-TOKEN' header (NOT 'X-CSRF-TOKEN'); both are
+// accepted by VerifyCsrfToken but the cookie value is meant for X-XSRF-TOKEN.
 function csrf() {
+    const match = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/);
+    if (match) {
+        try { return decodeURIComponent(match[1]); } catch { return match[1]; }
+    }
     return document.head.querySelector('meta[name="csrf-token"]')?.content ?? '';
 }
 
 async function aiPost(url, body) {
     const r = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf(), 'Accept': 'application/json' },
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-XSRF-TOKEN': csrf(), 'Accept': 'application/json' },
         body: JSON.stringify(body),
     });
     const json = await r.json();

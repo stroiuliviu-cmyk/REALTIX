@@ -57,13 +57,25 @@ function Icon({ name, size = 20, sw = 2, className = '', style = {} }) {
 /* ============================================================================
    Wordmark + Badge primitives
    ============================================================================ */
-function Wordmark({ dark = true, size = 18 }) {
+/* Theme-aware: ascultă clasa `.dark` pe <html> (toggle-ul existent) — proiectul
+   nu declară `@custom-variant dark` în Tailwind v4, deci dark: prefix nu reacționează
+   la toggle manual; folosim state + MutationObserver pentru a fi sincronizați. */
+function Wordmark({ size = 18 }) {
+    const [isDark, setIsDark] = useState(() =>
+        typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
+    );
+    useEffect(() => {
+        if (typeof MutationObserver === 'undefined') return;
+        const obs = new MutationObserver(() => setIsDark(document.documentElement.classList.contains('dark')));
+        obs.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+        return () => obs.disconnect();
+    }, []);
     return (
         <div className="flex items-center gap-2.5">
-            <Icon name="home" size={size + 6} sw={2.25} className={dark ? 'text-blue-500' : 'text-blue-600'} />
+            <Icon name="home" size={size + 6} sw={2.25} className={isDark ? 'text-blue-400' : 'text-blue-600'} />
             <span
                 style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800, letterSpacing: '0.16em', fontSize: size }}
-                className={dark ? 'text-white' : 'text-[#0b1a4a]'}
+                className={isDark ? 'text-white' : 'text-[#0b1a4a]'}
             >REALTIX</span>
         </div>
     );
@@ -426,7 +438,7 @@ function RichFooter() {
             <div className="mx-auto max-w-7xl px-6 py-14">
                 <div className="grid gap-10 lg:grid-cols-[2fr_1fr] items-start">
                     <div className="max-w-md">
-                        <Wordmark dark={false} size={18} />
+                        <Wordmark size={18} />
                         <p className="text-sm text-slate-500 mt-4 leading-relaxed">Anunțuri, clienți, estimare AI și autopostare — într-o singură platformă. <span className="text-slate-400">realtix.eu</span></p>
                     </div>
                     <div>
@@ -547,15 +559,15 @@ function NavBar({ onLogin, onRegister }) {
     const link = 'text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors px-3 py-2 rounded-lg hover:bg-slate-100/70 cursor-pointer';
     return (
         <header className={`rt-header fixed top-0 w-full z-50 transition-shadow ${scrolled ? 'border-b border-slate-200/70 shadow-[0_1px_20px_rgba(15,23,42,.05)]' : 'border-b border-transparent'}`} style={{ background: 'rgba(255,255,255,.85)', backdropFilter: 'blur(16px)' }}>
-            <div className="mx-auto flex max-w-7xl items-center justify-between px-6 h-16">
-                <Wordmark dark={false} size={19} />
-                <nav className="hidden lg:flex items-center gap-0.5 absolute left-1/2 -translate-x-1/2">
+            <div className="mx-auto flex max-w-7xl items-center justify-between px-6 h-16 gap-4">
+                <div className="shrink-0"><Wordmark size={19} /></div>
+                <nav className="hidden lg:flex items-center gap-1">
                     <a className={link} onClick={() => go('cum-functioneaza')}>Cum funcționează</a>
                     <a className={link} onClick={() => go('functii')}>Funcționalități</a>
                     <a className={link} onClick={() => go('rezultate')}>Rezultate</a>
                     <a className={link} onClick={() => go('preturi')}>Prețuri</a>
                 </nav>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 shrink-0">
                     <span aria-hidden="true" className="hidden lg:block w-px h-6 bg-slate-200" />
                     <LangSwitcher />
                     <ThemeToggle />

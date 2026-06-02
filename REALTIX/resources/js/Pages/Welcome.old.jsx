@@ -1,0 +1,260 @@
+import { Head, Link } from '@inertiajs/react';
+import ThemeToggle from '@/Components/ui/ThemeToggle';
+
+const features = [
+    { title: 'Sistem CRM', desc: 'Gestionează clienții și tranzacțiile într-un singur loc.', icon: '👥' },
+    { title: 'Catalog Anunțuri', desc: 'Vizualizare centralizată a anunțurilor de pe 999.md, imobiliare.md și alte platforme.', icon: '🔍' },
+    { title: 'Asistent AI', desc: 'Generare automată de descrieri și evaluare inteligentă a proprietăților.', icon: '🤖' },
+    { title: 'Contracte PDF', desc: 'Generare automată a contractelor și documentelor necesare.', icon: '📄' },
+];
+
+const targetAudience = [
+    { role: 'Agenții Imobiliare', desc: 'Automatizarea proceselor și managementul echipei.' },
+    { role: 'Agenți Independenți', desc: 'Gestionarea eficientă a portofoliului de clienți.' },
+    { role: 'Investitori', desc: 'Analiza pieței, monitorizarea activelor și identificarea oportunităților imobiliare în timp real, cu acces la date centralizate, statistici și informații relevante pentru decizii rapide și eficiente.' },
+    { role: 'Dezvoltatori Imobiliari', desc: 'Gestionarea proiectelor rezidențiale și promovarea ofertelor către agenții, investitori și potențiali parteneri într-o platformă centralizată.' },
+];
+
+const PLAN_FEATURES = [
+    'Sistem CRM',
+    'Catalog Anunțuri',
+    'Asistent AI',
+    'Contracte PDF',
+    'Statistici + export',
+];
+
+const pricing = [
+    {
+        name: 'Solo', price: '15€', extra: null, users: '1 agent (doar tu)',
+        features: PLAN_FEATURES,
+        popular: false,
+    },
+    {
+        name: 'Team', price: '49€', extra: null, users: 'Până la 5 agenți',
+        features: PLAN_FEATURES,
+        popular: true,
+    },
+    {
+        name: 'Growth', price: '49€', extra: '+ 8€/agent peste 5', users: '5 agenți incluși, agenți nelimitați',
+        features: PLAN_FEATURES,
+        popular: false,
+    },
+];
+
+const mont = { fontFamily: "'Montserrat', sans-serif" };
+
+export default function Welcome() {
+    return (
+        <>
+            <Head title="REALTIX — Găsește, evaluează, vinde – ușor.">
+                <link rel="preconnect" href="https://fonts.googleapis.com" />
+                <link
+                    href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&display=swap"
+                    rel="stylesheet"
+                />
+            </Head>
+
+            <div className="rt-landing-canvas min-h-screen bg-linear-to-br from-slate-50 via-white to-blue-50 text-slate-900">
+
+                {/* Header */}
+                <header className="fixed top-0 w-full z-50 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
+                    <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 py-3 sm:py-4 gap-2">
+                        <div style={mont} className="text-xl sm:text-3xl font-bold text-[#1E3A8A] tracking-wider sm:tracking-widest shrink-0">
+                            REALTIX
+                        </div>
+
+                        <nav className="hidden md:flex gap-6 lg:gap-8 text-sm font-medium text-slate-600">
+                            <a href="#functionalitati" className="hover:text-[#1E3A8A] transition-colors">Funcționalități</a>
+                            <a href="#audienta" className="hover:text-[#1E3A8A] transition-colors">Pentru Cine</a>
+                            <a href="#preturi" className="hover:text-[#1E3A8A] transition-colors">Prețuri</a>
+                        </nav>
+
+                        <div className="flex gap-2 sm:gap-3 items-center">
+                            <ThemeToggle className="w-9 h-9 sm:w-10 sm:h-10" />
+                            <Link
+                                href={route('login')}
+                                className="hidden sm:block text-sm font-semibold text-[#1E3A8A] hover:text-blue-900 transition-colors"
+                            >
+                                Autentificare
+                            </Link>
+                            <Link
+                                href={route('register')}
+                                className="rounded-full bg-[#1E3A8A] hover:bg-blue-900 transition-colors px-4 sm:px-6 py-2 sm:py-2.5 text-white text-xs sm:text-sm font-semibold shadow-lg whitespace-nowrap"
+                            >
+                                Încearcă Gratuit
+                            </Link>
+                        </div>
+                    </div>
+                </header>
+
+                {/* Hero */}
+                <section className="relative pt-24 sm:pt-32 pb-16 sm:pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
+                    <div className="mx-auto max-w-7xl px-4 sm:px-6 text-center">
+                        <div className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm text-[#1E3A8A] mb-6 sm:mb-8">
+                            <span className="flex h-2 w-2 rounded-full bg-[#22C55E]" />
+                            SaaS PropTech pregătit de scalare în Moldova
+                        </div>
+
+                        <h1 style={mont} className="mx-auto max-w-4xl text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-slate-900">
+                            Găsește, evaluează, vinde –{' '}
+                            <span className="text-[#1E3A8A]">ușor.</span>
+                        </h1>
+
+                        <p className="mx-auto mt-4 sm:mt-6 max-w-2xl text-base sm:text-lg text-slate-600 leading-relaxed px-2">
+                            REALTIX combină funcțiile unui sistem CRM, agregator de căutare și asistent AI
+                            pentru a face lucrul cu imobiliarele simplu, inteligent și transparent.
+                        </p>
+
+                        <div className="mt-8 sm:mt-10 flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 px-4 sm:px-0">
+                            <Link
+                                href={route('register')}
+                                className="rounded-full bg-[#1E3A8A] px-6 sm:px-8 py-3 sm:py-4 text-sm sm:text-base font-semibold text-white shadow-xl hover:bg-blue-900 transition-all"
+                            >
+                                Creează cont de agent
+                            </Link>
+                            <Link
+                                href={route('login')}
+                                className="rounded-full bg-white border border-slate-200 px-6 sm:px-8 py-3 sm:py-4 text-sm sm:text-base font-semibold text-slate-900 shadow-sm hover:bg-slate-50 transition-all inline-flex items-center justify-center"
+                            >
+                                Autentifică-te
+                            </Link>
+                        </div>
+                    </div>
+                </section>
+
+                {/* Features */}
+                <section id="functionalitati" className="py-14 sm:py-20 bg-white">
+                    <div className="mx-auto max-w-7xl px-4 sm:px-6">
+                        <div className="text-center mb-10 sm:mb-16">
+                            <h2 style={mont} className="text-2xl sm:text-3xl font-bold text-slate-900">
+                                Instrumentele viitorului imobiliar
+                            </h2>
+                            <p className="mt-3 sm:mt-4 text-sm sm:text-base text-slate-600">
+                                Automatizează tranzacțiile și folosește inteligența artificială.
+                            </p>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+                            {features.map((feat, idx) => (
+                                <div key={idx} className="rounded-3xl sm:rounded-4xl bg-slate-50 p-5 sm:p-8 border border-slate-100 hover:shadow-xl transition-shadow">
+                                    <div className="text-3xl sm:text-4xl mb-3 sm:mb-4">{feat.icon}</div>
+                                    <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2">{feat.title}</h3>
+                                    <p className="text-slate-600 text-sm leading-relaxed">{feat.desc}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+
+                {/* Target Audience */}
+                <section id="audienta" className="py-14 sm:py-20 bg-linear-to-br from-[#1E3A8A] to-blue-900 text-white">
+                    <div className="mx-auto max-w-7xl px-4 sm:px-6">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+                            <div>
+                                <h2 style={mont} className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4 sm:mb-6">
+                                    Un ecosistem imobiliar inteligent pentru agenții, agenți și dezvoltatori
+                                </h2>
+                                <p className="text-blue-200 text-lg mb-8 leading-relaxed">
+                                    Fie că administrezi o agenție cu mai multe echipe, coordonezi activitatea agenților
+                                    sau analizezi oportunități de investiții, REALTIX centralizează anunțurile,
+                                    automatizează procesele și oferă instrumente moderne pentru gestionarea eficientă
+                                    a activității imobiliare.
+                                </p>
+                                <ul className="space-y-4">
+                                    <li className="flex items-center gap-3">
+                                        <span className="text-[#22C55E]">✓</span> Filtru „doar de la proprietari"
+                                    </li>
+                                    <li className="flex items-center gap-3">
+                                        <span className="text-[#22C55E]">✓</span> Multilingv (RO / RU)
+                                    </li>
+                                </ul>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {targetAudience.map((item, idx) => (
+                                    <div key={idx} className="bg-white/10 backdrop-blur-md border border-white/20 p-6 rounded-3xl">
+                                        <h4 className="font-bold text-lg mb-2">{item.role}</h4>
+                                        <p className="text-sm text-blue-100">{item.desc}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                {/* Pricing */}
+                <section id="preturi" className="py-14 sm:py-20 lg:py-24 bg-slate-50">
+                    <div className="mx-auto max-w-7xl px-4 sm:px-6">
+                        <div className="text-center mb-10 sm:mb-16">
+                            <h2 style={mont} className="text-2xl sm:text-3xl font-bold text-slate-900">
+                                Abonamente transparente
+                            </h2>
+                            <p className="mt-3 sm:mt-4 text-sm sm:text-base text-slate-600">
+                                Alege planul potrivit pentru volumul tău de muncă.
+                            </p>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 max-w-5xl mx-auto pt-6 md:pt-0">
+                            {pricing.map((plan, idx) => (
+                                <div
+                                    key={idx}
+                                    className={`relative rounded-3xl sm:rounded-4xl p-6 sm:p-8 border ${
+                                        plan.popular
+                                            ? 'bg-[#1E3A8A] text-white border-[#1E3A8A] shadow-2xl md:scale-105'
+                                            : 'bg-white text-slate-900 border-slate-200 shadow-lg'
+                                    }`}
+                                >
+                                    {plan.popular && (
+                                        <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#22C55E] text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wide">
+                                            Cel mai ales
+                                        </div>
+                                    )}
+                                    <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
+                                    <div className="mb-6">
+                                        <span style={mont} className="text-4xl font-bold">{plan.price}</span>
+                                        <span className={`text-sm ${plan.popular ? 'text-blue-200' : 'text-slate-500'}`}> / lună</span>
+                                        {plan.extra && (
+                                            <div className={`text-xs mt-1 font-semibold ${plan.popular ? 'text-blue-200' : 'text-slate-500'}`}>
+                                                {plan.extra}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className={`inline-block px-3 py-1 rounded-full text-xs font-semibold mb-8 ${plan.popular ? 'bg-white/20' : 'bg-slate-100'}`}>
+                                        {plan.users}
+                                    </div>
+                                    <ul className="space-y-4 mb-8">
+                                        {plan.features.map((f, i) => (
+                                            <li key={i} className="flex items-center gap-3 text-sm">
+                                                <span className={plan.popular ? 'text-[#22C55E]' : 'text-[#1E3A8A]'}>✓</span>
+                                                {f}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                    <Link
+                                        href={route('register')}
+                                        className={`block w-full py-3 rounded-2xl font-semibold text-center transition-colors ${
+                                            plan.popular
+                                                ? 'bg-[#22C55E] text-white hover:bg-green-600'
+                                                : 'bg-slate-100 text-slate-900 hover:bg-slate-200'
+                                        }`}
+                                    >
+                                        Alege {plan.name}
+                                    </Link>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+
+                {/* Footer */}
+                <footer className="bg-slate-900 text-slate-400 py-10 sm:py-12 text-sm">
+                    <div className="mx-auto max-w-7xl px-4 sm:px-6 flex flex-col md:flex-row justify-between items-center gap-4 text-center md:text-left">
+                        <div style={mont} className="text-2xl font-bold text-white tracking-widest">REALTIX</div>
+                        <p className="text-xs sm:text-sm">© {new Date().getFullYear()} REALTIX. Toate drepturile rezervate.</p>
+                        <div className="flex gap-4 text-xs sm:text-sm">
+                            <Link href="/terms" className="hover:text-white transition-colors">Termeni și Condiții</Link>
+                            <Link href="/privacy" className="hover:text-white transition-colors">Confidențialitate</Link>
+                        </div>
+                    </div>
+                </footer>
+            </div>
+        </>
+    );
+}

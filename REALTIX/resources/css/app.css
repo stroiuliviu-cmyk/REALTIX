@@ -260,3 +260,31 @@ html.dark, html.dark body { background-color: #0b1120; }
 .rt-canvas, .bg-white, .border-slate-100, .border-slate-200, .text-slate-900 {
     transition: background-color .2s ease, border-color .2s ease, color .2s ease;
 }
+
+/* ============================================================================
+   Landing page (Welcome.jsx) — scroll-reveal + hero stagger + floating chip
+   ============================================================================ */
+.rt-reveal      { opacity: 0; transform: translateY(var(--rt-y, 26px));
+                  transition: opacity .7s cubic-bezier(.16,1,.3,1), transform .7s cubic-bezier(.16,1,.3,1); }
+.rt-reveal.rt-in{ opacity: 1; transform: none; }
+
+@keyframes rtRise { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: none; } }
+.rt-hero-1, .rt-hero-2, .rt-hero-3, .rt-hero-4, .rt-hero-5 { opacity: 0; animation: rtRise .8s cubic-bezier(.16,1,.3,1) forwards; }
+.rt-hero-1 { animation-delay: .05s; }
+.rt-hero-2 { animation-delay: .16s; }
+.rt-hero-3 { animation-delay: .30s; }
+.rt-hero-4 { animation-delay: .42s; }
+.rt-hero-5 { animation-delay: .30s; animation-duration: .9s; }
+
+@keyframes rtFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+.rt-float { animation: rtFloat 4.5s ease-in-out infinite; }
+
+/* subtle striping for alternating landing sections; dark mode keeps the navy canvas */
+.rt-band { background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%); }
+.dark .rt-band { background: transparent; }
+
+@media (prefers-reduced-motion: reduce) {
+    .rt-reveal { opacity: 1 !important; transform: none !important; transition: none; }
+    .rt-hero-1, .rt-hero-2, .rt-hero-3, .rt-hero-4, .rt-hero-5 { opacity: 1; animation: none; }
+    .rt-float { animation: none; }
+}

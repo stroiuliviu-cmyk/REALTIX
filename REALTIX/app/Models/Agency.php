@@ -81,6 +81,15 @@ class Agency extends Model
         if ($this->inTrialPeriod()) {
             return true;
         }
+        // Grace period via subscription_ends_at e VALID doar dacă plata nu a eșuat.
+        // Stripe poate marca abonamentul past_due/unpaid/canceled între timp, dar
+        // subscription_ends_at rămâne în viitor (data finalului perioadei plătite
+        // anterior) — fără verificarea statusului, dădeam acces gratuit la oricine
+        // cu plata eșuată. [[consumed-trials]] nu intervine aici.
+        $sub = $this->subscription('default');
+        if ($sub && in_array($sub->stripe_status, ['past_due', 'unpaid', 'canceled', 'incomplete_expired'], true)) {
+            return false;
+        }
         return $this->subscription_ends_at !== null && $this->subscription_ends_at->isFuture();
     }
 

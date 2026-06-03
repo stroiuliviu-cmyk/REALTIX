@@ -91,44 +91,53 @@ Route::middleware(['auth', 'verified', 'onboarded'])->group(function () {
         ->middleware('agency.subscription:team')
         ->name('agency.switch');
 
-    // Properties
-    Route::post('/properties/bulk-action', [PropertyController::class, 'bulkAction'])->name('properties.bulk');
-    Route::resource('properties', PropertyController::class);
-    Route::post('/properties/{property}/favorite', [PropertyController::class, 'toggleFavorite'])->name('properties.favorite');
-    Route::patch('/properties/{property}/status',  [PropertyController::class, 'updateStatus'])->name('properties.status');
-    Route::patch('/properties/{property}/transfer', [PropertyController::class, 'transfer'])->name('properties.transfer');
+    // Work routes — blocate când abonamentul nu e activ (past_due/unpaid/canceled/expired).
+    // Dashboard, profile, /subscription/*, /settings/*, /notifications/*, onboarding rămân
+    // afară din wrapper ca userul să poată plăti și să-și gestioneze contul.
+    Route::middleware('agency.subscription')->group(function () {
+        // Properties
+        Route::post('/properties/bulk-action', [PropertyController::class, 'bulkAction'])->name('properties.bulk');
+        Route::resource('properties', PropertyController::class);
+        Route::post('/properties/{property}/favorite', [PropertyController::class, 'toggleFavorite'])->name('properties.favorite');
+        Route::patch('/properties/{property}/status',  [PropertyController::class, 'updateStatus'])->name('properties.status');
+        Route::patch('/properties/{property}/transfer', [PropertyController::class, 'transfer'])->name('properties.transfer');
 
-    // Contacts + interactions
-    Route::resource('contacts', ContactController::class)->except(['create', 'edit']);
-    Route::patch('/contacts/{contact}/status', [ContactController::class, 'updateStatus'])->name('contacts.status');
-    Route::patch('/contacts/{contact}/transfer', [ContactController::class, 'transfer'])->name('contacts.transfer');
-    Route::post('contacts/{contact}/interactions', [ContactController::class, 'addInteraction'])
-        ->name('contacts.interactions.store');
-    Route::patch('contacts/{contact}/interactions/{interaction}', [ContactController::class, 'updateInteraction'])
-        ->name('contacts.interactions.update');
-    Route::delete('contacts/{contact}/interactions/{interaction}', [ContactController::class, 'destroyInteraction'])
-        ->name('contacts.interactions.destroy');
-    Route::post('contacts/{contact}/properties',              [ContactController::class, 'attachProperty'])->name('contacts.properties.attach');
-    Route::delete('contacts/{contact}/properties/{property}', [ContactController::class, 'detachProperty'])->name('contacts.properties.detach');
-    Route::post('properties/{property}/contacts',             [PropertyController::class, 'attachContact'])->name('properties.contacts.attach');
-    Route::delete('properties/{property}/contacts/{contact}', [PropertyController::class, 'detachContact'])->name('properties.contacts.detach');
-    Route::post('properties/{property}/notes',                [PropertyController::class, 'storeNote'])->name('properties.notes.store');
+        // Contacts + interactions
+        Route::resource('contacts', ContactController::class)->except(['create', 'edit']);
+        Route::patch('/contacts/{contact}/status', [ContactController::class, 'updateStatus'])->name('contacts.status');
+        Route::patch('/contacts/{contact}/transfer', [ContactController::class, 'transfer'])->name('contacts.transfer');
+        Route::post('contacts/{contact}/interactions', [ContactController::class, 'addInteraction'])
+            ->name('contacts.interactions.store');
+        Route::patch('contacts/{contact}/interactions/{interaction}', [ContactController::class, 'updateInteraction'])
+            ->name('contacts.interactions.update');
+        Route::delete('contacts/{contact}/interactions/{interaction}', [ContactController::class, 'destroyInteraction'])
+            ->name('contacts.interactions.destroy');
+        Route::post('contacts/{contact}/properties',              [ContactController::class, 'attachProperty'])->name('contacts.properties.attach');
+        Route::delete('contacts/{contact}/properties/{property}', [ContactController::class, 'detachProperty'])->name('contacts.properties.detach');
+        Route::post('properties/{property}/contacts',             [PropertyController::class, 'attachContact'])->name('properties.contacts.attach');
+        Route::delete('properties/{property}/contacts/{contact}', [PropertyController::class, 'detachContact'])->name('properties.contacts.detach');
+        Route::post('properties/{property}/notes',                [PropertyController::class, 'storeNote'])->name('properties.notes.store');
 
-    // Deals
-    Route::resource('deals', DealController::class)->only(['index', 'store', 'update']);
+        // Deals
+        Route::resource('deals', DealController::class)->only(['index', 'store', 'update']);
 
-    // Calendar
-    Route::get('/calendar', [CalendarController::class, 'index'])->name('calendar.index');
-    Route::post('/calendar', [CalendarController::class, 'store'])->name('calendar.store');
-    Route::patch('/calendar/{calendarEvent}', [CalendarController::class, 'update'])->name('calendar.update');
-    Route::patch('/calendar/{calendarEvent}/status', [CalendarController::class, 'updateStatus'])->name('calendar.status');
-    Route::delete('/calendar/{calendarEvent}', [CalendarController::class, 'destroy'])->name('calendar.destroy');
+        // Calendar
+        Route::get('/calendar', [CalendarController::class, 'index'])->name('calendar.index');
+        Route::post('/calendar', [CalendarController::class, 'store'])->name('calendar.store');
+        Route::patch('/calendar/{calendarEvent}', [CalendarController::class, 'update'])->name('calendar.update');
+        Route::patch('/calendar/{calendarEvent}/status', [CalendarController::class, 'updateStatus'])->name('calendar.status');
+        Route::delete('/calendar/{calendarEvent}', [CalendarController::class, 'destroy'])->name('calendar.destroy');
+    });
 
     // Settings / Profile
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
+    // AI Tools page + Statistics — wrapped: subscription must be active.
+    // (Per-action :feature gating below stays — middleware-ul stacks: întâi
+    //  agency.subscription verifică statusul activ, apoi :feature filtrează planul.)
+    Route::middleware('agency.subscription')->group(function () {
     // AI Tools page (open, lock applied per-action below)
     Route::get('/ai', fn () => Inertia::render('AiTools/Index'))->name('ai.index');
 
@@ -207,6 +216,7 @@ Route::middleware(['auth', 'verified', 'onboarded'])->group(function () {
     Route::get('/statistics',             [StatisticsController::class, 'index'])->name('statistics.index');
     Route::get('/statistics/export/pdf',  [StatisticsController::class, 'exportPdf'])->middleware('agency.subscription:export')->name('statistics.export.pdf');
     Route::get('/statistics/export/csv',  [StatisticsController::class, 'exportCsv'])->middleware('agency.subscription:export')->name('statistics.export.csv');
+    });
 
     // Subscription — gated to agency managers + solo realtors (employees on
     // Team/Growth plans can't see or trigger billing actions).
@@ -218,6 +228,10 @@ Route::middleware(['auth', 'verified', 'onboarded'])->group(function () {
         Route::post('/cancel', [SubscriptionController::class, 'cancel'])->name('cancel');
     });
 
+    // Phone interactions + Web Offers + Auto Post + Contracts + Google Calendar
+    // — wrapped: abonament activ obligatoriu. Sub-middleware-urile per-feature
+    // (:scraper, :autoposting, :pdf_contracts) rămân și filtrează în plus pe plan.
+    Route::middleware('agency.subscription')->group(function () {
     // Phone interactions (call/no-answer/viewed log for Web Offers + Properties)
     Route::get('/phone-interactions/last-batch', [PhoneInteractionController::class, 'lastBatch'])->name('phone-interactions.last-batch');
     Route::get('/phone-interactions/{subjectType}/{subjectId}', [PhoneInteractionController::class, 'show'])->name('phone-interactions.show');
@@ -259,6 +273,7 @@ Route::middleware(['auth', 'verified', 'onboarded'])->group(function () {
     Route::get('/google/calendar/callback',   [GoogleCalendarController::class, 'callback'])->name('google.calendar.callback');
     Route::post('/google/calendar/disconnect',[GoogleCalendarController::class, 'disconnect'])->name('google.calendar.disconnect');
     Route::post('/google/calendar/sync',      [GoogleCalendarController::class, 'sync'])->name('google.calendar.sync');
+    });
 
     // Settings
     Route::get('/settings', [SettingsController::class, 'show'])->name('settings.index');

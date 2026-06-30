@@ -39,6 +39,9 @@ Route::get('/', function () {
 Route::get('/terms',   fn () => Inertia::render('Legal/Terms'))->name('legal.terms');
 Route::get('/privacy', fn () => Inertia::render('Legal/Privacy'))->name('legal.privacy');
 
+// Public AI assistant prototype (no auth) — montează <AssistantApp/>
+Route::get('/assistant', fn () => Inertia::render('Assistant/Index'))->name('assistant');
+
 // Public invitation accept flow (no auth required)
 Route::get('/invitations/{token}',         [InvitationController::class, 'show'])->name('invitations.show');
 Route::post('/invitations/{token}/accept', [InvitationController::class, 'accept'])->name('invitations.accept');

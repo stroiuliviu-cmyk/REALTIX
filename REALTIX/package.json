@@ -4,10 +4,20 @@
     "type": "module",
     "scripts": {
         "build": "vite build",
-        "dev": "vite"
+        "dev": "vite",
+        "test": "vitest run",
+        "test:watch": "vitest",
+        "typecheck": "tsc --noEmit -p tsconfig.json"
     },
     "devDependencies": {
         "@headlessui/react": "^2.0.0",
+        "@testing-library/dom": "^10.4.0",
+        "@testing-library/react": "^16.1.0",
+        "@types/react": "^18.3.12",
+        "@types/react-dom": "^18.3.1",
+        "jsdom": "^25.0.1",
+        "typescript": "^5.6.3",
+        "vitest": "^4.1.0",
         "@inertiajs/react": "^2.0.0",
         "@tailwindcss/forms": "^0.5.3",
         "@tailwindcss/vite": "^4.2.3",

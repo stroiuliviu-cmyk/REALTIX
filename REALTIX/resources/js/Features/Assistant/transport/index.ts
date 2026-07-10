@@ -3,14 +3,18 @@
 // Punctul unic prin care UI-ul obține transportul. Tot UI-ul importă DOAR
 // `chatTransport` de aici — nu instanțiază transporturi direct și nu apelează fetch.
 //
-// Acum: MockTransport. La Faza C (backend gata): `new SseTransport()`.
+// Implicit: MockTransport (dezvoltare fără backend/API). Setează
+// VITE_ASSISTANT_MOCK=false în .env pentru transportul SSE real.
 
 import type { ChatTransport } from './ChatTransport';
 import { MockTransport } from './MockTransport';
+import { SseTransport } from './SseTransport';
 
 export type { ChatTransport, SendOptions } from './ChatTransport';
 export { MockTransport } from './MockTransport';
 export { SseTransport } from './SseTransport';
 export type { SseTransportOptions } from './SseTransport';
 
-export const chatTransport: ChatTransport = new MockTransport();
+const useMock = (import.meta.env.VITE_ASSISTANT_MOCK ?? 'true') !== 'false';
+
+export const chatTransport: ChatTransport = useMock ? new MockTransport() : new SseTransport();

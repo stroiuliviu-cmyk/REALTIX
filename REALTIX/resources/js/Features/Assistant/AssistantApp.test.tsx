@@ -54,9 +54,28 @@ describe('AssistantApp (ecrane)', () => {
     fireEvent.click(screen.getByText('Apartament demo'));
     expect(screen.getByText('Contactează')).toBeTruthy();
 
-    // deschide poarta de contact
+    // anonim → poarta cere login, cu link-uri către auth-ul REAL (returnTo=/assistant)
     fireEvent.click(screen.getByText('Contactează'));
     expect(screen.getByText('Creează un cont ca să contactezi')).toBeTruthy();
+    const signup = screen.getByText('Înregistrează-te') as HTMLAnchorElement;
+    const login = screen.getByText('Autentificare') as HTMLAnchorElement;
+    expect(signup.getAttribute('href')).toBe('/assistant/register');
+    expect(login.getAttribute('href')).toBe('/assistant/login');
+  });
+
+  it('utilizator autentificat: „Contactează" merge direct în canalul intern', async () => {
+    render(<AssistantApp initialTheme="light" initialLanguage="ro" transport={syncTransport} authUser={{ id: 7 }} />);
+    const input = screen.getByPlaceholderText('Scrie ce cauți…');
+    fireEvent.change(input, { target: { value: 'apartament' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => expect(screen.getByText('Apartament demo')).toBeTruthy());
+    fireEvent.click(screen.getByText('Apartament demo'));
+    fireEvent.click(screen.getByText('Contactează'));
+
+    // autentificat → canalul intern, FĂRĂ poarta de login
+    expect(screen.getByText('Conversație cu agenția')).toBeTruthy();
+    expect(screen.queryByText('Creează un cont ca să contactezi')).toBeNull();
   });
 
   it('ecranul Favorite (gol) se randează', () => {

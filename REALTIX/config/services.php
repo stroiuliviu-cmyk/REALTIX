@@ -62,4 +62,12 @@ return [
         'base_url' => env('PORTAL_999MD_BASE_URL', 'https://partners-api.999.md'),
     ],
 
+    'anthropic' => [
+        'api_key' => env('ANTHROPIC_API_KEY'),
+    ],
+
+    'groq' => [
+        'api_key' => env('GROQ_API_KEY'),
+    ],
+
 ];

@@ -62,7 +62,14 @@ export const ro = {
 
   'convos.empty': 'Conversațiile tale vor apărea aici.',
   'convos.current': 'Conversația curentă',
+  'convos.untitled': 'Conversație fără titlu',
+  'convos.messages': 'mesaje',
 
   'composer.voice_off': 'Vocea e dezactivată (MVP)',
   'composer.image_off': 'Atașarea imaginilor e dezactivată (MVP)',
+
+  'paywall.title': 'Ai atins cele 50 de rezultate gratuite',
+  'paywall.sub': 'Creează un cont și cumpără limită suplimentară ca să continui căutările. Obiectele deja văzute rămân gratuite.',
+  'paywall.cta': 'Creează cont și cumpără limită',
+  'paywall.dismiss': 'Mai târziu',
 } as const;

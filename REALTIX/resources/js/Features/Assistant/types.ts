@@ -6,7 +6,7 @@
 
 export type ListingSource = 'internal' | 'external';
 export type DealType = 'sale' | 'rent';
-export type Currency = 'EUR' | 'MDL';
+export type Currency = 'EUR' | 'MDL' | 'USD';
 export type PropertyType =
   | 'apartment'
   | 'house'
@@ -91,8 +91,17 @@ export type ChatEvent =
   | { type: 'token'; text: string }
   | { type: 'tool_running'; tool: 'search_listings' | 'search_agencies' | 'get_listing_details' }
   | { type: 'cards'; listings?: ListingCard[]; agencies?: AgencyCard[] }
+  | { type: 'quota'; used: number; remaining: number; limit: number; exceeded: boolean }
   | { type: 'done'; conversationId: string }
   | { type: 'error'; code: ChatErrorCode; message: string };
+
+/** Starea cotei de rezultate gratuite (TZ §4.10), ținută de useChatStream. */
+export interface QuotaState {
+  used: number;
+  remaining: number;
+  limit: number;
+  exceeded: boolean;
+}
 
 export type ChatErrorCode =
   | 'rate_limited'   // limita de mesaje pe sesiune atinsă → invită la înregistrare

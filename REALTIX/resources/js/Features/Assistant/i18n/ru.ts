@@ -65,7 +65,14 @@ export const ru: Record<TranslationKey, string> = {
 
   'convos.empty': 'Здесь появятся ваши диалоги.',
   'convos.current': 'Текущий диалог',
+  'convos.untitled': 'Диалог без названия',
+  'convos.messages': 'сообщений',
 
   'composer.voice_off': 'Голос отключён (MVP)',
   'composer.image_off': 'Прикрепление изображений отключено (MVP)',
+
+  'paywall.title': 'Вы использовали 50 бесплатных результатов',
+  'paywall.sub': 'Создайте аккаунт и купите дополнительный лимит, чтобы продолжить поиск. Уже просмотренные объекты остаются бесплатными.',
+  'paywall.cta': 'Создать аккаунт и купить лимит',
+  'paywall.dismiss': 'Позже',
 };

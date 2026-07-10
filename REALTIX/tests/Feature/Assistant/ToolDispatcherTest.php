@@ -151,6 +151,28 @@ it('matches dirty city variants for a canonical location input', function () {
     expect($titles)->toBe(['În Capitală']);
 });
 
+it('search_listings includes marketDeltaPct in forModel when a bucket qualifies', function () {
+    $ag = CatalogSeed::agency('t-tool-delta');
+    for ($i = 0; $i < 5; $i++) {
+        CatalogSeed::scraped([
+            'agency_id' => $ag, 'title' => "Tool ref $i", 'type' => 'apartment',
+            'transaction_type' => 'sale', 'city' => 'Cahul', 'currency' => 'EUR',
+            'price' => 50000, 'area' => 50, 'published_at' => now(), // ppm=1000
+        ]);
+    }
+    CatalogSeed::scraped([
+        'agency_id' => $ag, 'title' => 'Tool Subiect', 'type' => 'apartment',
+        'transaction_type' => 'sale', 'city' => 'Cahul', 'currency' => 'EUR',
+        'price' => 44000, 'area' => 50, 'published_at' => now(), // ppm=880 -> -12%
+    ]);
+
+    $res = runTool('search_listings', ['location' => 'Cahul']);
+    $subject = collect($res->forModel['results'])->firstWhere('title', 'Tool Subiect');
+
+    expect($subject)->not->toBeNull()
+        ->and($subject['marketDeltaPct'])->toBe(-12);
+});
+
 it('rejects invalid input with a clear error, not an exception', function () {
     $bad = runTool('search_listings', ['property_type' => 'castle']);
     expect($bad->ok)->toBeFalse()

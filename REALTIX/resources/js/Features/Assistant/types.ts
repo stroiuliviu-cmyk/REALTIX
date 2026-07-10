@@ -63,6 +63,12 @@ export interface ListingCard {
   /** true dacă obiectul nu mai e disponibil (afișat din snapshot) */
   unavailable?: boolean;
   postedAt?: string; // ISO date
+  /**
+   * Diferența % față de media pieței pe m² în zonă (bucket: tip+tranzacție+
+   * oraș+valută). Pozitiv = peste piață, negativ = sub piață. Absent/null când
+   * nu există o referință fiabilă (bucket mic, deviație absurdă, valută lipsă).
+   */
+  marketDeltaPct?: number;
 }
 
 /** Date publice extinse pentru pagina obiectului. */

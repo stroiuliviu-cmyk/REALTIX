@@ -84,6 +84,9 @@ final class SearchListingsTool
             'rooms' => $c->rooms,
             'area' => $c->area,
             'url' => $c->url,
+            // % vs media pieței pe m² în zonă (aceeași valută); null = fără referință
+            // fiabilă. Nu inventa acest procent când lipsește — vezi SystemPrompt.
+            'marketDeltaPct' => $c->marketDeltaPct,
         ];
     }
 }

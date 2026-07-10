@@ -24,11 +24,28 @@ use Illuminate\Support\Facades\Storage;
  *    (never raw_data, phone, extra_flags, agency_id, matched_at).
  *  - Both: exclude transaction_type exchange/buy.
  *  - city/district normalized towards the canonical Moldova vocabulary on output.
+ *
+ * Price intelligence (marketDeltaPct): computed LIVE, never read from the stored
+ * `ai_valuation` column (that's a categorical label only — 'cheap'/'average'/
+ * 'expensive' — with no persisted numeric estimate for scraped_listings, and a
+ * private/LLM-guessed one for a small properties subset; see marketDeltaMedians()).
+ * The reference is the median price/m² of a (type, transaction_type, city,
+ * currency) bucket, pooled across BOTH properties and scraped_listings (same real
+ * market), computed via a portable Eloquent unionAll + PHP median — NOT Postgres'
+ * PERCENTILE_CONT — because the test suite runs on SQLite (see phpunit.xml).
+ *
+ * @phpstan-type MarketBucket array{median: float, count: int}
  */
 final class PublicListingQuery
 {
     /** transaction_type values never shown as results. */
     private const EXCLUDED_DEALS = ['exchange', 'buy'];
+
+    /** Minimum comparable listings in a bucket before we trust its median. */
+    private const MIN_BUCKET_SAMPLE = 5;
+
+    /** |marketDeltaPct| above this is treated as a degenerate bucket, not shown. */
+    private const MAX_ABS_DELTA_PCT = 60;
 
     /** Public whitelist for internal properties (NO private columns). */
     private const INTERNAL_COLUMNS = [
@@ -68,16 +85,36 @@ final class PublicListingQuery
     {
         $fetch = $query->offset() + $query->limit();
 
-        $cards = [];
-        if ($query->wantsInternal() && $query->appliesToInternal()) {
-            foreach ($this->internal($query, $fetch) as $row) {
-                $cards[] = $this->mapInternal($row);
+        $internalRows = ($query->wantsInternal() && $query->appliesToInternal())
+            ? $this->internal($query, $fetch)
+            : collect();
+        $externalRows = $query->wantsExternal()
+            ? $this->external($query, $fetch)
+            : collect();
+
+        // ONE batched median lookup for every distinct bucket in this page —
+        // never per-row, so query cost doesn't grow with the number of cards.
+        $buckets = [];
+        foreach ($internalRows as $row) {
+            $t = $this->bucketTuple($row->type, $row->transaction_type, $row->city, $row->currency, $row->price, $row->area_total);
+            if ($t !== null) {
+                $buckets[] = $t;
             }
         }
-        if ($query->wantsExternal()) {
-            foreach ($this->external($query, $fetch) as $row) {
-                $cards[] = $this->mapExternal($row);
+        foreach ($externalRows as $row) {
+            $t = $this->bucketTuple($row->type, $row->transaction_type, $row->city, $row->currency, $row->price, $row->area);
+            if ($t !== null) {
+                $buckets[] = $t;
             }
+        }
+        $medians = $this->marketDeltaMedians($buckets);
+
+        $cards = [];
+        foreach ($internalRows as $row) {
+            $cards[] = $this->mapInternal($row, $medians);
+        }
+        foreach ($externalRows as $row) {
+            $cards[] = $this->mapExternal($row, $medians);
         }
 
         $cards = $this->sort($cards, $query->sort);
@@ -118,8 +155,11 @@ final class PublicListingQuery
             return null;
         }
 
+        $tuple = $this->bucketTuple($row->type, $row->transaction_type, $row->city, $row->currency, $row->price, $row->area_total);
+        $medians = $this->marketDeltaMedians($tuple !== null ? [$tuple] : []);
+
         return new ListingDetails(
-            card: $this->mapInternal($row),
+            card: $this->mapInternal($row, $medians),
             description: $row->description,     // locale accessor (ro fallback)
             floor: $row->floor !== null ? (int) $row->floor : null,
             floorsTotal: $row->floors_total !== null ? (int) $row->floors_total : null,
@@ -140,8 +180,11 @@ final class PublicListingQuery
             return null;
         }
 
+        $tuple = $this->bucketTuple($row->type, $row->transaction_type, $row->city, $row->currency, $row->price, $row->area);
+        $medians = $this->marketDeltaMedians($tuple !== null ? [$tuple] : []);
+
         return new ListingDetails(
-            card: $this->mapExternal($row),
+            card: $this->mapExternal($row, $medians),
             description: $row->description,
             floor: $row->floor !== null ? (int) $row->floor : null,
             floorsTotal: $row->floors_total !== null ? (int) $row->floors_total : null,
@@ -258,7 +301,8 @@ final class PublicListingQuery
         }
     }
 
-    private function mapInternal(Property $row): ListingCard
+    /** @param array<string,MarketBucket> $medians */
+    private function mapInternal(Property $row, array $medians = []): ListingCard
     {
         $media = $row->media ?? collect();
         $photos = $media
@@ -292,10 +336,12 @@ final class PublicListingQuery
             isExternal: false,
             unavailable: false,
             postedAt: optional($row->created_at)?->toIso8601String(),
+            marketDeltaPct: $this->marketDeltaFor($row->type, $row->transaction_type, $row->city, $row->currency, $row->price, $row->area_total, $medians),
         );
     }
 
-    private function mapExternal(ScrapedListing $row): ListingCard
+    /** @param array<string,MarketBucket> $medians */
+    private function mapExternal(ScrapedListing $row, array $medians = []): ListingCard
     {
         // Rezolvă fiecare imagine la un URL utilizabil, la fel ca mapInternal:
         // căile locale ale scraper-ului (scraped/{id}/NN.jpg) primesc prefixul
@@ -337,7 +383,133 @@ final class PublicListingQuery
             unavailable: false,
             postedAt: optional($row->published_at)?->toIso8601String()
                 ?? optional($row->created_at)?->toIso8601String(),
+            marketDeltaPct: $this->marketDeltaFor($row->type, $row->transaction_type, $row->city, $row->currency, $row->price, $row->area, $medians),
         );
+    }
+
+    /**
+     * Bucket key components for a row, or null when the row can never anchor/join
+     * a market comparison (missing type/transaction_type/city/currency, or no
+     * usable price/area). Kept separate from marketDeltaFor() so search() can
+     * collect the DISTINCT set of buckets to fetch before mapping any row.
+     *
+     * @return array{0:string,1:string,2:string,3:string}|null
+     */
+    private function bucketTuple(?string $type, ?string $tx, ?string $city, ?string $currency, mixed $price, mixed $area): ?array
+    {
+        if ($type === null || $type === '' || $tx === null || $tx === ''
+            || $city === null || $city === '' || $currency === null || $currency === '') {
+            return null;
+        }
+        $p = $price !== null ? (float) $price : 0.0;
+        $a = $area !== null ? (float) $area : 0.0;
+        if ($p <= 0 || $a <= 0) {
+            return null;
+        }
+
+        return [$type, $tx, $city, $currency];
+    }
+
+    /**
+     * Median price/m² per (type, transaction_type, city, currency) bucket, pooled
+     * across properties + scraped_listings — the SAME real market, so a listing's
+     * fair reference isn't split by source. ONE combined query (Eloquent unionAll)
+     * regardless of how many buckets are requested; buckets under MIN_BUCKET_SAMPLE
+     * are simply absent from the result (no exception — callers treat "missing" as
+     * "no reliable reference"). Deliberately NOT Postgres' PERCENTILE_CONT (used by
+     * the `ai:valuate-scraped` command): the test suite runs on SQLite, and median-
+     * in-PHP over a handful of buckets is cheap at this catalog's scale (~40k rows).
+     *
+     * @param list<array{0:string,1:string,2:string,3:string}> $buckets
+     * @return array<string,MarketBucket>
+     */
+    private function marketDeltaMedians(array $buckets): array
+    {
+        if ($buckets === []) {
+            return [];
+        }
+
+        $unique = [];
+        foreach ($buckets as $b) {
+            $unique[implode('|', $b)] = $b;
+        }
+        $buckets = array_values($unique);
+
+        $matchesAnyBucket = function (Builder $q) use ($buckets): void {
+            $q->where(function (Builder $w) use ($buckets) {
+                foreach ($buckets as [$type, $tx, $city, $currency]) {
+                    $w->orWhere(function (Builder $b) use ($type, $tx, $city, $currency) {
+                        $b->where('type', $type)
+                            ->where('transaction_type', $tx)
+                            ->where('city', $city)
+                            ->where('currency', $currency);
+                    });
+                }
+            });
+        };
+
+        $propertyRows = Property::query()
+            ->withoutGlobalScope('agency')
+            ->selectRaw('type, transaction_type, city, currency, (price * 1.0) / area_total as ppm')
+            ->where('status', 'active')
+            ->whereNotIn('transaction_type', self::EXCLUDED_DEALS)
+            ->where('price', '>', 0)->where('area_total', '>', 0)
+            ->where($matchesAnyBucket);
+
+        $scrapedRows = ScrapedListing::query()
+            ->selectRaw('type, transaction_type, city, currency, (price * 1.0) / area as ppm')
+            ->whereNotNull('published_at')
+            ->whereNotIn('transaction_type', self::EXCLUDED_DEALS)
+            ->where('price', '>', 0)->where('area', '>', 0)
+            ->where($matchesAnyBucket);
+
+        $rows = $propertyRows->unionAll($scrapedRows)->get();
+
+        $grouped = [];
+        foreach ($rows as $r) {
+            $key = "{$r->type}|{$r->transaction_type}|{$r->city}|{$r->currency}";
+            $grouped[$key][] = (float) $r->ppm;
+        }
+
+        $medians = [];
+        foreach ($grouped as $key => $values) {
+            if (count($values) < self::MIN_BUCKET_SAMPLE) {
+                continue;
+            }
+            sort($values);
+            $medians[$key] = ['median' => $this->median($values), 'count' => count($values)];
+        }
+
+        return $medians;
+    }
+
+    /** @param list<float> $sorted ascending */
+    private function median(array $sorted): float
+    {
+        $n = count($sorted);
+        $mid = intdiv($n, 2);
+
+        return $n % 2 === 0 ? ($sorted[$mid - 1] + $sorted[$mid]) / 2 : $sorted[$mid];
+    }
+
+    /**
+     * @param array<string,MarketBucket> $medians
+     */
+    private function marketDeltaFor(?string $type, ?string $tx, ?string $city, ?string $currency, mixed $price, mixed $area, array $medians): ?int
+    {
+        $tuple = $this->bucketTuple($type, $tx, $city, $currency, $price, $area);
+        if ($tuple === null) {
+            return null;
+        }
+        $bucket = $medians[implode('|', $tuple)] ?? null;
+        if ($bucket === null || $bucket['median'] <= 0) {
+            return null;
+        }
+
+        $ppm = ((float) $price) / ((float) $area);
+        $delta = (int) round((($ppm - $bucket['median']) / $bucket['median']) * 100);
+
+        return abs($delta) <= self::MAX_ABS_DELTA_PCT ? $delta : null;
     }
 
     /** @param list<ListingCard> $cards @return list<ListingCard> */

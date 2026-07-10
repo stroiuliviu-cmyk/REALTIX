@@ -89,6 +89,15 @@ intelligence (AI valuation în carduri). 4. Calitate date (dedup/prospețime/poz
 Google login → căutări salvate + alerte. 6. „Revendică-ți anunțurile" + dashboard leaduri agenții.
 Model de business: cumpărători gratuiți; venit din agenți (abonament + boost + leaduri).
 
+## Follow-up tehnic (Price intelligence)
+`ai:valuate-scraped` (routes/console.php) calculează medianul preț/m² per oraș FĂRĂ să separe pe
+valută (amestecă EUR/MDL/USD în același bucket) și apoi ARUNCĂ medianul — salvează doar eticheta
+cheap/average/expensive, niciun număr. `PublicListingQuery::marketDeltaPct` ocolește asta calculând
+live (bucket cu valută, per request). De reparat pe termen lung: (1) bucket-ul comenzii să includă
+`currency`, ca la `marketDeltaPct`; (2) salvează `regional_avg`/`deviation_pct` numeric pe
+`scraped_listings` (coloane noi), nu doar eticheta — ar elimina recalculul live și ar da o sursă de
+adevăr persistată, interogabilă în masă (ex. pentru rapoarte/filtre „cele mai ieftine %").
+
 ## Model recomandat pentru Claude Code
 Default Sonnet 5; Opus 4.8 doar la taskuri grele (arhitectură, bug urât, refactor mare).
 

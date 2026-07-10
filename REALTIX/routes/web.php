@@ -39,6 +39,36 @@ Route::get('/', function () {
 Route::get('/terms',   fn () => Inertia::render('Legal/Terms'))->name('legal.terms');
 Route::get('/privacy', fn () => Inertia::render('Legal/Privacy'))->name('legal.privacy');
 
+// Public AI assistant (no auth) — pagina + endpoint-ul SSE de chat.
+// assistant.gate controlează vizibilitatea (disabled/preview/public) ca să putem
+// deploya pe producție fără expunere publică; rulează ÎNAINTE de assistant.session,
+// care garantează owner_token (cookie httpOnly) pe toate rutele.
+Route::middleware(['assistant.gate', 'assistant.session'])->group(function () {
+    Route::get('/assistant', fn () => Inertia::render('Assistant/Index'))->name('assistant');
+    Route::post('/assistant/chat/{conversation?}', [\App\Http\Controllers\Assistant\ChatController::class, 'stream'])
+        ->name('assistant.chat');
+
+    // Istoricul conversațiilor (JSON, consumat de SPA), scop strict pe owner.
+    Route::get('/assistant/api/conversations', [\App\Http\Controllers\Assistant\ConversationsController::class, 'index'])
+        ->name('assistant.conversations.index');
+    Route::get('/assistant/api/conversations/{conversation}', [\App\Http\Controllers\Assistant\ConversationsController::class, 'show'])
+        ->name('assistant.conversations.show');
+
+    // Poarta către auth-ul REAL, cu returnTo=/assistant (setează url.intended,
+    // pe care login-ul îl onorează). Merge-ul datelor anonime se face în
+    // MergeAnonymousAssistantData la Login/Registered.
+    Route::get('/assistant/login', function () {
+        session()->put('url.intended', url('/assistant'));
+
+        return redirect()->route('login');
+    })->name('assistant.login');
+    Route::get('/assistant/register', function () {
+        session()->put('url.intended', url('/assistant'));
+
+        return redirect()->route('register');
+    })->name('assistant.register');
+});
+
 // Public invitation accept flow (no auth required)
 Route::get('/invitations/{token}',         [InvitationController::class, 'show'])->name('invitations.show');
 Route::post('/invitations/{token}/accept', [InvitationController::class, 'accept'])->name('invitations.accept');

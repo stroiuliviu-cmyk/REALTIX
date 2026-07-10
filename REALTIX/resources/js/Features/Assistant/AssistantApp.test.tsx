@@ -120,9 +120,12 @@ describe('price intelligence — badge marketDeltaPct (RO+RU, 3 praguri)', () =>
     await waitFor(() => expect(screen.getByText('Apartament demo')).toBeTruthy());
   }
 
-  it('delta ≤ -5%: „sub media pe m² în zonă" (RO)', async () => {
+  it('delta ≤ -5%: „sub media zonei" (RO), cu iconiță direcțională', async () => {
     await searchAndGetCard(-12, 'ro');
-    expect(screen.getByText('≈12% sub media pe m² în zonă')).toBeTruthy();
+    const badge = screen.getByText('≈12% sub media zonei');
+    expect(badge).toBeTruthy();
+    // regula color-not-only: badge-ul trebuie să conțină și o iconiță, nu doar culoare
+    expect(badge.parentElement?.querySelector('svg')).toBeTruthy();
   });
 
   it('delta ≤ -5%: „ниже средней цены за м² в районе" (RU)', async () => {
@@ -130,9 +133,9 @@ describe('price intelligence — badge marketDeltaPct (RO+RU, 3 praguri)', () =>
     expect(screen.getByText('≈12% ниже средней цены за м² в районе')).toBeTruthy();
   });
 
-  it('delta între -5% și +5%: neutru, fără procent (RO)', async () => {
+  it('delta între -5% și +5%: „la nivelul zonei", fără procent (RO)', async () => {
     await searchAndGetCard(2, 'ro');
-    expect(screen.getByText('la nivelul mediei pe m² în zonă')).toBeTruthy();
+    expect(screen.getByText('la nivelul zonei')).toBeTruthy();
   });
 
   it('delta între -5% și +5%: neutru, fără procent (RU)', async () => {
@@ -140,9 +143,11 @@ describe('price intelligence — badge marketDeltaPct (RO+RU, 3 praguri)', () =>
     expect(screen.getByText('на уровне средней цены за м² в районе')).toBeTruthy();
   });
 
-  it('delta ≥ +5%: „peste media pe m² în zonă" (RO)', async () => {
+  it('delta ≥ +5%: „peste media zonei" (RO), cu iconiță direcțională', async () => {
     await searchAndGetCard(18, 'ro');
-    expect(screen.getByText('≈18% peste media pe m² în zonă')).toBeTruthy();
+    const badge = screen.getByText('≈18% peste media zonei');
+    expect(badge).toBeTruthy();
+    expect(badge.parentElement?.querySelector('svg')).toBeTruthy();
   });
 
   it('delta ≥ +5%: „выше средней цены за м² в районе" (RU)', async () => {
@@ -157,6 +162,22 @@ describe('price intelligence — badge marketDeltaPct (RO+RU, 3 praguri)', () =>
     fireEvent.keyDown(input, { key: 'Enter' });
     await waitFor(() => expect(screen.getByText('Apartament demo')).toBeTruthy());
 
-    expect(screen.queryByText(/media pe m²/)).toBeNull();
+    expect(screen.queryByText(/media zonei/)).toBeNull();
+  });
+
+  it('pagina de detaliu: badge + linie explicativă (RO)', async () => {
+    await searchAndGetCard(-12, 'ro');
+    fireEvent.click(screen.getByText('Apartament demo'));
+
+    expect(screen.getByText('≈12% sub media zonei')).toBeTruthy();
+    expect(screen.getByText(/verifică starea, etajul și anul construcției/)).toBeTruthy();
+  });
+
+  it('pagina de detaliu: badge + linie explicativă (RU)', async () => {
+    await searchAndGetCard(18, 'ru');
+    fireEvent.click(screen.getByText('Apartament demo'));
+
+    expect(screen.getByText('≈18% выше средней цены за м² в районе')).toBeTruthy();
+    expect(screen.getByText(/чем обоснована разница/)).toBeTruthy();
   });
 });

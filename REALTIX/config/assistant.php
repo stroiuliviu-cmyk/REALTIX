@@ -18,6 +18,23 @@ return [
     // gratuit pentru testare). Binding-ul LlmClient se face după această valoare.
     'provider' => env('ASSISTANT_LLM_PROVIDER', 'anthropic'),
 
+    // Poarta de vizibilitate a rutelor /assistant (aplicată de middleware-ul
+    // assistant.gate, ÎNAINTE de assistant.session). Permite deploy pe producția
+    // live fără expunere publică până e gata Faza 1.
+    //   'disabled' — 404 pentru toți (feature-ul pare inexistent);
+    //   'preview'  — doar IP-urile din 'preview_ips'; restul primesc 404;
+    //   'public'   — accesibil tuturor.
+    // Default 'disabled': dacă env-ul lipsește pe producție, ruta NU se expune.
+    'access' => env('ASSISTANT_ACCESS', 'disabled'),
+
+    // IP-uri permise în modul 'preview' (CSV în env, ex. "1.2.3.4,5.6.7.8").
+    // Trim + filtrare a golurilor: spațiile după virgulă și un CSV gol nu produc
+    // intrări false care ar rata match-ul sau ar permite un IP vid.
+    'preview_ips' => array_values(array_filter(
+        array_map('trim', explode(',', (string) env('ASSISTANT_PREVIEW_IPS', ''))),
+        static fn (string $ip): bool => $ip !== '',
+    )),
+
     'model_intent' => env('ASSISTANT_MODEL_INTENT', 'claude-haiku-4-5'),
     'model_answer' => env('ASSISTANT_MODEL_ANSWER', 'claude-sonnet-5'),
 

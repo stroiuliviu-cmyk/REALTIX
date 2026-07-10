@@ -22,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->alias([
+            'assistant.gate' => \App\Http\Middleware\AssistantGate::class,
             'assistant.session' => \App\Http\Middleware\AssistantSession::class,
             'agency.subscription' => \App\Http\Middleware\EnsureAgencySubscription::class,
             'subscription.manage' => \App\Http\Middleware\EnsureCanManageSubscription::class,

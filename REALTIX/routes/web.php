@@ -40,8 +40,10 @@ Route::get('/terms',   fn () => Inertia::render('Legal/Terms'))->name('legal.ter
 Route::get('/privacy', fn () => Inertia::render('Legal/Privacy'))->name('legal.privacy');
 
 // Public AI assistant (no auth) — pagina + endpoint-ul SSE de chat.
-// assistant.session garantează owner_token (cookie httpOnly) pe ambele rute.
-Route::middleware('assistant.session')->group(function () {
+// assistant.gate controlează vizibilitatea (disabled/preview/public) ca să putem
+// deploya pe producție fără expunere publică; rulează ÎNAINTE de assistant.session,
+// care garantează owner_token (cookie httpOnly) pe toate rutele.
+Route::middleware(['assistant.gate', 'assistant.session'])->group(function () {
     Route::get('/assistant', fn () => Inertia::render('Assistant/Index'))->name('assistant');
     Route::post('/assistant/chat/{conversation?}', [\App\Http\Controllers\Assistant\ChatController::class, 'stream'])
         ->name('assistant.chat');

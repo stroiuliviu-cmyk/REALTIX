@@ -1,4 +1,4 @@
-// resources/js/Pages/Assistant/Index.tsx
+// resources/js/Pages/Assistant/Index.jsx
 //
 // Pagina Inertia publică ce montează asistentul AI. Tema vine din ThemeProvider-ul
 // global (clasa `dark` pe <html> + localStorage `rt-theme`); limba e gestionată
@@ -11,7 +11,7 @@ import { useTheme } from '@/Components/ui/ThemeProvider';
 export default function AssistantIndex() {
   const { theme } = useTheme();
   // auth.user e partajat global de HandleInertiaRequests; null = vizitator anonim.
-  const authUser = (usePage().props as { auth?: { user?: { id: number } | null } }).auth?.user ?? null;
+  const authUser = usePage().props.auth?.user ?? null;
   return (
     <>
       <Head title="Asistent AI" />

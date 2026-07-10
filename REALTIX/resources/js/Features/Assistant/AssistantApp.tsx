@@ -27,6 +27,7 @@ import type { ChatTransport } from './transport';
 import { useChatStream } from './hooks/useChatStream';
 import { useFavorites } from './hooks/useFavorites';
 import { useLanguage } from './hooks/useLanguage';
+import { useIsMobile } from './hooks/useIsMobile';
 
 /* ─────────────────────────── palette (din design) ─────────────────────────── */
 
@@ -209,9 +210,9 @@ function ListingCardView({ card, p, lang, t, fav, onOpen, onFav, width }: CardPr
   );
 }
 
-function AgencyCardView({ agency, p, t }: { agency: AgencyCard; p: Palette; t: (k: TranslationKey) => string }) {
+function AgencyCardView({ agency, p, t, isMobile }: { agency: AgencyCard; p: Palette; t: (k: TranslationKey) => string; isMobile?: boolean }) {
   return (
-    <div style={{ width: 240, flex: 'none', background: p.raised, border: `1px solid ${p.border}`, borderRadius: 16, padding: 15, boxShadow: p.shadow }}>
+    <div style={{ width: isMobile ? '100%' : 240, flex: isMobile ? 'initial' : 'none', background: p.raised, border: `1px solid ${p.border}`, borderRadius: 16, padding: 15, boxShadow: p.shadow }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <div style={{ flex: 'none', width: 44, height: 44, borderRadius: 12, background: p.primarySoft, color: p.primary, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <Icon name="building" size={22} color={p.primary} />
@@ -234,6 +235,8 @@ function AgencyCardView({ agency, p, t }: { agency: AgencyCard; p: Palette; t: (
 
 interface Ctx {
   p: Palette;
+  /** true pe viewport mobil (≤640px) — comută layout-ul pe o coloană. */
+  isMobile: boolean;
   authenticated: boolean;
   /** navigare SPA pentru link-uri interne din markdown; undefined în teste */
   navigate?: (href: string) => void;
@@ -269,28 +272,29 @@ interface Ctx {
 /* ─────────────────────────────── header ─────────────────────────────── */
 
 function Header({ ctx }: { ctx: Ctx }) {
-  const { p, t, lang, setLang, favCount, newChat, openFavorites, openConversations } = ctx;
+  const { p, t, lang, setLang, favCount, newChat, openFavorites, openConversations, isMobile } = ctx;
+  const iconBtn = isMobile ? 36 : 38;
   const langBtn = (code: Language) => (
     <button
       onClick={() => setLang(code)}
-      style={{ padding: '5px 9px', border: 'none', borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: lang === code ? p.primary : 'transparent', color: lang === code ? p.onPrimary : p.text2 }}
+      style={{ padding: isMobile ? '6px 8px' : '5px 9px', border: 'none', borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: lang === code ? p.primary : 'transparent', color: lang === code ? p.onPrimary : p.text2 }}
     >
       {code.toUpperCase()}
     </button>
   );
   return (
-    <header style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 16px', background: p.header, borderBottom: `1px solid ${p.border}` }}>
-      <div onClick={newChat} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginRight: 'auto' }}>
-        <Icon name="home" size={22} color={p.primary} stroke={2.25} />
-        <span style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 800, letterSpacing: '.15em', fontSize: 15, color: p.text }}>REALTIX</span>
+    <header style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: isMobile ? 7 : 10, padding: isMobile ? '9px 12px' : '11px 16px', background: p.header, borderBottom: `1px solid ${p.border}` }}>
+      <div onClick={newChat} style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 8, cursor: 'pointer', marginRight: 'auto', minWidth: 0 }}>
+        <Icon name="home" size={isMobile ? 20 : 22} color={p.primary} stroke={2.25} />
+        <span style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 800, letterSpacing: isMobile ? '.1em' : '.15em', fontSize: isMobile ? 13.5 : 15, color: p.text }}>REALTIX</span>
       </div>
-      <div style={{ display: 'flex', background: p.raised2, border: `1px solid ${p.border}`, borderRadius: 9, padding: 2, gap: 2 }}>
+      <div style={{ display: 'flex', flex: 'none', background: p.raised2, border: `1px solid ${p.border}`, borderRadius: 9, padding: 2, gap: 2 }}>
         {langBtn('ro')}{langBtn('ru')}
       </div>
-      <button onClick={openConversations} aria-label={t('nav.conversations')} title={t('nav.conversations')} style={{ width: 38, height: 38, borderRadius: 10, border: `1px solid ${p.border}`, background: p.raised, color: p.text2, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+      <button onClick={openConversations} aria-label={t('nav.conversations')} title={t('nav.conversations')} style={{ flex: 'none', width: iconBtn, height: iconBtn, borderRadius: 10, border: `1px solid ${p.border}`, background: p.raised, color: p.text2, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
         <Icon name="clock" size={18} color={p.text2} />
       </button>
-      <button onClick={openFavorites} aria-label={t('nav.favorites')} title={t('nav.favorites')} style={{ height: 38, padding: '0 13px 0 11px', borderRadius: 10, border: `1px solid ${p.border}`, background: p.raised, color: p.text, display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+      <button onClick={openFavorites} aria-label={t('nav.favorites')} title={t('nav.favorites')} style={{ flex: 'none', height: iconBtn, padding: isMobile ? '0 10px 0 9px' : '0 13px 0 11px', borderRadius: 10, border: `1px solid ${p.border}`, background: p.raised, color: p.text, display: 'flex', alignItems: 'center', gap: isMobile ? 5 : 7, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
         <Icon name="heart" size={17} color={p.primary} filled={favCount > 0} />
         <span style={{ minWidth: 10 }}>{favCount}</span>
       </button>
@@ -311,20 +315,25 @@ function ThinkingDots({ p }: { p: Palette }) {
 }
 
 function AssistantBlocks({ ctx, m }: { ctx: Ctx; m: ChatMessage }) {
-  const { p, t, lang, isFav, toggleFav, openListing, expanded, toggleExpand, sendText } = ctx;
+  const { p, t, lang, isFav, toggleFav, openListing, expanded, toggleExpand, sendText, isMobile } = ctx;
   const listings = m.listings ?? [];
   const agencies = m.agencies ?? [];
   const isExpanded = expanded.has(m.id);
   const visible = isExpanded ? listings : listings.slice(0, 2);
   const hiddenCount = listings.length - visible.length;
+  // Mobil: stivă pe o coloană (full-width). Desktop: carusel orizontal (card 240px).
+  const listRowStyle: CSSProperties = isMobile
+    ? { display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }
+    : { display: 'flex', gap: 12, marginTop: 12, overflowX: 'auto', paddingBottom: 5 };
+  const cardWrapStyle: CSSProperties = isMobile ? { width: '100%' } : { flex: 'none', width: 240 };
 
   return (
     <>
       {listings.length > 0 ? (
         <>
-          <div className="rt-scroll" style={{ display: 'flex', gap: 12, marginTop: 12, overflowX: 'auto', paddingBottom: 5 }}>
+          <div className="rt-scroll" style={listRowStyle}>
             {visible.map((c) => (
-              <div key={`${c.source}:${c.id}`} style={{ flex: 'none', width: 240 }}>
+              <div key={`${c.source}:${c.id}`} style={cardWrapStyle}>
                 <ListingCardView card={c} p={p} lang={lang} t={t} fav={isFav(c.id, c.source)} onOpen={() => openListing(c)} onFav={() => toggleFav(c)} />
               </div>
             ))}
@@ -338,8 +347,8 @@ function AssistantBlocks({ ctx, m }: { ctx: Ctx; m: ChatMessage }) {
       ) : null}
 
       {agencies.length > 0 ? (
-        <div className="rt-scroll" style={{ display: 'flex', gap: 12, marginTop: 12, overflowX: 'auto', paddingBottom: 5 }}>
-          {agencies.map((a) => <AgencyCardView key={a.id} agency={a} p={p} t={t} />)}
+        <div className="rt-scroll" style={listRowStyle}>
+          {agencies.map((a) => <AgencyCardView key={a.id} agency={a} p={p} t={t} isMobile={isMobile} />)}
         </div>
       ) : null}
 
@@ -381,7 +390,7 @@ function AssistantBlocks({ ctx, m }: { ctx: Ctx; m: ChatMessage }) {
 }
 
 function ChatScreen({ ctx }: { ctx: Ctx }) {
-  const { p, t, lang, messages, isStreaming, currentTool, sendText } = ctx;
+  const { p, t, lang, messages, isStreaming, currentTool, sendText, isMobile } = ctx;
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const showEmpty = messages.length === 0 && !isStreaming;
   const lastText = messages.length > 0 ? messages[messages.length - 1].text : '';
@@ -394,14 +403,14 @@ function ChatScreen({ ctx }: { ctx: Ctx }) {
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-      <div ref={scrollRef} className="rt-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '22px 16px 14px' }}>
+      <div ref={scrollRef} className="rt-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: isMobile ? '16px 14px 12px' : '22px 16px 14px' }}>
         <div style={{ maxWidth: 620, margin: '0 auto' }}>
           {showEmpty ? (
             <div style={{ animation: 'rtFade .5s ease both', padding: '10px 2px 4px' }}>
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: p.primarySoft, color: p.primary, fontSize: 12, fontWeight: 700, letterSpacing: '.04em', padding: '7px 13px', borderRadius: 9999, marginBottom: 18 }}>
                 <Icon name="sparkles" size={15} color={p.primary} /> {t('eyebrow')}
               </div>
-              <h1 style={{ fontSize: 27, fontWeight: 800, color: p.text, lineHeight: 1.13, letterSpacing: '-.025em', margin: '0 0 12px', maxWidth: 560 }}>{t('empty.title')}</h1>
+              <h1 style={{ fontSize: isMobile ? 22 : 27, fontWeight: 800, color: p.text, lineHeight: 1.13, letterSpacing: '-.025em', margin: '0 0 12px', maxWidth: 560 }}>{t('empty.title')}</h1>
               <p style={{ color: p.text2, fontSize: 15, lineHeight: 1.55, maxWidth: 460, margin: 0 }}>{t('empty.sub')}</p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 24 }}>
                 {SUGGESTIONS[lang].map((s) => (
@@ -455,7 +464,7 @@ function ChatScreen({ ctx }: { ctx: Ctx }) {
 }
 
 function Composer({ ctx }: { ctx: Ctx }) {
-  const { p, t, draft, setDraft, send } = ctx;
+  const { p, t, draft, setDraft, send, isMobile } = ctx;
   const onKey = (e: ReactKeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
   };
@@ -468,20 +477,21 @@ function Composer({ ctx }: { ctx: Ctx }) {
     </button>
   );
   return (
-    <div style={{ flex: 'none', borderTop: `1px solid ${p.border}`, background: p.header, padding: '12px 16px 14px' }}>
+    <div style={{ flex: 'none', borderTop: `1px solid ${p.border}`, background: p.header, padding: isMobile ? '10px 12px 12px' : '12px 16px 14px' }}>
       <div style={{ maxWidth: 620, margin: '0 auto' }}>
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, background: p.raised, border: `1px solid ${p.border2}`, borderRadius: 16, padding: '5px 5px 5px 15px', boxShadow: p.shadow }}>
-          {ghost('paperclip', FEATURES.imageAttach, t('composer.image_off'))}
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, background: p.raised, border: `1px solid ${p.border2}`, borderRadius: 16, padding: isMobile ? '4px 4px 4px 12px' : '5px 5px 5px 15px', boxShadow: p.shadow }}>
+          {/* attach/voice sunt placeholder-uri dezactivate — ascunse pe mobil ca să lase spațiu textarei */}
+          {isMobile ? null : ghost('paperclip', FEATURES.imageAttach, t('composer.image_off'))}
           <textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={onKey}
             placeholder={t('placeholder.input')}
             rows={1}
-            style={{ flex: 1, border: 'none', outline: 'none', resize: 'none', background: 'transparent', color: p.text, fontFamily: 'inherit', fontSize: 14.5, lineHeight: 1.4, maxHeight: 96, padding: '9px 0' }}
+            style={{ flex: 1, border: 'none', outline: 'none', resize: 'none', background: 'transparent', color: p.text, fontFamily: 'inherit', fontSize: isMobile ? 16 : 14.5, lineHeight: 1.4, maxHeight: 96, padding: isMobile ? '11px 0' : '9px 0' }}
           />
-          {ghost('mic', FEATURES.voice, t('composer.voice_off'))}
-          <button onClick={send} aria-label={t('btn.send')} style={{ flex: 'none', width: 40, height: 40, borderRadius: 12, border: 'none', background: p.primary, color: p.onPrimary, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+          {isMobile ? null : ghost('mic', FEATURES.voice, t('composer.voice_off'))}
+          <button onClick={send} aria-label={t('btn.send')} style={{ flex: 'none', width: isMobile ? 44 : 40, height: isMobile ? 44 : 40, borderRadius: 12, border: 'none', background: p.primary, color: p.onPrimary, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
             <Icon name="send" size={18} color={p.onPrimary} />
           </button>
         </div>
@@ -494,7 +504,7 @@ function Composer({ ctx }: { ctx: Ctx }) {
 /* ─────────────────────────── listing detail ─────────────────────────── */
 
 function ListingDetail({ ctx, card }: { ctx: Ctx; card: ListingCard }) {
-  const { p, t, lang, isFav, toggleFav, back, openGate } = ctx;
+  const { p, t, lang, isFav, toggleFav, back, openGate, isMobile } = ctx;
   const fav = isFav(card.id, card.source);
   const photos = card.photos && card.photos.length > 0 ? card.photos : (card.photoUrl ? [card.photoUrl] : []);
   const [idx, setIdx] = useState(0);
@@ -548,8 +558,8 @@ function ListingDetail({ ctx, card }: { ctx: Ctx; card: ListingCard }) {
           ) : null}
 
           <div style={{ padding: '8px 18px 0' }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14 }}>
-              <div style={{ fontSize: 28, fontWeight: 800, color: p.text, letterSpacing: '-.02em' }}>{formatPrice(card, lang)}</div>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: isMobile ? 10 : 14 }}>
+              <div style={{ fontSize: isMobile ? 23 : 28, fontWeight: 800, color: p.text, letterSpacing: '-.02em' }}>{formatPrice(card, lang)}</div>
               <button onClick={() => toggleFav(card)} style={{ flex: 'none', display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 14px', borderRadius: 11, border: `1px solid ${p.border2}`, background: p.raised, cursor: 'pointer', fontSize: 13, fontWeight: 600, color: fav ? p.primary : p.text }}>
                 <Icon name="heart" size={17} filled={fav} color={fav ? p.primary : p.text} /> {fav ? t('btn.favorited') : t('btn.favorite')}
               </button>
@@ -582,7 +592,7 @@ function ListingDetail({ ctx, card }: { ctx: Ctx; card: ListingCard }) {
 /* ─────────────────────────── favorites ─────────────────────────── */
 
 function FavoritesScreen({ ctx }: { ctx: Ctx }) {
-  const { p, t, lang, favorites, favCount, isFav, toggleFav, openListing, back, newChat } = ctx;
+  const { p, t, lang, favorites, favCount, isFav, toggleFav, openListing, back, newChat, isMobile } = ctx;
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, background: p.bg }}>
       <div style={{ flex: 'none', background: p.header, borderBottom: `1px solid ${p.border}`, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 11 }}>
@@ -599,7 +609,7 @@ function FavoritesScreen({ ctx }: { ctx: Ctx }) {
             <button onClick={newChat} style={{ background: p.primary, color: p.onPrimary, border: 'none', padding: '11px 20px', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>{t('btn.start_search')}</button>
           </div>
         ) : (
-          <div style={{ maxWidth: 920, margin: '0 auto', padding: '18px 16px 30px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(230px,1fr))', gap: 16 }}>
+          <div style={{ maxWidth: 920, margin: '0 auto', padding: isMobile ? '16px 14px 24px' : '18px 16px 30px', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill,minmax(230px,1fr))', gap: isMobile ? 12 : 16 }}>
             {favorites.map((c) => (
               <ListingCardView key={`${c.source}:${c.id}`} card={c} p={p} lang={lang} t={t} fav={isFav(c.id, c.source)} onOpen={() => openListing(c)} onFav={() => toggleFav(c)} />
             ))}
@@ -673,11 +683,11 @@ function ConversationsScreen({ ctx }: { ctx: Ctx }) {
 /* ─────────────────────────── contact gate ─────────────────────────── */
 
 function ContactGate({ ctx, phase, listing, onClose }: { ctx: Ctx; phase: 'gate' | 'chat'; listing: ListingCard | null; onClose: () => void }) {
-  const { p, t } = ctx;
+  const { p, t, isMobile } = ctx;
   const agencyName = listing?.sourceSite ?? 'REALTIX';
   return (
     <div onClick={onClose} style={{ position: 'absolute', inset: 0, zIndex: 80, background: 'rgba(2,6,23,.55)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', animation: 'rtFade .25s ease both' }}>
-      <div onClick={(e) => e.stopPropagation()} className="rt-scroll" style={{ width: '100%', maxWidth: 480, background: p.raised, borderRadius: '24px 24px 0 0', boxShadow: '0 -20px 60px rgba(2,6,23,.4)', padding: '8px 22px 26px', maxHeight: '92%', overflowY: 'auto' }}>
+      <div onClick={(e) => e.stopPropagation()} className="rt-scroll" style={{ width: '100%', maxWidth: 480, background: p.raised, borderRadius: '24px 24px 0 0', boxShadow: '0 -20px 60px rgba(2,6,23,.4)', padding: isMobile ? '8px 16px 22px' : '8px 22px 26px', maxHeight: '92%', overflowY: 'auto' }}>
         <div style={{ width: 44, height: 5, borderRadius: 9999, background: p.border2, margin: '8px auto 18px' }} />
         {phase === 'gate' ? (
           <>
@@ -728,6 +738,8 @@ const KEYFRAMES = `
 @keyframes rtPulse{0%,100%{opacity:.55}50%{opacity:1}}
 .rt-scroll::-webkit-scrollbar{width:9px;height:9px}
 .rt-scroll::-webkit-scrollbar-thumb{background:rgba(148,163,184,.45);border-radius:9px;border:2px solid transparent;background-clip:content-box}
+/* 100dvh cu fallback pe 100vh: barele de UI mobile nu mai taie composer-ul de jos */
+.rt-root{height:100vh;height:100dvh}
 `;
 
 type View = 'chat' | 'listing' | 'favorites' | 'conversations';
@@ -784,6 +796,7 @@ export default function AssistantApp({ initialLanguage, initialTheme, theme: con
 
   const theme = controlledTheme ?? internalTheme;
   const p = theme === 'dark' ? DARK : LIGHT;
+  const isMobile = useIsMobile();
   const t = useMemo(() => (k: TranslationKey) => rawT(k), [rawT]);
 
   const sendText = (text: string) => {
@@ -799,7 +812,7 @@ export default function AssistantApp({ initialLanguage, initialTheme, theme: con
   };
 
   const ctx: Ctx = {
-    p, authenticated, navigate, lang: language, t, toggleLang, setLang: setLanguage,
+    p, isMobile, authenticated, navigate, lang: language, t, toggleLang, setLang: setLanguage,
     favCount, isFav: isFavorite, toggleFav, favorites,
     messages, isStreaming, currentTool,
     draft, setDraft, send, sendText,
@@ -821,7 +834,7 @@ export default function AssistantApp({ initialLanguage, initialTheme, theme: con
   };
 
   return (
-    <div style={{ ...(vars as unknown as CSSProperties), height: '100vh', background: p.bg, display: 'flex', flexDirection: 'column', fontFamily: "'Inter',system-ui,sans-serif" }}>
+    <div className="rt-root" style={{ ...(vars as unknown as CSSProperties), background: p.bg, display: 'flex', flexDirection: 'column', fontFamily: "'Inter',system-ui,sans-serif" }}>
       <style>{KEYFRAMES}</style>
       <div style={{ position: 'relative', width: '100%', height: '100%', background: p.bg, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <Header ctx={ctx} />
@@ -850,14 +863,14 @@ export default function AssistantApp({ initialLanguage, initialTheme, theme: con
  * butonul principal e un placeholder (logica de plată vine separat).
  */
 function QuotaPaywall({ ctx, onClose }: { ctx: Ctx; onClose: () => void }) {
-  const { p, t } = ctx;
+  const { p, t, isMobile } = ctx;
   return (
     <div
       role="dialog"
       aria-modal="true"
-      style={{ position: 'absolute', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+      style={{ position: 'absolute', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: isMobile ? 14 : 20 }}
     >
-      <div style={{ width: '100%', maxWidth: 440, background: p.bg, borderRadius: 18, boxShadow: p.shadow, border: `1px solid ${p.border}`, padding: '26px 24px', textAlign: 'center' }}>
+      <div style={{ width: '100%', maxWidth: 440, background: p.bg, borderRadius: 18, boxShadow: p.shadow, border: `1px solid ${p.border}`, padding: isMobile ? '24px 18px' : '26px 24px', textAlign: 'center' }}>
         <div style={{ fontSize: 34, marginBottom: 6 }}>🔒</div>
         <h2 style={{ margin: '0 0 8px', fontSize: 19, fontWeight: 700, color: p.text }}>{t('paywall.title')}</h2>
         <p style={{ margin: '0 0 20px', fontSize: 14, lineHeight: 1.5, color: p.text2 }}>{t('paywall.sub')}</p>

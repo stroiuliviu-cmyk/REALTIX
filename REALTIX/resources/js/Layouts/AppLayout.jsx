@@ -5,7 +5,7 @@ import NotificationsBell from '@/Components/NotificationsBell';
 import ThemeToggle from '@/Components/ui/ThemeToggle';
 import { canManageSubscription } from '@/lib/permissions';
 import {
-    Home, Globe, Plus, Send, FileText, Calendar, Users,
+    Home, Globe, Plus, Send, FileText, Calendar, Users, Sparkles,
     Settings, LifeBuoy, ChevronDown, LayoutGrid, MoreHorizontal,
     // Etapa 1 enterprise pass — replaces emoji + status glyphs.
     Building, Shield, Check, X, AlertTriangle,
@@ -116,7 +116,7 @@ function ProfileDropdown({ user }) {
 }
 
 export default function AppLayout({ children, title }) {
-    const { auth, flash, locale } = usePage().props;
+    const { auth, flash, locale, assistant } = usePage().props;
     const { t } = useTranslation();
     const user = auth?.user;
     const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
@@ -139,6 +139,9 @@ export default function AppLayout({ children, title }) {
         { key: 'contracts',   label: t('nav.contracts'),    href: '/contracts',         Icon: FileText },
         { key: 'calendar',    label: t('nav.calendar'),     href: '/calendar',          Icon: Calendar },
         { key: 'contacts',    label: t('nav.crm_clients'),  href: '/contacts',          Icon: Users },
+        // /assistant — vizibil doar când AssistantGate ar lăsa userul să treacă
+        // (public → toți; altfel doar super_admin), ca să nu apară un link spre 404.
+        ...(assistant?.nav_visible ? [{ key: 'assistant', label: t('nav.assistant'), href: '/assistant', Icon: Sparkles }] : []),
     ];
 
     const headerNavItems = [

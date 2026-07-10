@@ -92,6 +92,38 @@ Model de business: cumpărători gratuiți; venit din agenți (abonament + boost
 ## Model recomandat pentru Claude Code
 Default Sonnet 5; Opus 4.8 doar la taskuri grele (arhitectură, bug urât, refactor mare).
 
+## Principii de lucru (obligatoriu la fiecare task)
+
+1. DUCE TASKUL CAP-COADĂ. Nu raporta „gata" până nu e: implementat + testat (typecheck +
+   vitest + pest verzi) + criteriile de acceptanță bifate + (dacă atinge producția) pașii de
+   deploy verificați. Fiecare task are criterii de acceptanță explicite; le bifezi pe toate.
+   Dacă rămâne ceva neterminat, spui clar CE și DE CE, nu maschezi.
+
+2. ANTICIPEAZĂ ERORILE ÎNAINTE SĂ APARĂ. Înainte de a scrie cod, întreabă-te „ce poate crăpa?"
+   și tratează proactiv:
+   - diferențe dev↔prod: opcache (PHP → php-fpm reload), config cache (env → config:cache),
+     .env real la current/REALTIX/.env, zero-downtime, appul în subfolder, IP prin Cloudflare;
+   - cazuri limită: null/gol, date scraped murdare, valute multiple (EUR/MDL/USD), imagini moarte,
+     paginare, follow-up fără context;
+   - efecte colaterale pe CRM-ul existent (nu strica fluxul agenților);
+   - build-time vs runtime (ex. VITE_* se coace la build).
+   Adaugă teste pentru cazurile-limită pe care le prevezi.
+
+3. SOLUȚIA CEA MAI BUNĂ PE TERMEN LUNG, nu patch-ul rapid. Reparație la CAUZA-RĂDĂCINĂ, nu la
+   simptom. Dacă alegi o scurtătură, spune explicit de ce și ce datorie tehnică lasă. Preferă
+   consistența (ex. simetria internal/external) și refolosirea (contracte, helpers existenți).
+
+4. AUTO-REVIEW ÎNAINTE DE RAPORT. Rulează testele, citește-ți diff-ul, gândește „ce aș putea
+   sparge?". Nu raporta fără să fi rulat verificările.
+
+5. DISCOVERY → CONFIRMARE → IMPLEMENTARE pentru orice atinge date reale, producție, users/auth
+   sau tabele partajate. Oprește-te și întreabă când e ambiguu — NU ghici (mai ales câmpuri de
+   contact/PII sau nume de coloane).
+
+6. RAPORTEAZĂ CINSTIT: ce ai făcut, ce riscuri/edge-case-uri rămân, ce ai schimbat peste ce s-a
+   cerut (cu motivul), și ce trebuie decis de om. Semnalează proactiv orice ai găsit pe parcurs
+   (bug preexistent, risc de securitate, datorie tehnică).
+
 ---
 <!-- Protocoale + reguli acumulate (self-improvement). Păstrate din versiunea anterioară. -->
 

@@ -39,6 +39,8 @@ interface Palette {
   onPrimary: string;
   userBub: string; asstBub: string; header: string; shadow: string;
   extBg: string; extText: string; danger: string; dangerBg: string; dangerBd: string;
+  /** market-delta badge: sub piață (verde) / peste piață (portocaliu) */
+  goodBg: string; goodText: string; warnBg: string; warnText: string;
 }
 
 const LIGHT: Palette = {
@@ -48,11 +50,13 @@ const LIGHT: Palette = {
   onPrimary: '#ffffff',
   userBub: '#2563eb', asstBub: '#ffffff', header: 'rgba(255,255,255,0.9)', shadow: '0 1px 3px rgba(15,23,42,0.08)',
   extBg: '#eef2ff', extText: '#4338ca', danger: '#dc2626', dangerBg: '#fef2f2', dangerBd: '#fecaca',
+  goodBg: '#ecfdf5', goodText: '#047857', warnBg: '#fffbeb', warnText: '#b45309',
 };
 
 // Dark = monocrom (alb-negru): zero albastru. Accentul „primary" e alb (#fafafa),
 // butoanele = negru pe alb (onPrimary), suprafețele/borderele în scară de gri.
-// Roșul de eroare (danger) rămâne pentru semantică — nu e albastru.
+// Roșul de eroare (danger) rămâne pentru semantică — nu e albastru; la fel
+// good/warn (market-delta) — semnalul de preț rămâne colorat și în dark mode.
 const DARK: Palette = {
   pageBg: '#000000', bg: '#0a0a0a', raised: '#1a1a1a', raised2: '#141414',
   text: '#fafafa', text2: '#c8c8c8', muted: '#9ca3af', border: 'rgba(255,255,255,0.12)', border2: 'rgba(255,255,255,0.24)',
@@ -60,6 +64,7 @@ const DARK: Palette = {
   onPrimary: '#0a0a0a',
   userBub: '#fafafa', asstBub: '#1a1a1a', header: 'rgba(0,0,0,0.85)', shadow: '0 1px 3px rgba(0,0,0,0.6)',
   extBg: 'rgba(255,255,255,0.10)', extText: '#e5e5e5', danger: '#f87171', dangerBg: 'rgba(248,113,113,0.12)', dangerBd: 'rgba(248,113,113,0.30)',
+  goodBg: 'rgba(52,211,153,0.12)', goodText: '#34d399', warnBg: 'rgba(251,191,36,0.12)', warnText: '#fbbf24',
 };
 
 /* ─────────────────────────────── icons ─────────────────────────────── */
@@ -157,6 +162,42 @@ function locationLine(card: ListingCard): string {
   return card.district ? `${card.city} · ${card.district}` : card.city;
 }
 
+/* ─────────────────────── price intelligence (market delta) ─────────────────────── */
+
+type MarketTone = 'good' | 'neutral' | 'warn';
+
+/** ≤-5% sub piață (verde) · ±5% la nivel de piață (neutru) · ≥+5% peste piață (portocaliu). */
+function marketDeltaTone(deltaPct: number): MarketTone {
+  if (deltaPct <= -5) return 'good';
+  if (deltaPct >= 5) return 'warn';
+  return 'neutral';
+}
+
+/** Formulare strict factuală ("≈X% sub/peste media pe m² în zonă") — fără verdict tip „chilipir". */
+function marketDeltaLabel(deltaPct: number, lang: Language): string {
+  const tone = marketDeltaTone(deltaPct);
+  const abs = Math.abs(Math.round(deltaPct));
+  if (lang === 'ru') {
+    if (tone === 'good') return `≈${abs}% ниже средней цены за м² в районе`;
+    if (tone === 'warn') return `≈${abs}% выше средней цены за м² в районе`;
+    return 'на уровне средней цены за м² в районе';
+  }
+  if (tone === 'good') return `≈${abs}% sub media pe m² în zonă`;
+  if (tone === 'warn') return `≈${abs}% peste media pe m² în zonă`;
+  return 'la nivelul mediei pe m² în zonă';
+}
+
+function MarketDeltaBadge({ deltaPct, p, lang }: { deltaPct: number; p: Palette; lang: Language }) {
+  const tone = marketDeltaTone(deltaPct);
+  const bg = tone === 'good' ? p.goodBg : tone === 'warn' ? p.warnBg : p.raised2;
+  const color = tone === 'good' ? p.goodText : tone === 'warn' ? p.warnText : p.text2;
+  return (
+    <div style={{ display: 'inline-flex', alignItems: 'center', fontSize: 11, fontWeight: 700, color, background: bg, border: tone === 'neutral' ? `1px solid ${p.border}` : 'none', padding: '3px 8px', borderRadius: 7, marginTop: 6 }}>
+      {marketDeltaLabel(deltaPct, lang)}
+    </div>
+  );
+}
+
 /* ─────────────────────────────── card views ─────────────────────────────── */
 
 interface CardProps {
@@ -205,6 +246,9 @@ function ListingCardView({ card, p, lang, t, fav, onOpen, onFav, width }: CardPr
           <Icon name="mapPin" size={12} /> {locationLine(card)}
         </div>
         <div style={{ fontSize: 11.5, color: p.muted, marginTop: 3 }}>{metaLine(card, lang)}</div>
+        {card.marketDeltaPct != null ? (
+          <MarketDeltaBadge deltaPct={card.marketDeltaPct} p={p} lang={lang} />
+        ) : null}
       </div>
     </div>
   );
@@ -559,7 +603,12 @@ function ListingDetail({ ctx, card }: { ctx: Ctx; card: ListingCard }) {
 
           <div style={{ padding: '8px 18px 0' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: isMobile ? 10 : 14 }}>
-              <div style={{ fontSize: isMobile ? 23 : 28, fontWeight: 800, color: p.text, letterSpacing: '-.02em' }}>{formatPrice(card, lang)}</div>
+              <div>
+                <div style={{ fontSize: isMobile ? 23 : 28, fontWeight: 800, color: p.text, letterSpacing: '-.02em' }}>{formatPrice(card, lang)}</div>
+                {card.marketDeltaPct != null ? (
+                  <MarketDeltaBadge deltaPct={card.marketDeltaPct} p={p} lang={lang} />
+                ) : null}
+              </div>
               <button onClick={() => toggleFav(card)} style={{ flex: 'none', display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 14px', borderRadius: 11, border: `1px solid ${p.border2}`, background: p.raised, cursor: 'pointer', fontSize: 13, fontWeight: 600, color: fav ? p.primary : p.text }}>
                 <Icon name="heart" size={17} filled={fav} color={fav ? p.primary : p.text} /> {fav ? t('btn.favorited') : t('btn.favorite')}
               </button>

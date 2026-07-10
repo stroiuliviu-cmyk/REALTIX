@@ -42,6 +42,13 @@ final class ListingCard implements JsonSerializable
         public readonly bool $isExternal,
         public readonly bool $unavailable,
         public readonly ?string $postedAt,
+        /**
+         * Diferența % față de medianul preț/m² al pieței (bucket: tip+tranzacție+
+         * oraș+valută, internal+external unificat). Pozitiv = peste piață,
+         * negativ = sub piață. Null când bucket-ul are <5 comparabile, |delta|
+         * depășește pragul de siguranță, sau lipsește preț/suprafață/valută.
+         */
+        public readonly ?int $marketDeltaPct = null,
     ) {
     }
 
@@ -72,6 +79,7 @@ final class ListingCard implements JsonSerializable
             'isExternal' => $this->isExternal,
             'unavailable' => $this->unavailable,
             'postedAt' => $this->postedAt,
+            'marketDeltaPct' => $this->marketDeltaPct,
         ];
     }
 

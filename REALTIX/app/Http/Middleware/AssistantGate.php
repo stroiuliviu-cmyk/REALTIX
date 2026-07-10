@@ -14,8 +14,12 @@ use Symfony\Component\HttpFoundation\Response;
  * expunere publică până e gata Faza 1. Controlată de config('assistant.access'):
  *
  *   - 'disabled' → 404 pentru toți (feature-ul pare inexistent);
- *   - 'preview'  → doar IP-urile din config('assistant.preview_ips'); restul 404;
+ *   - 'preview'  → super_admin autentificat SAU IP din config('assistant.preview_ips');
  *   - 'public'   → toți.
+ *
+ * În 'preview', super_admin e calea PRIMARĂ: site-ul e în spatele Cloudflare,
+ * deci $request->ip() e IP-ul edge-ului (nesigur), iar allowlist-ul de IP rămâne
+ * doar opțiune secundară (utilă local / fără proxy).
  *
  * Răspundem cu 404 (nu 403) intenționat: nu dezvăluim existența rutei celor
  * neautorizați. Orice valoare necunoscută pentru 'access' e tratată ca
@@ -32,7 +36,8 @@ class AssistantGate
         }
 
         if ($access === 'preview'
-            && in_array($request->ip(), config('assistant.preview_ips', []), true)) {
+            && ($request->user()?->hasRole('super_admin')
+                || in_array($request->ip(), config('assistant.preview_ips', []), true))) {
             return $next($request);
         }
 

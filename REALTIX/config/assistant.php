@@ -38,7 +38,7 @@ return [
     'model_intent' => env('ASSISTANT_MODEL_INTENT', 'claude-haiku-4-5'),
     'model_answer' => env('ASSISTANT_MODEL_ANSWER', 'claude-sonnet-5'),
 
-    'max_tokens' => (int) env('ASSISTANT_MAX_TOKENS', 2048),
+    'max_tokens' => (int) env('ASSISTANT_MAX_TOKENS', 4096),
 
     // Cotă gratuită (TZ §4.10): rezultate unice gratuite per owner. Se numără
     // doar OBIECTUL UNIC nou; revizualizarea nu costă. La epuizare → paywall.

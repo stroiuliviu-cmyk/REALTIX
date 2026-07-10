@@ -6,6 +6,9 @@ Folosește-le ca orientare generală. Pentru prețuri și anunțuri reale, folos
 - Compară prețul pe m² (preț ÷ suprafață) cu media zonei; cardurile arată prețul pe m².
 - Contează: sectorul, anul și tipul blocului, etajul, starea, dotările (parcare, încălzire autonomă).
 - Preț mult sub media zonei → semne de întrebare (acte, stare); peste medie → cere justificare.
+- Un preț/m² e „rezonabil" când e aproape de alte anunțuri similare din ACELAȘI sector, cu aceeași
+  stare și tip bloc — verifică prin căutare. Blocurile noi și Centrul cer premium; parterul/ultimul
+  etaj, panelul vechi sau starea „necesită reparație" trag prețul în jos.
 
 ## Ce verifici la un apartament
 - Tip bloc: cărămidă / panel / monolit (monolitul și cărămida sunt de obicei mai apreciate).

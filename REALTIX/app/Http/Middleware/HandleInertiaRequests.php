@@ -63,6 +63,12 @@ class HandleInertiaRequests extends Middleware
                         ->values(),
                 ] : null,
             ],
+            // Vizibilitatea link-ului /assistant în nav-ul CRM: public → toți;
+            // altfel doar super_admin (singurii care trec de AssistantGate în preview),
+            // ca agenții să nu vadă un link ce le-ar da 404.
+            'assistant' => [
+                'nav_visible' => config('assistant.access') === 'public' || (bool) $user?->isSuperAdmin(),
+            ],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error'   => fn () => $request->session()->get('error'),

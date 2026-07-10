@@ -13,6 +13,7 @@ return [
         'contracts'   => 'Договоры',
         'calendar'    => 'Календарь',
         'crm_clients' => 'Клиенты CRM',
+        'assistant'   => 'AI-ассистент',
         'settings'    => 'Настройки',
         'dashboard'   => 'Панель управления',
         'statistics'  => 'Статистика',

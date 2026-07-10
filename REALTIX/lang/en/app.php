@@ -13,6 +13,7 @@ return [
         'contracts'   => 'Contracts',
         'calendar'    => 'Calendar',
         'crm_clients' => 'CRM Clients',
+        'assistant'   => 'AI Assistant',
         'settings'    => 'Settings',
         'dashboard'   => 'Dashboard',
         'statistics'  => 'Statistics',

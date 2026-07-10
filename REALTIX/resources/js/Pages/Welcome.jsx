@@ -557,6 +557,12 @@ function NavBar({ onLogin, onRegister }) {
     }, []);
     const go = (id) => { const el = document.getElementById(id); if (el) window.scrollTo({ top: el.offsetTop - 70, behavior: 'smooth' }); };
     const link = 'text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors px-3 py-2 rounded-lg hover:bg-slate-100/70 cursor-pointer';
+    // Link public către asistent. Vizibil când AssistantGate lasă vizitatorul să
+    // treacă (access=public → toți; altfel doar super_admin) — ca să nu punem pe
+    // homepage un CTA care dă 404 înainte de lansare. Eticheta după locale.
+    const { locale, assistant } = usePage().props;
+    const assistantLabel = locale === 'ru' ? 'Поиск с AI' : 'Caută cu AI';
+    const showAssistant = assistant?.nav_visible;
     return (
         <header className={`rt-header fixed top-0 w-full z-50 transition-shadow ${scrolled ? 'border-b border-slate-200/70 shadow-[0_1px_20px_rgba(15,23,42,.05)]' : 'border-b border-transparent'}`} style={{ background: 'rgba(255,255,255,.85)', backdropFilter: 'blur(16px)' }}>
             <div className="mx-auto flex max-w-7xl items-center justify-between px-6 h-16 gap-4">
@@ -571,6 +577,11 @@ function NavBar({ onLogin, onRegister }) {
                     <span aria-hidden="true" className="hidden lg:block w-px h-6 bg-slate-200" />
                     <LangSwitcher />
                     <ThemeToggle />
+                    {showAssistant ? (
+                        <Link href="/assistant" className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 transition-colors px-4 py-2 text-sm font-semibold">
+                            <Icon name="sparkles" size={15} /> {assistantLabel}
+                        </Link>
+                    ) : null}
                     <button onClick={onLogin} className="hidden sm:inline-flex text-sm font-semibold text-slate-700 hover:text-slate-900 px-3 py-2 rounded-lg hover:bg-slate-100/70 transition-colors">Autentificare</button>
                     <button onClick={onRegister} className="inline-flex items-center gap-1.5 rounded-full bg-blue-600 hover:bg-blue-700 transition-colors px-5 py-2 text-white text-sm font-semibold shadow-sm">Încearcă Gratuit</button>
                 </div>
@@ -585,6 +596,9 @@ function NavBar({ onLogin, onRegister }) {
 export default function Welcome() {
     const onLogin    = () => router.visit('/login');
     const onRegister = () => router.visit('/register');
+    const { locale, assistant } = usePage().props;
+    const assistantLabel = locale === 'ru' ? 'Поиск с AI' : 'Caută cu AI';
+    const showAssistant = assistant?.nav_visible;
 
     return (
         <>
@@ -608,6 +622,11 @@ export default function Welcome() {
                             <div className="rt-hero-4 mt-9 flex justify-center lg:justify-start gap-3.5 flex-wrap">
                                 <button onClick={onRegister} className="inline-flex items-center gap-2 rounded-full px-7 py-3.5 text-base font-semibold text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-colors">Începe gratuit — 14 zile<Icon name="arrowright" size={17} /></button>
                                 <button onClick={onLogin} className="rounded-full bg-white border border-slate-200 px-7 py-3.5 text-base font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-colors">Autentifică-te</button>
+                                {showAssistant ? (
+                                    <Link href="/assistant" className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-7 py-3.5 text-base font-semibold text-blue-700 hover:bg-blue-100 transition-colors">
+                                        <Icon name="sparkles" size={17} /> {assistantLabel}
+                                    </Link>
+                                ) : null}
                             </div>
                             <div className="rt-hero-4 mt-7 flex items-center justify-center lg:justify-start gap-5 text-sm text-slate-500 flex-wrap">
                                 <span className="inline-flex items-center gap-1.5"><Icon name="check" size={15} className="text-emerald-500" sw={2.5} />14 zile gratuite</span>

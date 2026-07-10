@@ -297,9 +297,18 @@ final class PublicListingQuery
 
     private function mapExternal(ScrapedListing $row): ListingCard
     {
-        $images = is_array($row->images)
-            ? array_values(array_filter($row->images, fn ($u) => is_string($u) && $u !== ''))
-            : [];
+        // Rezolvă fiecare imagine la un URL utilizabil, la fel ca mapInternal:
+        // căile locale ale scraper-ului (scraped/{id}/NN.jpg) primesc prefixul
+        // discului public (/storage/…), iar URL-urile CDN externe (https://…) trec
+        // neschimbate. Fără asta, calea relativă e randată brut de frontend → 404.
+        $images = [];
+        if (is_array($row->images)) {
+            foreach ($row->images as $u) {
+                if (is_string($u) && $u !== '' && ($url = $this->mediaUrl($u)) !== '') {
+                    $images[] = $url;
+                }
+            }
+        }
 
         return new ListingCard(
             id: (string) $row->id,

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Domain\Catalog\ListingQuery;
 use App\Infrastructure\Catalog\PublicListingQuery;
+use Illuminate\Support\Facades\Storage;
 use Tests\Support\CatalogSeed;
 
 function listings(ListingQuery $q): array
@@ -119,6 +120,29 @@ it('maps external fields to ListingCard (sourceSite, externalUrl, rentPeriod, pr
         ->and($c->photoCount)->toBe(2)
         ->and($c->photoUrl)->toBe('https://img/1.jpg')
         ->and($c->url)->toBe('/assistant/listing/external/' . $c->id);
+});
+
+it('resolves external scraped image paths to public /storage URLs, http passthrough', function () {
+    $ag = CatalogSeed::agency('a-imgs');
+    CatalogSeed::scraped([
+        'agency_id' => $ag,
+        'title' => 'Cu poze',
+        'images' => json_encode([
+            'scraped/104648474/01.jpg',            // cale locală a scraper-ului
+            'https://i.simpalsmedia.com/x/02.jpg', // URL CDN extern
+        ]),
+        'published_at' => now(),
+    ]);
+
+    $c = listings(new ListingQuery(source: ListingQuery::SOURCE_EXTERNAL))[0];
+
+    // calea locală e rezolvată prin discul public (ca la internal), NU rămâne brută
+    expect($c->photoUrl)->toBe(Storage::disk('public')->url('scraped/104648474/01.jpg'))
+        ->and($c->photoUrl)->not->toBe('scraped/104648474/01.jpg')
+        ->and($c->photoUrl)->toContain('/storage/scraped/104648474/01.jpg')
+        // URL-ul CDN extern trece neschimbat
+        ->and($c->photos[1])->toBe('https://i.simpalsmedia.com/x/02.jpg')
+        ->and($c->photoCount)->toBe(2);
 });
 
 it('caps results at 10 across the union', function () {

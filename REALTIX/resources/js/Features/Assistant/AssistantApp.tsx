@@ -92,6 +92,9 @@ const ICONS: Record<string, string[]> = {
   message: ['M14 9a2 2 0 0 1-2 2H6l-4 4V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2Z', 'M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1'],
   alert: ['m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z', 'M12 9v4', 'M12 17h.01'],
   zap: ['M13 2 3 14h9l-1 8 10-12h-9l1-8z'],
+  trendDown: ['M22 17 13.5 8.5 8.5 13.5 2 7', 'M16 17 22 17 22 11'],
+  trendFlat: ['M5 12h14'],
+  trendUp: ['M22 7 13.5 15.5 8.5 10.5 2 17', 'M16 7 22 7 22 13'],
   shield: ['M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z', 'm9 12 2 2 4-4'],
   lock: ['M19 11H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2z', 'M7 11V7a5 5 0 0 1 10 0v4'],
   user: ['M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10z', 'M20 21a8 8 0 0 0-16 0'],
@@ -163,6 +166,9 @@ function locationLine(card: ListingCard): string {
 }
 
 /* ─────────────────────── price intelligence (market delta) ─────────────────────── */
+// Design: skill /ui-ux-pro-max — pill tinted (nu fill solid) + text colorat + iconiță
+// direcțională (regula „color-not-only": culoarea singură nu poate fi singurul semnal).
+// Consistent cu pill-ul „Extern" deja existent pe card (același tipar tint+text).
 
 type MarketTone = 'good' | 'neutral' | 'warn';
 
@@ -173,7 +179,12 @@ function marketDeltaTone(deltaPct: number): MarketTone {
   return 'neutral';
 }
 
-/** Formulare strict factuală ("≈X% sub/peste media pe m² în zonă") — fără verdict tip „chilipir". */
+/** Iconiță direcțională per stare — culoarea singură nu ajunge ca semnal (accesibilitate). */
+function marketDeltaIcon(tone: MarketTone): string {
+  return tone === 'good' ? 'trendDown' : tone === 'warn' ? 'trendUp' : 'trendFlat';
+}
+
+/** Formulare strict factuală ("≈X% sub/peste media zonei") — fără verdict tip „chilipir". */
 function marketDeltaLabel(deltaPct: number, lang: Language): string {
   const tone = marketDeltaTone(deltaPct);
   const abs = Math.abs(Math.round(deltaPct));
@@ -182,17 +193,32 @@ function marketDeltaLabel(deltaPct: number, lang: Language): string {
     if (tone === 'warn') return `≈${abs}% выше средней цены за м² в районе`;
     return 'на уровне средней цены за м² в районе';
   }
-  if (tone === 'good') return `≈${abs}% sub media pe m² în zonă`;
-  if (tone === 'warn') return `≈${abs}% peste media pe m² în zonă`;
-  return 'la nivelul mediei pe m² în zonă';
+  if (tone === 'good') return `≈${abs}% sub media zonei`;
+  if (tone === 'warn') return `≈${abs}% peste media zonei`;
+  return 'la nivelul zonei';
 }
 
-function MarketDeltaBadge({ deltaPct, p, lang }: { deltaPct: number; p: Palette; lang: Language }) {
+/** Linia explicativă — DOAR pe pagina de detaliu; sugerează ce să verifice, fără verdict. */
+function marketDeltaExplain(deltaPct: number, lang: Language): string {
+  const tone = marketDeltaTone(deltaPct);
+  if (lang === 'ru') {
+    if (tone === 'good') return 'ниже средней цены за м² для этого типа в районе — проверьте состояние, этаж и год постройки.';
+    if (tone === 'warn') return 'выше средней цены за м² для этого типа в районе — проверьте, чем обоснована разница (состояние, этаж, удобства).';
+    return 'на уровне средней цены за м² для этого типа в районе.';
+  }
+  if (tone === 'good') return 'sub media pe m² pentru acest tip în zonă — verifică starea, etajul și anul construcției.';
+  if (tone === 'warn') return 'peste media pe m² pentru acest tip în zonă — verifică ce justifică diferența (stare, etaj, dotări).';
+  return 'la nivelul mediei pe m² pentru acest tip în zonă.';
+}
+
+function MarketDeltaBadge({ deltaPct, p, lang, size = 'sm' }: { deltaPct: number; p: Palette; lang: Language; size?: 'sm' | 'md' }) {
   const tone = marketDeltaTone(deltaPct);
   const bg = tone === 'good' ? p.goodBg : tone === 'warn' ? p.warnBg : p.raised2;
   const color = tone === 'good' ? p.goodText : tone === 'warn' ? p.warnText : p.text2;
+  const fontSize = size === 'md' ? 12.5 : 11;
   return (
-    <div style={{ display: 'inline-flex', alignItems: 'center', fontSize: 11, fontWeight: 700, color, background: bg, border: tone === 'neutral' ? `1px solid ${p.border}` : 'none', padding: '3px 8px', borderRadius: 7, marginTop: 6 }}>
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize, fontWeight: 700, color, background: bg, border: tone === 'neutral' ? `1px solid ${p.border}` : 'none', padding: size === 'md' ? '4px 9px' : '3px 8px', borderRadius: 7, marginTop: 6 }}>
+      <Icon name={marketDeltaIcon(tone)} size={size === 'md' ? 12 : 11} color={color} stroke={2.4} />
       {marketDeltaLabel(deltaPct, lang)}
     </div>
   );
@@ -606,7 +632,12 @@ function ListingDetail({ ctx, card }: { ctx: Ctx; card: ListingCard }) {
               <div>
                 <div style={{ fontSize: isMobile ? 23 : 28, fontWeight: 800, color: p.text, letterSpacing: '-.02em' }}>{formatPrice(card, lang)}</div>
                 {card.marketDeltaPct != null ? (
-                  <MarketDeltaBadge deltaPct={card.marketDeltaPct} p={p} lang={lang} />
+                  <>
+                    <MarketDeltaBadge deltaPct={card.marketDeltaPct} p={p} lang={lang} size="md" />
+                    <p style={{ fontSize: 12.5, color: p.text2, lineHeight: 1.5, margin: '5px 0 0', maxWidth: 340 }}>
+                      {marketDeltaExplain(card.marketDeltaPct, lang)}
+                    </p>
+                  </>
                 ) : null}
               </div>
               <button onClick={() => toggleFav(card)} style={{ flex: 'none', display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 14px', borderRadius: 11, border: `1px solid ${p.border2}`, background: p.raised, cursor: 'pointer', fontSize: 13, fontWeight: 600, color: fav ? p.primary : p.text }}>
